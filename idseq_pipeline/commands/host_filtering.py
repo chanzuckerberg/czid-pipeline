@@ -1,4 +1,7 @@
-#!/usr/bin/env python
+""" The host_filtering command."""
+
+from .base import Base
+
 import os
 import sys
 import multiprocessing
@@ -14,7 +17,6 @@ import gzip
 import logging
 import math
 import threading
-from common import *
 
 # data directories
 INPUT_BUCKET = None
@@ -434,5 +436,9 @@ def main():
     # execute the pipeline stage
     run_stage1(True)
 
-if __name__=="__main__":
-    main()
+# Subcommand class
+class Host_filtering(Base):
+    """Run host filtering"""
+ 
+    def run(self):
+        main()

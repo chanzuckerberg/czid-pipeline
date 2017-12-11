@@ -1,3 +1,5 @@
+docopt
+inspect
 time
 datetime
 threading

@@ -1,4 +1,7 @@
-#!/usr/bin/env python
+"""The indexing command."""
+
+from .base import Base
+
 import os
 import subprocess
 import multiprocessing
@@ -144,5 +147,9 @@ def main():
     output_path_s3 = OUTPUT_PATH_S3.rstrip('/')
     make_indexes(input_fasta_s3, output_path_s3, True)
 
-if __name__=="__main__":
-    main()
+# Subcommand class
+class Indexing(Base):
+    """Make indexes"""
+ 
+    def run(self):
+        main()

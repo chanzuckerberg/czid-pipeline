@@ -1,11 +1,13 @@
 import os
 from setuptools import setup
 
+from idseq_pipeline import __version__
+
 install_requires = [line.rstrip() for line in open(os.path.join(os.path.dirname(__file__), "requirements.txt"))]
 
 setup(
     name="idseq_pipeline",
-    version="0.0.1",
+    version=__version__,
     url='https://github.com/chanzuckerberg/idseq-pipeline',
     license=open("LICENSE").readline().strip(),
     author='idseq-pipeline contributors',
@@ -16,9 +18,5 @@ setup(
     extras_require={},
     packages=['idseq_pipeline'],
     zip_safe=False,
-    entry_points={'console_scripts': ['blacklist=blacklist:main',
-                                      'indexing=indexing:main',
-                                      'host_filtering=host_filtering:main',
-                                      'non_host_alignment=non_host_alignment:main',
-                                      'postprocess=postprocess:main']}
+    entry_points={'console_scripts': ['idseq_pipeline=idseq_pipeline.cli:main']}
 )
