@@ -40,7 +40,7 @@ setup(
     url = 'https://github.com/chanzuckerberg/idseq-pipeline',
     author = 'idseq-pipeline contributors',
     author_email = 'cdebourcy@chanzuckerberg.com',
-    license = 'UNLICENSE',
+    license = open("LICENSE").readline().strip(),
     classifiers = [
         'Intended Audience :: Developers',
         'Topic :: Utilities',

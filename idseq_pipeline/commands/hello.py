@@ -10,5 +10,5 @@ class Hello(Base):
     """Say hello, world!"""
 
     def run(self):
-        print('Hello, world!')
+        print('Hello, world -- I modified this!')
         print('You supplied the following options:', dumps(self.options, indent=2, sort_keys=True))
