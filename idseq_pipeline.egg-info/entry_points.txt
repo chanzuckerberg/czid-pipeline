@@ -1,0 +1,3 @@
+[console_scripts]
+idseq_pipeline = idseq_pipeline.cli:main
+

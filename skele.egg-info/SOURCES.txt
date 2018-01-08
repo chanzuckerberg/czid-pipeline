@@ -1,0 +1,11 @@
+MANIFEST.in
+README.rst
+setup.cfg
+skele/__init__.py
+skele/__main__.py
+skele/cli.py
+skele/commands/__init__.py
+skele/commands/base.py
+skele/commands/hello.py
+tests/test_cli.py
+tests/commands/test_hello.py
