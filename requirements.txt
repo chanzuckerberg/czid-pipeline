@@ -1,5 +1,4 @@
 docopt
 datetime
-logging
 multiprocessing
 argparse
