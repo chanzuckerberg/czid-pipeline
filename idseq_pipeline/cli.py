@@ -31,8 +31,7 @@ def main():
     import idseq_pipeline.commands
     options = docopt(__doc__, version=VERSION)
 
-    # Here we'll try to dynamically match the command the user is trying to run
-    # with a pre-defined command class we've already created.
+    # Match user-entered command
     for (k, v) in options.items(): 
         if hasattr(idseq_pipeline.commands, k) and v:
             module = getattr(idseq_pipeline.commands, k)
