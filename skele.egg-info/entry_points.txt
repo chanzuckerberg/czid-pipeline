@@ -1,3 +1,0 @@
-[console_scripts]
-skele = skele.cli:main
-
