@@ -3,4 +3,13 @@
 *.egg-info
 build
 dist
-*.py[cod]
+
+# Python files
+*.pyc
+__pycache__/
+.mypy_cache/
+.tox/
+*.egg-info/
+/build/
+/dist/
+/.eggs/
