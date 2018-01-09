@@ -29,6 +29,7 @@ def make_index():
     remote_username = "ubuntu"
     # get input fasta
     download_command = "aws s3 cp %s %s/" % (INPUT_FASTA_S3, WORK_DIR)
+    download_command += "; cd %s; gunzip %s" % (WORK_DIR, os.path.basename(INPUT_FASTA_S3))
     execute_command(remote_command(download_command, key_path, remote_username, SERVER_IP))
     input_fasta = os.path.join(WORK_DIR, os.path.basename(INPUT_FASTA_S3))
     # make index
