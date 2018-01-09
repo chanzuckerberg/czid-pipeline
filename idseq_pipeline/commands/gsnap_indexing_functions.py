@@ -27,7 +27,7 @@ def make_index():
     key_path = os.path.join(WORK_DIR, os.path.basename(KEY_S3_PATH))
     remote_username = "ubuntu"
     # get input fasta
-    execute_command("aws s3 cp %s %s/" % (INPUT_FASTA_S3, WORK_DIR))
+    execute_command(remote_command("aws s3 cp %s %s/" % (INPUT_FASTA_S3, WORK_DIR)))
     input_fasta = os.path.join(WORK_DIR, os.path.basename(INPUT_FASTA_S3))
     # make index
     indexing_command = "%s/gmap_build -d %s -k 16 %s" % (GSNAPL_PATH, OUTPUT_NAME, input_fasta)
