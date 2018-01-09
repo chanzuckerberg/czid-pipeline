@@ -7,7 +7,7 @@ KEY_S3_PATH = os.environ.get('KEY_S3_PATH')
 
 # output location and name
 OUTPUT_PATH_S3 = os.environ.get('OUTPUT_PATH_S3')
-OUTPUT_NAME = "nt_k16"
+OUTPUT_NAME = os.environ.get('OUTPUT_NAME')
 
 # FASTA reference to index
 INPUT_FASTA_S3 = os.environ.get('INPUT_FASTA_S3')
