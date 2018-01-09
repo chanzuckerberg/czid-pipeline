@@ -25,6 +25,7 @@ def make_index():
     # get key
     execute_command("aws s3 cp %s %s/" % (KEY_S3_PATH, WORK_DIR))
     key_path = os.path.join(WORK_DIR, os.path.basename(KEY_S3_PATH))
+    execute_command("chmod 400 %s" % key_path)
     remote_username = "ubuntu"
     # get input fasta
     download_command = "aws s3 cp %s %s/" % (INPUT_FASTA_S3, WORK_DIR)
