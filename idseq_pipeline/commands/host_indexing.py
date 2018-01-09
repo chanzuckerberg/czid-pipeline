@@ -1,11 +1,11 @@
-"""The indexing command."""
+"""The host-indexing command."""
 from .base import Base
 
-class Indexing(Base):
+class Host_indexing(Base):
     """Perform indexing"""
 
     def run(self):
-        from .indexing_functions import *
+        from .host_indexing_functions import *
 
         # Unbuffer stdout and redirect stderr into stdout.  This helps observe logged events in realtime.
         sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
