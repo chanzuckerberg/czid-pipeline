@@ -6,7 +6,6 @@ Usage:
   idseq_pipeline non_host_alignment
   idseq_pipeline postprocess
   idseq_pipeline indexing
-  idseq_pipeline blacklist
   idseq_pipeline -h | --help
   idseq_pipeline --version
 
