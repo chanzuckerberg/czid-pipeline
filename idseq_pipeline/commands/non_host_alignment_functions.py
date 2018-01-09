@@ -15,7 +15,7 @@ import logging
 import math
 import threading
 import shutil
-from common import *
+from .common import *
 
 # data directories
 ROOT_DIR = '/mnt'
