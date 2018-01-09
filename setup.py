@@ -53,7 +53,7 @@ setup(
     ],
     keywords = 'cli',
     packages = find_packages(exclude=['docs', 'tests*']),
-    install_requires = ['docopt'],
+    install_requires = [line.rstrip() for line in open(os.path.join(os.path.dirname(__file__), "requirements.txt"))],
     extras_require = {
         'test': ['coverage', 'pytest', 'pytest-cov'],
     },
