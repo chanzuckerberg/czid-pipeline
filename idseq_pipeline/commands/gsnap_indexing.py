@@ -12,4 +12,4 @@ class Gsnap_indexing(Base):
         os.dup2(sys.stdout.fileno(), sys.stderr.fileno())
 
         # execute the pipeline stage
-        make_index(True)
+        make_index()
