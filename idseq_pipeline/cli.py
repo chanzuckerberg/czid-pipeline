@@ -5,6 +5,8 @@ Usage:
   idseq_pipeline host_filtering
   idseq_pipeline non_host_alignment
   idseq_pipeline postprocess
+  idseq_pipeline indexing
+  idseq_pipeline blacklist
   idseq_pipeline -h | --help
   idseq_pipeline --version
 
@@ -21,6 +23,7 @@ Examples:
 
   INPUT_BUCKET="s3://czbiohub-idseq-samples-development/samples/3/77/results" OUTPUT_BUCKET="s3://czbiohub-idseq-samples-development/samples/3/77/postprocess" idseq_pipeline postprocess
 
+  INPUT_FASTA_S3=s3://czbiohub-infectious-disease/references/mosquitos/mosquito_genomes2.fa OUTPUT_PATH_S3=s3://czbiohub-infectious-disease/references/mosquitos idseq_pipeline indexing
 
 Help:
   For help using this tool, please open an issue on the Github repository:
