@@ -50,10 +50,10 @@ LOGS_OUT_BASENAME = 'log'
 STATS_OUT = 'stats.json'
 
 # arguments from environment variables
-FASTQ_BUCKET = os.environ.get('FASTQ_BUCKET', FASTQ_BUCKET)
-INPUT_BUCKET = os.environ.get('INPUT_BUCKET', INPUT_BUCKET)
+FASTQ_BUCKET = os.environ.get('FASTQ_BUCKET')
+INPUT_BUCKET = os.environ.get('INPUT_BUCKET')
 FILE_TYPE = os.environ.get('FILE_TYPE', 'fastq.gz')
-OUTPUT_BUCKET = os.environ.get('OUTPUT_BUCKET', OUTPUT_BUCKET)
+OUTPUT_BUCKET = os.environ.get('OUTPUT_BUCKET')
 AWS_BATCH_JOB_ID = os.environ.get('AWS_BATCH_JOB_ID', 'local')
 ENVIRONMENT = os.environ.get('ENVIRONMENT', 'production')
 SAMPLE_S3_FASTQ_PATH = FASTQ_BUCKET.rstrip('/')
