@@ -4,6 +4,7 @@ idseq_pipeline
 Usage:
   idseq_pipeline host_filtering
   idseq_pipeline non_host_alignment
+  idseq_pipeline postprocess
   idseq_pipeline -h | --help
   idseq_pipeline --version
 
