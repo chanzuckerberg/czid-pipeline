@@ -67,7 +67,6 @@ RESULT_DIR = SAMPLE_DIR + '/results'
 CHUNKS_RESULT_DIR = os.path.join(RESULT_DIR, "chunks")
 DEFAULT_LOGPARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH,
                      "stats_file": os.path.join(RESULT_DIR, STATS_OUT)}
-KEY_S3_PATH = get_key_path(ENVIRONMENT)
 
 # target outputs by task
 TARGET_OUTPUTS = { "run_gsnapl_remotely": [os.path.join(RESULT_DIR, GSNAPL_DEDUP_OUT)],
@@ -587,8 +586,9 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
         return os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename)
 
 def run_gsnapl_remotely(input_files, lazy_run):
-    key_name = os.path.basename(KEY_S3_PATH)
-    execute_command("aws s3 cp %s %s/" % (KEY_S3_PATH, REF_DIR))
+    key_s3_path = get_key_path(ENVIRONMENT)
+    key_name = os.path.basename(key_s3_path)
+    execute_command("aws s3 cp %s %s/" % (key_s3_path, REF_DIR))
     key_path = REF_DIR +'/' + key_name
     execute_command("chmod 400 %s" % key_path)
     remote_username = "ubuntu"
@@ -689,8 +689,9 @@ def run_rapsearch_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_w
     return os.path.join(CHUNKS_RESULT_DIR, outfile_basename)
 
 def run_rapsearch2_remotely(input_fasta, lazy_run):
-    key_name = os.path.basename(KEY_S3_PATH)
-    execute_command("aws s3 cp %s %s/" % (KEY_S3_PATH, REF_DIR))
+    key_s3_path = get_key_path(ENVIRONMENT)
+    key_name = os.path.basename(key_s3_path)
+    execute_command("aws s3 cp %s %s/" % (key_s3_path, REF_DIR))
     key_path = REF_DIR +'/' + key_name
     execute_command("chmod 400 %s" % key_path)
     remote_username = "ec2-user"
