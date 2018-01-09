@@ -25,3 +25,4 @@ To cut a new release and publish it to the Python Package Index:
 
     $ python setup.py sdist bdist_wheel
     $ twine upload dist/*
+
