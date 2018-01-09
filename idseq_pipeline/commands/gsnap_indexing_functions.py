@@ -10,7 +10,7 @@ OUTPUT_PATH_S3 = os.environ.get('OUTPUT_PATH_S3')
 OUTPUT_NAME = "nt_k16"
 
 # FASTA reference to index
-INPUT_FASTA_S3 = "s3://czbiohub-ncbi-store/blast/db/FASTA/nt.gz"
+INPUT_FASTA_S3 = os.environ.get('INPUT_FASTA_S3')
 
 # location of gmapdb, specified during compilation (see https://github.com/juliangehring/GMAP-GSNAP/blob/master/README)
 GMAPDB_PATH = "/home/ubuntu/share"
