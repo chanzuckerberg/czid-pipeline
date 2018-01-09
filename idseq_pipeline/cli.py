@@ -2,7 +2,7 @@
 idseq_pipeline
 
 Usage:
-  idseq_pipeline hello
+  idseq_pipeline host_filtering
   idseq_pipeline -h | --help
   idseq_pipeline --version
 
@@ -11,7 +11,7 @@ Options:
   --version                         Show version.
 
 Examples:
-  idseq_pipeline hello
+  idseq_pipeline host_filtering
 
 Help:
   For help using this tool, please open an issue on the Github repository:
