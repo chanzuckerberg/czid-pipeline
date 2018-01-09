@@ -2,6 +2,7 @@
 
 
 from codecs import open
+import os
 from os.path import abspath, dirname, join
 from subprocess import call
 
