@@ -9,7 +9,7 @@ KEY_S3_PATH = os.environ.get('KEY_S3_PATH')
 OUTPUT_PATH_S3 = os.environ.get('OUTPUT_PATH_S3')
 OUTPUT_NAME = os.environ.get('OUTPUT_NAME')
 
-# FASTA reference to index
+# gzipped FASTA reference to index
 INPUT_FASTA_S3 = os.environ.get('INPUT_FASTA_S3')
 
 # location of gmapdb, specified during compilation (see https://github.com/juliangehring/GMAP-GSNAP/blob/master/README)
@@ -31,7 +31,7 @@ def make_index():
     download_command = "aws s3 cp %s %s/" % (INPUT_FASTA_S3, WORK_DIR)
     download_command += "; cd %s; gunzip %s" % (WORK_DIR, os.path.basename(INPUT_FASTA_S3))
     execute_command(remote_command(download_command, key_path, remote_username, SERVER_IP))
-    input_fasta = os.path.join(WORK_DIR, os.path.basename(INPUT_FASTA_S3))
+    input_fasta = os.path.join(WORK_DIR, os.path.basename(INPUT_FASTA_S3)[:-3])
     # make index
     indexing_command = "%s/gmap_build -d %s -k 16 %s" % (GSNAPL_PATH, OUTPUT_NAME, input_fasta)
     execute_command(remote_command(indexing_command, key_path, remote_username, SERVER_IP))
