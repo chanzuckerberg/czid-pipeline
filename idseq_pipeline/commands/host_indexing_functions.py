@@ -114,10 +114,15 @@ def make_indexes(lazy_run = True):
     scratch_dir = os.path.join(host_dir, 'scratch')
     execute_command("mkdir -p %s %s %s %s" % (host_dir, fasta_dir, result_dir, scratch_dir))
 
-    # Get input reference using ncbitool
-    ncbitool_path = install_ncbitool(local_work_dir)
-    version_number = get_reference_version_number(ncbitool_path, input_fasta_s3)
-    input_fasta_local = download_reference_locally(ncbitool_path, input_fasta_s3, version_number, fasta_dir)
+    # Get input reference
+    if INPUT_FASTA_S3.startswith("s3://"):
+        execute_command("aws s3 cp %s %s/" % (INPUT_FASTA_S3, fasta_dir))
+        input_fasta_local = os.path.join(fasta_dir, input_fasta_name)
+        version_number = -1
+    else:
+        ncbitool_path = install_ncbitool(local_work_dir)
+        version_number = get_reference_version_number(ncbitool_path, INPUT_FASTA_S3)
+        input_fasta_local = download_reference_locally(ncbitool_path, INPUT_FASTA_S3, version_number, fasta_dir)
 
     if lazy_run:
        # Download existing files and see what has been done
