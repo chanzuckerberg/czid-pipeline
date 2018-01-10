@@ -104,7 +104,7 @@ def make_bowtie2_index(host_name, fasta_file, result_dir, scratch_dir, lazy_run)
     # cleanup
     execute_command("cd %s; rm -rf *" % scratch_dir)
 
-def make_indexes(lazy_run = True):
+def make_indexes(lazy_run = False):
     # Set up
     input_fasta_name = os.path.basename(INPUT_FASTA_S3)
     host_name = os.path.splitext(input_fasta_name)[0]
