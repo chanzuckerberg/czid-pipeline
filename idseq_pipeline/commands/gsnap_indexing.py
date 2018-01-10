@@ -7,9 +7,7 @@ class Gsnap_indexing(Base):
     def run(self):
         from .gsnap_indexing_functions import *
 
-        # Unbuffer stdout and redirect stderr into stdout.  This helps observe logged events in realtime.
-        sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
-        os.dup2(sys.stdout.fileno(), sys.stderr.fileno())
+        unbuffer_stdout()
+        upload_commit_sha()
 
-        # execute the pipeline stage
         make_index()

@@ -200,3 +200,14 @@ def run_and_log(logparams, target_outputs, lazy_run, func_name, *args):
 
 def write_to_log(message):
     LOGGER.info(message)
+
+def unbuffer_stdout():
+    # Unbuffer stdout and redirect stderr into stdout. This helps observe logged events in realtime.
+    sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
+    os.dup2(sys.stdout.fileno(), sys.stderr.fileno())
+
+def upload_commit_sha():
+    s3_destination = os.environ.get('OUTPUT_BUCKET').rstrip('/')
+    sha_file = os.environ.get('COMMIT_SHA_FILE')
+    if sha_file is not None:
+        execute_command("aws s3 cp %s %s/;" % (sha_file, s3_destination))
