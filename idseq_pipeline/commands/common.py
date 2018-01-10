@@ -247,7 +247,7 @@ def download_reference_locally(ncbitool_path, input_fasta_ncbi_path, version_num
 
 def download_reference_on_remote(ncbitool_path, input_fasta_ncbi_path, version_number, destination_dir,
                                  key_path, remote_username, server_ip):
-    command = "sudo cd %s; sudo %s file --download --version-num %s %s" % (destination_dir, ncbitool_path, version_number, input_fasta_ncbi_path)
+    command = "cd %s; sudo %s file --download --version-num %s %s" % (destination_dir, ncbitool_path, version_number, input_fasta_ncbi_path)
     execute_command(remote_command(command, key_path, remote_username, server_ip))
     return os.path.join(destination_dir, os.path.basename(input_fasta_ncbi_path))
 
