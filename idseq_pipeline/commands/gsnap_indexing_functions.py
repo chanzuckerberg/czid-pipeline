@@ -56,8 +56,9 @@ def download_reference_on_remote(version_number):
 
 def make_index():
     # Set up
-    execute_command("mkdir %s" % LOCAL_WORK_DIR)
+    execute_command("mkdir -p %s" % LOCAL_WORK_DIR)
     get_key()
+    execute_command(remote_command("mkdir -p %s" % WORK_DIR, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
     install_ncbitool()
 
     # Get latest version of reference and unzip
