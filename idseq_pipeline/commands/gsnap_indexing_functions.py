@@ -36,7 +36,7 @@ def get_key():
 def install_ncbitool():
     # install locally
     execute_command("aws s3 cp %s %s/" % (NCBITOOL_S3_PATH, LOCAL_WORK_DIR))
-    execute_command("chmod u+x %s/ncbitool" % LOCAl_WORK_DIR)
+    execute_command("chmod u+x %s/ncbitool" % LOCAL_WORK_DIR)
     # install on remote
     command = "aws s3 cp %s %s/; " % (NCBITOOL_S3_PATH, WORK_DIR)
     command += "chmod u+x %s/ncbitool" % WORK_DIR
