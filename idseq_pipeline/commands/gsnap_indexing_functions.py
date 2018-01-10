@@ -50,7 +50,7 @@ def get_reference_version_number():
     return max(version_numbers) # use latest available version
 
 def download_reference_on_remote(version_number):
-    command = "%s/ncbitool file --download --version-num %s %s %s/" % (WORK_DIR, version_number, INPUT_FASTA_S3, WORK_DIR)
+    command = "cd %s; ./ncbitool file --download --version-num %s %s" % (WORK_DIR, version_number, INPUT_FASTA_S3)
     execute_command(remote_command(command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
     return os.path.join(WORK_DIR, os.path.basename(INPUT_FASTA_S3))
 
@@ -65,7 +65,7 @@ def make_index():
     version_number = get_reference_version_number()
     input_fasta_zipped = download_reference_on_remote(version_number)
     input_fasta_unzipped = input_fasta_zipped[:-3]
-    command = "rm -f %s; gunzip %s" % (input_fasta_unzipped, input_fasta_zipped)
+    command = "gunzip -f %s" % input_fasta_zipped
     execute_command(remote_command(command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
     # make index
