@@ -47,7 +47,7 @@ def make_index():
     input_fasta_zipped = download_reference_on_remote(remote_ncbitool, INPUT_FASTA_S3, version_number, WORK_DIR,
                                                       KEY_PATH, REMOTE_USERNAME, SERVER_IP)
     input_fasta_unzipped = input_fasta_zipped[:-3]
-    command = "gunzip -f %s" % input_fasta_zipped
+    command = "sudo gunzip -f %s" % input_fasta_zipped
     execute_command(remote_command(command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
     # make index
