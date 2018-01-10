@@ -64,9 +64,9 @@ def make_index():
     # Get latest version of reference and unzip
     version_number = get_reference_version_number()
     input_fasta_zipped = download_reference_on_remote(version_number)
-    command = "gunzip -f %s" % (input_fasta_zipped)
-    execute_command(remote_command(command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
     input_fasta_unzipped = input_fasta_zipped[:-3]
+    command = "rm -f %s; gunzip %s" % (input_fasta_unzipped, input_fasta_zipped)
+    execute_command(remote_command(command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
     # make index
     indexing_command = "sudo %s/gmap_build -d %s -k 16 %s" % (GSNAPL_PATH, OUTPUT_NAME, input_fasta_unzipped)
