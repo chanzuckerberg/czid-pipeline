@@ -227,8 +227,8 @@ def install_ncbitool(local_work_dir, remote_work_dir=None, key_path=None, remote
     local_result = install_ncbitool_locally(local_work_dir)
     if remote_work_dir is None:
         return local_result
-    command = "aws s3 cp %s %s/; " % (NCBITOOL_S3_PATH, remote_work_dir)
-    command += "chmod u+x %s/ncbitool" % remote_work_dir
+    command = "sudo aws s3 cp %s %s/; " % (NCBITOOL_S3_PATH, remote_work_dir)
+    command += "sudo chmod u+x %s/ncbitool" % remote_work_dir
     execute_command(remote_command(command, key_path, remote_username, server_ip))
     remote_result = "%s/ncbitool" % remote_work_dir
     return local_result, remote_result
@@ -247,7 +247,7 @@ def download_reference_locally(ncbitool_path, input_fasta_ncbi_path, version_num
 
 def download_reference_on_remote(ncbitool_path, input_fasta_ncbi_path, version_number, destination_dir,
                                  key_path, remote_username, server_ip):
-    command = "cd %s; %s file --download --version-num %s %s" % (destination_dir, ncbitool_path, version_number, input_fasta_ncbi_path)
+    command = "sudo cd %s; sudo %s file --download --version-num %s %s" % (destination_dir, ncbitool_path, version_number, input_fasta_ncbi_path)
     execute_command(remote_command(command, key_path, remote_username, server_ip))
     return os.path.join(destination_dir, os.path.basename(input_fasta_ncbi_path))
 
