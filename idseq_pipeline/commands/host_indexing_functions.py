@@ -124,7 +124,7 @@ def make_indexes(lazy_run = True):
         version_number = get_reference_version_number(ncbitool_path, INPUT_FASTA_S3)
         input_fasta_local = download_reference_locally(ncbitool_path, INPUT_FASTA_S3, version_number, fasta_dir)
 
-    if os.path.splitext(input_fasta_local)[1] == ".gz"
+    if os.path.splitext(input_fasta_local)[1] == ".gz":
         execute_command("gunzip -f %s" % input_fasta_local)
         input_fasta_local = os.path.splitext(input_fasta_local)[0]
 
