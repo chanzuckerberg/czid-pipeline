@@ -119,6 +119,10 @@ def make_indexes(lazy_run = False):
         execute_command("aws s3 cp %s %s/" % (INPUT_FASTA_S3, fasta_dir))
         input_fasta_local = os.path.join(fasta_dir, input_fasta_name)
         version_number = -1
+    elif INPUT_FASTA_S3.startswith("ftp://"):
+        execute_command("cd %s; wget %s" % (fasta_dir, INPUT_FASTA_S3))
+        input_fasta_local = os.path.join(fasta_dir, input_fasta_name)
+        version_number = -1
     else:
         ncbitool_path = install_ncbitool(scratch_dir)
         version_number = get_reference_version_number(ncbitool_path, INPUT_FASTA_S3)
