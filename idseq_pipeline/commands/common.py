@@ -213,5 +213,5 @@ def upload_commit_sha():
         return
     sha_file_parts = os.path.splitext(os.path.basename(sha_file))
     aws_batch_job_id = os.environ.get('AWS_BATCH_JOB_ID', 'local')
-    sha_file_new_name = "%s_job-%s.%s" % (sha_file_parts[0], aws_batch_job_id, sha_file_parts[1])
+    sha_file_new_name = "%s_job-%s%s" % (sha_file_parts[0], aws_batch_job_id, sha_file_parts[1])
     execute_command("aws s3 cp %s %s/%s;" % (sha_file, s3_destination, sha_file_new_name))
