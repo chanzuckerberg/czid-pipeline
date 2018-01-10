@@ -120,7 +120,7 @@ def make_indexes(lazy_run = True):
         input_fasta_local = os.path.join(fasta_dir, input_fasta_name)
         version_number = -1
     else:
-        ncbitool_path = install_ncbitool(local_work_dir)
+        ncbitool_path = install_ncbitool(scratch_dir)
         version_number = get_reference_version_number(ncbitool_path, INPUT_FASTA_S3)
         input_fasta_local = download_reference_locally(ncbitool_path, INPUT_FASTA_S3, version_number, fasta_dir)
 
