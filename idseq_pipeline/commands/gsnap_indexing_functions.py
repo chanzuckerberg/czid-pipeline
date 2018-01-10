@@ -22,7 +22,7 @@ GSNAPL_PATH = "/home/ubuntu/bin"
 NCBITOOL_S3_PATH = "s3://czbiohub-infectious-disease/ncbitool"
 
 # working directories
-WORK_DIR = "/home/ubuntu/gmap_build_workdir" # on GSNAP machine
+WORK_DIR = "/home/ubuntu/share/gmap_build_workdir" # on GSNAP machine
 REMOTE_USERNAME = "ubuntu"
 KEY_PATH = None
 LOCAL_WORK_DIR = "idseq_pipeline_temp" # locally
@@ -33,39 +33,19 @@ def get_key():
     KEY_PATH = os.path.join(LOCAL_WORK_DIR, os.path.basename(KEY_S3_PATH))
     execute_command("chmod 400 %s" % KEY_PATH)
 
-def install_ncbitool():
-    # install locally
-    execute_command("aws s3 cp %s %s/" % (NCBITOOL_S3_PATH, LOCAL_WORK_DIR))
-    execute_command("chmod u+x %s/ncbitool" % LOCAL_WORK_DIR)
-    # install on remote
-    command = "aws s3 cp %s %s/; " % (NCBITOOL_S3_PATH, WORK_DIR)
-    command += "chmod u+x %s/ncbitool" % WORK_DIR
-    execute_command(remote_command(command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
-
-def get_reference_version_number():
-    command = "%s/ncbitool file history %s" % (LOCAL_WORK_DIR, INPUT_FASTA_S3)
-    output = execute_command_with_output(command).split("File History: ")[1]
-    version_history = json.loads(output)
-    version_numbers = [entry["Version"] for entry in version_history]
-    return max(version_numbers) # use latest available version
-
-def download_reference_on_remote(version_number):
-    command = "cd %s; ./ncbitool file --download --version-num %s %s" % (WORK_DIR, version_number, INPUT_FASTA_S3)
-    execute_command(remote_command(command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
-    return os.path.join(WORK_DIR, os.path.basename(INPUT_FASTA_S3))
-
 def make_index():
     # Set up
     execute_command("mkdir -p %s" % LOCAL_WORK_DIR)
     get_key()
     execute_command(remote_command("mkdir -p %s" % WORK_DIR, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
-    install_ncbitool()
+    local_ncbitool, remote_ncbitool = install_ncbitool(LOCAL_WORK_DIR, WORK_DIR, KEY_PATH, REMOTE_USERNAME, SERVER_IP)
 
     # get latest version number of desired reference file
-    version_number = get_reference_version_number()
+    version_number = get_reference_version_number(local_ncbitool, INPUT_FASTA_S3)
 
     # download reference and unzip
-    input_fasta_zipped = download_reference_on_remote(version_number)
+    input_fasta_zipped = download_reference_on_remote(remote_ncbitool, INPUT_FASTA_S3, version_number, WORK_DIR,
+                                                      KEY_PATH, REMOTE_USERNAME, SERVER_IP)
     input_fasta_unzipped = input_fasta_zipped[:-3]
     command = "gunzip -f %s" % input_fasta_zipped
     execute_command(remote_command(command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
@@ -79,6 +59,4 @@ def make_index():
     execute_command(remote_command(upload_command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
     # upload version tracker file
-    version_tracker_file = "%s.version.txt" % OUTPUT_NAME
-    execute_command("echo %s > %s" % (version_number, version_tracker_file))
-    execute_command("aws s3 cp %s %s/" % (version_tracker_file, OUTPUT_PATH_S3))
+    upload_version_tracker(OUTPUT_NAME, version_number, OUTPUT_PATH_S3)

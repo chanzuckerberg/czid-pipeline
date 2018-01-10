@@ -105,6 +105,7 @@ def make_bowtie2_index(host_name, fasta_file, result_dir, scratch_dir, lazy_run)
     execute_command("cd %s; rm -rf *" % scratch_dir)
 
 def make_indexes(lazy_run = True):
+    # Set up
     input_fasta_name = os.path.basename(INPUT_FASTA_S3)
     host_name = os.path.splitext(input_fasta_name)[0]
     host_dir = os.path.join(DEST_DIR, host_name)
@@ -113,9 +114,10 @@ def make_indexes(lazy_run = True):
     scratch_dir = os.path.join(host_dir, 'scratch')
     execute_command("mkdir -p %s %s %s %s" % (host_dir, fasta_dir, result_dir, scratch_dir))
 
-    # Download input
-    execute_command("aws s3 cp %s %s/" % (INPUT_FASTA_S3, fasta_dir))
-    fasta_file = os.path.join(fasta_dir, input_fasta_name)
+    # Get input reference using ncbitool
+    ncbitool_path = install_ncbitool(local_work_dir)
+    version_number = get_reference_version_number(ncbitool_path, input_fasta_s3)
+    input_fasta_local = download_reference_locally(ncbitool_path, input_fasta_s3, version_number, fasta_dir)
 
     if lazy_run:
        # Download existing files and see what has been done
@@ -123,7 +125,7 @@ def make_indexes(lazy_run = True):
         execute_command(command)
 
     # make STAR index
-    make_star_index(fasta_file, result_dir, scratch_dir, lazy_run)
+    make_star_index(input_fasta_local, result_dir, scratch_dir, lazy_run)
 
     # make bowtie2 index
-    make_bowtie2_index(host_name, fasta_file, result_dir, scratch_dir, lazy_run)
+    make_bowtie2_index(host_name, input_fasta_local, result_dir, scratch_dir, lazy_run)
