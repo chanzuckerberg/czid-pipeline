@@ -207,7 +207,11 @@ def unbuffer_stdout():
     os.dup2(sys.stdout.fileno(), sys.stderr.fileno())
 
 def upload_commit_sha():
-    s3_destination = os.environ.get('OUTPUT_BUCKET').rstrip('/')
     sha_file = os.environ.get('COMMIT_SHA_FILE')
-    if sha_file is not None:
-        execute_command("aws s3 cp %s %s/;" % (sha_file, s3_destination))
+    s3_destination = os.environ.get('OUTPUT_BUCKET')
+    if sha_file is None or s3_destination is None:
+        return
+    sha_file_parts = os.path.splitext(os.path.basename(sha_file))
+    aws_batch_job_id = os.environ.get('AWS_BATCH_JOB_ID', 'local')
+    sha_file_new_name = "%s_job-%s%s" % (sha_file_parts[0], aws_batch_job_id, sha_file_parts[1])
+    execute_command("aws s3 cp %s %s/%s;" % (sha_file, s3_destination.rstrip('/'), sha_file_new_name))
