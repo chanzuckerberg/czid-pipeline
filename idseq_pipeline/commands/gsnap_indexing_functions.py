@@ -37,7 +37,7 @@ def make_index():
     # Set up
     execute_command("mkdir -p %s" % LOCAL_WORK_DIR)
     get_key()
-    execute_command(remote_command("mkdir -p %s" % WORK_DIR, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
+    execute_command(remote_command("sudo mkdir -p %s" % WORK_DIR, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
     local_ncbitool, remote_ncbitool = install_ncbitool(LOCAL_WORK_DIR, WORK_DIR, KEY_PATH, REMOTE_USERNAME, SERVER_IP)
 
     # get latest version number of desired reference file
