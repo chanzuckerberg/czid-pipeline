@@ -29,11 +29,12 @@ def make_index():
     remote_username = "ubuntu"
     # get input fasta
     download_command = "aws s3 cp %s %s/" % (INPUT_FASTA_S3, WORK_DIR)
-    download_command += "; cd %s; gunzip %s" % (WORK_DIR, os.path.basename(INPUT_FASTA_S3))
+    input_fasta_zipped = os.path.join(WORK_DIR, os.path.basename(INPUT_FASTA_S3))
+    input_fasta_unzipped = os.path.join(WORK_DIR, os.path.basename(INPUT_FASTA_S3)[:-3])
+    download_command += "; rm %s; gunzip %s" % (input_fasta_unzipped, input_fasta_zipped)
     execute_command(remote_command(download_command, key_path, remote_username, SERVER_IP))
-    input_fasta = os.path.join(WORK_DIR, os.path.basename(INPUT_FASTA_S3)[:-3])
     # make index
-    indexing_command = "sudo %s/gmap_build -d %s -k 16 %s" % (GSNAPL_PATH, OUTPUT_NAME, input_fasta)
+    indexing_command = "sudo %s/gmap_build -d %s -k 16 %s" % (GSNAPL_PATH, OUTPUT_NAME, input_fasta_unzipped)
     execute_command(remote_command(indexing_command, key_path, remote_username, SERVER_IP))
     # upload index
     upload_command = "aws s3 cp %s/%s %s/%s/ --recursive" % (GMAPDB_PATH, OUTPUT_NAME, OUTPUT_PATH_S3, OUTPUT_NAME)
