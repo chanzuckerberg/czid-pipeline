@@ -61,8 +61,10 @@ def make_index():
     execute_command(remote_command("mkdir -p %s" % WORK_DIR, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
     install_ncbitool()
 
-    # Get latest version of reference and unzip
+    # get latest version number of desired reference file
     version_number = get_reference_version_number()
+
+    # download reference and unzip
     input_fasta_zipped = download_reference_on_remote(version_number)
     input_fasta_unzipped = input_fasta_zipped[:-3]
     command = "gunzip -f %s" % input_fasta_zipped
@@ -75,3 +77,8 @@ def make_index():
     # upload index
     upload_command = "aws s3 cp %s/%s %s/%s/ --recursive" % (GMAPDB_PATH, OUTPUT_NAME, OUTPUT_PATH_S3, OUTPUT_NAME)
     execute_command(remote_command(upload_command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
+
+    # upload version tracker file
+    version_tracker_file = "%s.version.txt" % OUTPUT_NAME
+    execute_command("echo %s > %s" % (version_number, version_tracker_file))
+    execute_command("aws s3 cp %s %s/" % (version_tracker_file, OUTPUT_PATH_S3))
