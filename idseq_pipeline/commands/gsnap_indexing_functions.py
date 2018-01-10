@@ -33,7 +33,7 @@ def make_index():
     execute_command(remote_command(download_command, key_path, remote_username, SERVER_IP))
     input_fasta = os.path.join(WORK_DIR, os.path.basename(INPUT_FASTA_S3)[:-3])
     # make index
-    indexing_command = "%s/gmap_build -d %s -k 16 %s" % (GSNAPL_PATH, OUTPUT_NAME, input_fasta)
+    indexing_command = "sudo %s/gmap_build -d %s -k 16 %s" % (GSNAPL_PATH, OUTPUT_NAME, input_fasta)
     execute_command(remote_command(indexing_command, key_path, remote_username, SERVER_IP))
     # upload index
     upload_command = "aws s3 cp %s/%s %s/%s/ --recursive" % (GMAPDB_PATH, OUTPUT_NAME, OUTPUT_PATH_S3, OUTPUT_NAME)
