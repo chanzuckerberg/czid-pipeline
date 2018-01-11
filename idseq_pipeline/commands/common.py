@@ -224,13 +224,12 @@ def install_ncbitool_locally(local_work_dir):
     execute_command("chmod u+x %s/ncbitool" % local_work_dir)
     return "%s/ncbitool" % local_work_dir
 
-def install_ncbitool(local_work_dir, remote_work_dir=None, key_path=None, remote_username=None, server_ip=None, sudo=False):
+def install_ncbitool(local_work_dir, remote_work_dir=None, key_path=None, remote_username=None, server_ip=None):
     local_result = install_ncbitool_locally(local_work_dir)
     if remote_work_dir is None:
         return local_result
-    sudo_prefix = "sudo " if sudo else ""
-    command = sudo_prefix + "aws s3 cp %s %s/; " % (NCBITOOL_S3_PATH, remote_work_dir)
-    command += sudo_prefix + "chmod u+x %s/ncbitool" % (remote_work_dir)
+    command = "sudo aws s3 cp %s %s/; " % (NCBITOOL_S3_PATH, remote_work_dir)
+    command += "sudo chmod u+x %s/ncbitool" % remote_work_dir
     execute_command(remote_command(command, key_path, remote_username, server_ip))
     remote_result = "%s/ncbitool" % remote_work_dir
     return local_result, remote_result
