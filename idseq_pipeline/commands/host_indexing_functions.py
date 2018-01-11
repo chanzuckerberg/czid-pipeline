@@ -4,6 +4,7 @@ import multiprocessing
 from .common import *
 
 MAX_STAR_PART_SIZE = 3252010122
+VERSION_NONE = -1
 
 # data directories
 ROOT_DIR = '/mnt'
@@ -114,15 +115,16 @@ def make_indexes(lazy_run = False):
     scratch_dir = os.path.join(host_dir, 'scratch')
     execute_command("mkdir -p %s %s %s %s" % (host_dir, fasta_dir, result_dir, scratch_dir))
 
-    # Get input reference
+    # Get input reference and version number.
+    # If download does not use ncbitool (e.g. direct s3 link), indicate that there is no versioning.
     if INPUT_FASTA_S3.startswith("s3://"):
         execute_command("aws s3 cp %s %s/" % (INPUT_FASTA_S3, fasta_dir))
         input_fasta_local = os.path.join(fasta_dir, input_fasta_name)
-        version_number = -1
+        version_number = VERSION_NONE
     elif INPUT_FASTA_S3.startswith("ftp://"):
         execute_command("cd %s; wget %s" % (fasta_dir, INPUT_FASTA_S3))
         input_fasta_local = os.path.join(fasta_dir, input_fasta_name)
-        version_number = -1
+        version_number = VERSION_NONE
     else:
         ncbitool_path = install_ncbitool(scratch_dir)
         version_number = get_reference_version_number(ncbitool_path, INPUT_FASTA_S3)
