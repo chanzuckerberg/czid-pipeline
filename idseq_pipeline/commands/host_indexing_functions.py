@@ -146,4 +146,5 @@ def make_indexes(lazy_run = False):
     make_bowtie2_index(host_name, input_fasta_local, result_dir, scratch_dir, lazy_run)
 
     # upload version tracker file
-    upload_version_tracker('', version_number, OUTPUT_PATH_S3)
+    if not lazy_run:
+        upload_version_tracker('', version_number, OUTPUT_PATH_S3)
