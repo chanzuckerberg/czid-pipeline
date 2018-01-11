@@ -1,7 +1,7 @@
 import os
 from .common import *
 
-# address and key of GSNAP machine to use
+# address and key of RAPSearch machine to use
 SERVER_IP = os.environ.get('SERVER_IP')
 KEY_S3_PATH = os.environ.get('KEY_S3_PATH')
 
@@ -12,18 +12,15 @@ OUTPUT_NAME = os.environ.get('OUTPUT_NAME')
 # path to gzipped FASTA reference to index, relative to ftp://ftp.ncbi.nlm.nih.gov
 INPUT_FASTA_S3 = os.environ.get('INPUT_FASTA_S3')
 
-# location of gmapdb, specified during compilation (see https://github.com/juliangehring/GMAP-GSNAP/blob/master/README)
-GMAPDB_PATH = "/home/ubuntu/share"
-
-# location of gmap-gsnap executables
-GSNAPL_PATH = "/home/ubuntu/bin"
+# location of index builder executable
+PRE_RAPSEARCH_PATH = "/usr/local/bin/prerapsearch"
 
 # S3 location of ncbitool executable
 NCBITOOL_S3_PATH = "s3://czbiohub-infectious-disease/ncbitool"
 
 # working directories
-WORK_DIR = "/home/ubuntu/share/gmap_build_workdir" # on GSNAP machine
-REMOTE_USERNAME = "ubuntu"
+WORK_DIR = "/home/ec2-user/data/pre_rapsearch_workdir" # on RAPSearch machine
+REMOTE_USERNAME = "ec2-user"
 KEY_PATH = None
 LOCAL_WORK_DIR = "idseq_pipeline_temp" # locally
 
@@ -38,7 +35,7 @@ def make_index():
     execute_command("mkdir -p %s" % LOCAL_WORK_DIR)
     get_key()
     execute_command(remote_command("sudo mkdir -p %s" % WORK_DIR, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
-    local_ncbitool, remote_ncbitool = install_ncbitool(LOCAL_WORK_DIR, WORK_DIR, KEY_PATH, REMOTE_USERNAME, SERVER_IP, True)
+    local_ncbitool, remote_ncbitool = install_ncbitool(LOCAL_WORK_DIR, WORK_DIR, KEY_PATH, REMOTE_USERNAME, SERVER_IP)
 
     # get latest version number of desired reference file
     version_number = get_reference_version_number(local_ncbitool, INPUT_FASTA_S3)
@@ -51,11 +48,13 @@ def make_index():
     execute_command(remote_command(command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
     # make index
-    indexing_command = "sudo %s/gmap_build -d %s -k 16 %s" % (GSNAPL_PATH, OUTPUT_NAME, input_fasta_unzipped)
+    remote_output_dir = os.path.join(WORK_DIR, OUTPUT_NAME)
+    execute_command(remote_command("sudo mkdir -p %s" % remote_output_dir, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
+    indexing_command = "cd %s; sudo %s -d %s -n %s" % (remote_output_dir, PRE_RAPSEARCH_PATH, input_fasta_unzipped, OUTPUT_NAME)
     execute_command(remote_command(indexing_command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
     # upload index
-    upload_command = "aws s3 cp %s/%s %s/%s/ --recursive" % (GMAPDB_PATH, OUTPUT_NAME, OUTPUT_PATH_S3, OUTPUT_NAME)
+    upload_command = "aws s3 cp %s %s/%s/ --recursive" % (remote_output_dir, OUTPUT_PATH_S3, OUTPUT_NAME)
     execute_command(remote_command(upload_command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
     # upload version tracker file

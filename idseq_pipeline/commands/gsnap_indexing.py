@@ -8,6 +8,4 @@ class Gsnap_indexing(Base):
         from .gsnap_indexing_functions import *
 
         unbuffer_stdout()
-        upload_commit_sha()
-
         make_index()

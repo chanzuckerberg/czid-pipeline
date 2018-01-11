@@ -7,6 +7,7 @@ import logging
 import json
 import gzip
 import os
+from .. import __version__
 
 NCBITOOL_S3_PATH = "s3://czbiohub-infectious-disease/ncbitool" # S3 location of ncbitool executable
 
@@ -223,12 +224,13 @@ def install_ncbitool_locally(local_work_dir):
     execute_command("chmod u+x %s/ncbitool" % local_work_dir)
     return "%s/ncbitool" % local_work_dir
 
-def install_ncbitool(local_work_dir, remote_work_dir=None, key_path=None, remote_username=None, server_ip=None):
+def install_ncbitool(local_work_dir, remote_work_dir=None, key_path=None, remote_username=None, server_ip=None, sudo=False):
     local_result = install_ncbitool_locally(local_work_dir)
     if remote_work_dir is None:
         return local_result
-    command = "sudo aws s3 cp %s %s/; " % (NCBITOOL_S3_PATH, remote_work_dir)
-    command += "sudo chmod u+x %s/ncbitool" % remote_work_dir
+    sudo_prefix = "sudo " if sudo else ""
+    command = sudo_prefix + "aws s3 cp %s %s/; " % (NCBITOOL_S3_PATH, remote_work_dir)
+    command += sudo_prefix + "chmod u+x %s/ncbitool" % (remote_work_dir)
     execute_command(remote_command(command, key_path, remote_username, server_ip))
     remote_result = "%s/ncbitool" % remote_work_dir
     return local_result, remote_result
@@ -251,7 +253,8 @@ def download_reference_on_remote(ncbitool_path, input_fasta_ncbi_path, version_n
     execute_command(remote_command(command, key_path, remote_username, server_ip))
     return os.path.join(destination_dir, os.path.basename(input_fasta_ncbi_path))
 
-def upload_version_tracker(output_name, version_number, output_path_s3):
+def upload_version_tracker(output_name, reference_version_number, output_path_s3):
     version_tracker_file = "%s.version.txt" % output_name
-    execute_command("echo %s > %s" % (version_number, version_tracker_file))
+    execute_command("echo 'reference: %d' > %s" % (reference_version_number, version_tracker_file))
+    execute_command("echo 'indexing: %s' >> %s" % (__version__, version_tracker_file))
     execute_command("aws s3 cp %s %s/" % (version_tracker_file, output_path_s3))
