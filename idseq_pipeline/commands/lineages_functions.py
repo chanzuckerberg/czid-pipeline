@@ -9,7 +9,7 @@ INPUT = "/pub/taxonomy/taxdump.tar.gz"
 
 def make_lineages():
     # Install ncbitax2lin
-    execute_command("git clone https://github.com/chanzuckerberg/ncbitax2lin.git")
+    execute_command("rm -rf ncbitax2lin; git clone https://github.com/chanzuckerberg/ncbitax2lin.git")
     work_dir = os.path.join(os.getcwd(), "ncbitax2lin")
 
     # Get input reference and version number
