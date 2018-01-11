@@ -8,6 +8,8 @@ import json
 import gzip
 import os
 
+NCBITOOL_S3_PATH = "s3://czbiohub-infectious-disease/ncbitool" # S3 location of ncbitool executable
+
 STATS = []
 LOGGER = None
 
@@ -215,3 +217,41 @@ def upload_commit_sha():
     aws_batch_job_id = os.environ.get('AWS_BATCH_JOB_ID', 'local')
     sha_file_new_name = "%s_job-%s%s" % (sha_file_parts[0], aws_batch_job_id, sha_file_parts[1])
     execute_command("aws s3 cp %s %s/%s;" % (sha_file, s3_destination.rstrip('/'), sha_file_new_name))
+
+def install_ncbitool_locally(local_work_dir):
+    execute_command("aws s3 cp %s %s/" % (NCBITOOL_S3_PATH, local_work_dir))
+    execute_command("chmod u+x %s/ncbitool" % local_work_dir)
+    return "%s/ncbitool" % local_work_dir
+
+def install_ncbitool(local_work_dir, remote_work_dir=None, key_path=None, remote_username=None, server_ip=None):
+    local_result = install_ncbitool_locally(local_work_dir)
+    if remote_work_dir is None:
+        return local_result
+    command = "sudo aws s3 cp %s %s/; " % (NCBITOOL_S3_PATH, remote_work_dir)
+    command += "sudo chmod u+x %s/ncbitool" % remote_work_dir
+    execute_command(remote_command(command, key_path, remote_username, server_ip))
+    remote_result = "%s/ncbitool" % remote_work_dir
+    return local_result, remote_result
+
+def get_reference_version_number(ncbitool_path, input_fasta_ncbi_path):
+    command = "%s file history %s" % (ncbitool_path, input_fasta_ncbi_path)
+    output = execute_command_with_output(command).split("File History: ")[1]
+    version_history = json.loads(output)
+    version_numbers = [entry["Version"] for entry in version_history]
+    return max(version_numbers) # use latest available version
+
+def download_reference_locally(ncbitool_path, input_fasta_ncbi_path, version_number, destination_dir):
+    command = "cd %s; %s file --download --version-num %s %s" % (destination_dir, ncbitool_path, version_number, input_fasta_ncbi_path)
+    execute_command(command)
+    return os.path.join(destination_dir, os.path.basename(input_fasta_ncbi_path))
+
+def download_reference_on_remote(ncbitool_path, input_fasta_ncbi_path, version_number, destination_dir,
+                                 key_path, remote_username, server_ip):
+    command = "cd %s; sudo %s file --download --version-num %s %s" % (destination_dir, ncbitool_path, version_number, input_fasta_ncbi_path)
+    execute_command(remote_command(command, key_path, remote_username, server_ip))
+    return os.path.join(destination_dir, os.path.basename(input_fasta_ncbi_path))
+
+def upload_version_tracker(output_name, version_number, output_path_s3):
+    version_tracker_file = "%s.version.txt" % output_name
+    execute_command("echo %s > %s" % (version_number, version_tracker_file))
+    execute_command("aws s3 cp %s %s/" % (version_tracker_file, output_path_s3))

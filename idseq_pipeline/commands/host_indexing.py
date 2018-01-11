@@ -10,4 +10,4 @@ class Host_indexing(Base):
         unbuffer_stdout()
         upload_commit_sha()
 
-        make_indexes(True)
+        make_indexes()
