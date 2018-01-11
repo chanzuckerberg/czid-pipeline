@@ -50,7 +50,7 @@ def make_index():
     # make index
     remote_output_dir = os.path.join(WORK_DIR, OUTPUT_NAME)
     execute_command(remote_command("sudo mkdir -p %s" % remote_output_dir, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
-    indexing_command = "cd %s; %s -d %s -n %s" % (remote_output_dir, PRE_RAPSEARCH_PATH, input_fasta_unzipped, OUTPUT_NAME)
+    indexing_command = "cd %s; sudo %s -d %s -n %s" % (remote_output_dir, PRE_RAPSEARCH_PATH, input_fasta_unzipped, OUTPUT_NAME)
     execute_command(remote_command(indexing_command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
     # upload index
