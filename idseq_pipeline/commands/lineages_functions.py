@@ -10,6 +10,7 @@ INPUT = "/pub/taxonomy/taxdump.tar.gz"
 def make_lineages():
     # Install ncbitax2lin
     scratch_dir = os.path.join(os.getcwd(), "idseq-pipeline-lineages")
+    execute_command("mkdir -p %s" % scratch_dir)
     work_dir = os.path.join(scratch_dir, "ncbitax2lin")
     execute_command("cd %s; git clone https://github.com/chanzuckerberg/ncbitax2lin.git" % scratch_dir)
 
