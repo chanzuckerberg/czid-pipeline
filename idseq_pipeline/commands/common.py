@@ -254,5 +254,5 @@ def download_reference_on_remote(ncbitool_path, input_fasta_ncbi_path, version_n
 def upload_version_tracker(output_name, reference_version_number, output_path_s3):
     version_tracker_file = "%s.version.txt" % output_name
     execute_command("echo 'reference: %d' > %s" % (reference_version_number, version_tracker_file))
-    execute_command("echo 'indexing: %s' > %s" % (__version__, version_tracker_file))
+    execute_command("echo 'indexing: %s' > %s" % (VERSION, version_tracker_file))
     execute_command("aws s3 cp %s %s/" % (version_tracker_file, output_path_s3))
