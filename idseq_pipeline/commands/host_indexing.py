@@ -8,6 +8,4 @@ class Host_indexing(Base):
         from .host_indexing_functions import *
 
         unbuffer_stdout()
-        upload_commit_sha()
-
         make_indexes()
