@@ -128,10 +128,12 @@ def make_indexes(lazy_run = False):
         version_number = get_reference_version_number(ncbitool_path, INPUT_FASTA_S3)
         input_fasta_local = download_reference_locally(ncbitool_path, INPUT_FASTA_S3, version_number, fasta_dir)
 
+    # unzip if necessary
     if os.path.splitext(input_fasta_local)[1] == ".gz":
         execute_command("gunzip -f %s" % input_fasta_local)
         input_fasta_local = os.path.splitext(input_fasta_local)[0]
 
+    # handle lazy_run
     if lazy_run:
        # Download existing files and see what has been done
         command = "aws s3 cp %s %s --recursive" % (OUTPUT_PATH_S3, result_dir)
@@ -142,3 +144,6 @@ def make_indexes(lazy_run = False):
 
     # make bowtie2 index
     make_bowtie2_index(host_name, input_fasta_local, result_dir, scratch_dir, lazy_run)
+
+    # upload version tracker file
+    upload_version_tracker('', version_number, OUTPUT_PATH_S3)
