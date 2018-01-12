@@ -4,4 +4,5 @@ from .postprocess import *
 from .host_indexing import *
 from .gsnap_indexing import *
 from .rapsearch_indexing import *
+from .lineages import *
 from .blacklist import *

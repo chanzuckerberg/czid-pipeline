@@ -6,7 +6,7 @@ SERVER_IP = os.environ.get('SERVER_IP')
 KEY_S3_PATH = os.environ.get('KEY_S3_PATH')
 
 # output location and name
-OUTPUT_PATH_S3 = os.environ.get('OUTPUT_PATH_S3')
+OUTPUT_PATH_S3 = os.environ.get('OUTPUT_PATH_S3').rstrip('/')
 OUTPUT_NAME = os.environ.get('OUTPUT_NAME')
 
 # path to gzipped FASTA reference to index, relative to ftp://ftp.ncbi.nlm.nih.gov
