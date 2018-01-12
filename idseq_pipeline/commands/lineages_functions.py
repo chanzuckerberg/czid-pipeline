@@ -29,9 +29,15 @@ def make_lineages():
     execute_command("aws s3 cp %s/names.csv.gz %s/" % (work_dir, OUTPUT_PATH_S3))
 
     # Make and upload deuterostome list
-    input_filename = "lineages.csv"
+    input_filename = "lineages.csv.gz"
     output_filename = "deuterostome_taxids.txt"
-    command = "cd %s; gunzip %s.gz; grep 'Deuterostomia' %s | cut -f2 -d',' > %s; " % (work_dir, input_filename, input_filename, output_filename)
+    ## print header and lines containing "Deuterostomia":
+    command = "cd %s; zcat %s | awk 'NR==1 || /%s/'" % (work_dir, input_filename, "Deuterostomia")
+    ## keep only the column with header tax_id:
+    command += " | awk -F',' -vcol=%s '(NR==1){colnum=-1;for(i=1;i<=NF;i++)if($(i)==col)colnum=i;}{print $(colnum)}'" % "tax_id"
+    ## remove the header line:
+    command += " | tail -n +2 > %s; " % output_filename
+    ## upload output file:
     command += "aws s3 cp %s %s/" % (output_filename, OUTPUT_PATH_S3)
     execute_command(command)
 
