@@ -31,7 +31,7 @@ def make_lineages():
     # Make and upload deuterostome list
     input_filename = "lineages.csv"
     output_filename = "deuterostome_taxids.txt"
-    command = "cd %s; gunzip %s.gz; grep 'Deuterostomia' %s | cut -f1 -d',' > %s; " % (work_dir, input_filename, input_filename, output_filename)
+    command = "cd %s; gunzip %s.gz; grep 'Deuterostomia' %s | cut -f2 -d',' > %s; " % (work_dir, input_filename, input_filename, output_filename)
     command += "aws s3 cp %s %s/" % (output_filename, OUTPUT_PATH_S3)
     execute_command(command)
 
