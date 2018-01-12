@@ -12,7 +12,7 @@ def make_lineages():
     scratch_dir = os.path.join(os.getcwd(), "idseq-pipeline-lineages")
     execute_command("mkdir -p %s" % scratch_dir)
     work_dir = os.path.join(scratch_dir, "ncbitax2lin")
-    execute_command("cd %s; git clone https://github.com/chanzuckerberg/ncbitax2lin.git" % scratch_dir)
+    execute_command("cd %s; rm -rf ncbitax2lin; git clone https://github.com/chanzuckerberg/ncbitax2lin.git" % scratch_dir)
 
     # Get input reference and version number
     ncbitool_path = install_ncbitool(work_dir)
