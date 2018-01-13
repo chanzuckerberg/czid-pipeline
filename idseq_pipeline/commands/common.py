@@ -282,8 +282,12 @@ def download_reference_on_remote(ncbitool_path, input_fasta_ncbi_path, version_n
     execute_command(remote_command(command, key_path, remote_username, server_ip))
     return os.path.join(destination_dir, os.path.basename(input_fasta_ncbi_path))
 
-def upload_version_tracker(output_name, reference_version_number, output_path_s3):
+def upload_version_tracker(source_file, output_name, reference_version_number, output_path_s3):
     version_tracker_file = "%s.version.txt" % output_name
-    execute_command("echo 'reference: %d' > %s" % (reference_version_number, version_tracker_file))
-    execute_command("echo 'indexing: %s' >> %s" % (__version__, version_tracker_file))
+    version_json = { "name": output_name, 
+                     "source_file": source_file,
+                     "source_version": reference_version_number,
+                     "indexing_version": __version__ }
+    with open(version_tracker_file, 'wb') as f:
+        json.dump(version_json, f)
     execute_command("aws s3 cp %s %s/" % (version_tracker_file, output_path_s3))

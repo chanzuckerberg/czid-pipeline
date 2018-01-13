@@ -59,4 +59,4 @@ def make_index():
     execute_command(remote_command(upload_command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
     # upload version tracker file
-    upload_version_tracker(OUTPUT_NAME, version_number, OUTPUT_PATH_S3)
+    upload_version_tracker(INPUT_FASTA_S3, OUTPUT_NAME, version_number, OUTPUT_PATH_S3)

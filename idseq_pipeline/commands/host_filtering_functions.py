@@ -59,7 +59,7 @@ DEFAULT_LOGPARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH,
                      "stats_file": os.path.join(RESULT_DIR, STATS_OUT)}
 
 # versioning
-STAR_BOWTIE_VERSION_FILE_S3 = 's3://czbiohub-infectious-disease/references/human/.version.txt'
+STAR_BOWTIE_VERSION_FILE_S3 = 's3://czbiohub-infectious-disease/references/human/human.version.txt'
 
 # target outputs by task
 TARGET_OUTPUTS = { "run_star": [os.path.join(RESULT_DIR, STAR_OUT1),
