@@ -13,6 +13,7 @@ NCBITOOL_S3_PATH = "s3://czbiohub-infectious-disease/ncbitool" # S3 location of 
 
 STATS = []
 LOGGER = None
+OUTPUT_VERSIONS = []
 
 class Updater(object):
 
@@ -171,29 +172,49 @@ def get_remaining_reads_from_stats():
     return (item for item in STATS if item.get("task") == "run_gsnapl_remotely").next().get("reads_before")
 
 def run_and_log(logparams, target_outputs, lazy_run, func_name, *args):
+    global OUTPUT_VERSIONS
     global LOGGER
     LOGGER = logging.getLogger()
     LOGGER.info("========== %s ==========" % logparams.get("title"))
+
     # copy log file -- start
     LOGGER.handlers[0].flush()
     execute_command("aws s3 cp %s %s/;" % (LOGGER.handlers[0].baseFilename, logparams["sample_s3_output_path"]))
+
+    # record version of any reference index used
+    version_file_s3 = logparams.get("version_file_s3")
+    if version_file_s3:
+        version_json = execute_command_with_output("aws s3 cp %s -" % version_file_s3)
+        OUTPUT_VERSIONS.append(version_json)
+
+    # upload version output
+    output_version_file = logparams.get("output_version_file")
+    if output_version_file:
+        with open(output_version_file, 'wb') as f:
+            json.dump(OUTPUT_VERSIONS, f)
+        execute_command("aws s3 cp %s %s/;" % (output_version_file, logparams["sample_s3_output_path"]))
+
     # produce the output
     if lazy_run and all(os.path.isfile(output) for output in target_outputs):
         LOGGER.info("output exists, lazy run")
     else:
         func_name(*args)
         LOGGER.info("uploaded output")
+
     # copy log file -- after work is done
     execute_command("aws s3 cp %s %s/;" % (LOGGER.handlers[0].baseFilename, logparams["sample_s3_output_path"]))
+
     # count records
     required_params = ["before_file_name", "before_file_type", "after_file_name", "after_file_type"]
     if logparams.get("count_reads") and all(param in logparams for param in required_params):
         records_before = count_reads(logparams["before_file_name"], logparams["before_file_type"])
         records_after = count_reads(logparams["after_file_name"], logparams["after_file_type"])
         STATS.append({'task': func_name.__name__, 'reads_before': records_before, 'reads_after': records_after})
+
     # copy log file -- end
     LOGGER.handlers[0].flush()
     execute_command("aws s3 cp %s %s/;" % (LOGGER.handlers[0].baseFilename, logparams["sample_s3_output_path"]))
+
     # write stats
     stats_path = logparams.get("stats_file")
     if stats_path and os.path.isfile(stats_path):
@@ -218,6 +239,14 @@ def upload_commit_sha():
     aws_batch_job_id = os.environ.get('AWS_BATCH_JOB_ID', 'local')
     sha_file_new_name = "%s_job-%s%s" % (sha_file_parts[0], aws_batch_job_id, sha_file_parts[1])
     execute_command("aws s3 cp %s %s/%s;" % (sha_file, s3_destination.rstrip('/'), sha_file_new_name))
+
+    # also initialize the main version output file with the commit sha and the job_id
+    global OUTPUT_VERSIONS
+    aws_batch_job_id = os.environ.get('AWS_BATCH_JOB_ID', 'local')
+    OUTPUT_VERSIONS.append({"name": "job_id", "version": aws_batch_job_id})
+    with open(sha_file, 'r') as f:
+        commit_sha = f.read()
+    OUTPUT_VERSIONS.append({"name": "idseq-pipeline", "version": __version__, "commit-sha": commit_sha})
 
 def install_ncbitool_locally(local_work_dir):
     execute_command("aws s3 cp %s %s/" % (NCBITOOL_S3_PATH, local_work_dir))

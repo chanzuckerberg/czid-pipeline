@@ -38,6 +38,7 @@ EXTRACT_UNMAPPED_FROM_SAM_OUT2 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.u
 EXTRACT_UNMAPPED_FROM_SAM_OUT3 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.merged.fasta'
 LOGS_OUT_BASENAME = 'log'
 STATS_OUT = 'stats.json'
+VERSION_OUT = 'versions.json'
 
 # arguments from environment variables
 INPUT_BUCKET = os.environ.get('INPUT_BUCKET')
@@ -56,6 +57,9 @@ RESULT_DIR = SAMPLE_DIR + '/results'
 SCRATCH_DIR = SAMPLE_DIR + '/scratch'
 DEFAULT_LOGPARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH,
                      "stats_file": os.path.join(RESULT_DIR, STATS_OUT)}
+
+# versioning
+STAR_BOWTIE_VERSION_FILE_S3 = 's3://czbiohub-infectious-disease/references/human/.version.txt'
 
 # target outputs by task
 TARGET_OUTPUTS = { "run_star": [os.path.join(RESULT_DIR, STAR_OUT1),
@@ -303,7 +307,8 @@ def run_host_filtering(fastq_file_1, fastq_file_2, initial_file_type_for_log, la
     logparams = return_merged_dict(DEFAULT_LOGPARAMS,
         {"title": "STAR", "count_reads": True,
         "before_file_name": fastq_file_1, "before_file_type": initial_file_type_for_log,
-        "after_file_name": os.path.join(RESULT_DIR, STAR_OUT1), "after_file_type": initial_file_type_for_log})
+        "after_file_name": os.path.join(RESULT_DIR, STAR_OUT1), "after_file_type": initial_file_type_for_log,
+        "version_file_s3": STAR_BOWTIE_VERSION_FILE_S3, "output_version_file": os.path.join(RESULT_DIR, VERSION_OUT)})
     run_and_log(logparams, TARGET_OUTPUTS["run_star"], lazy_run, run_star, fastq_file_1, fastq_file_2)
 
     # run priceseqfilter
