@@ -185,7 +185,7 @@ def run_and_log(logparams, target_outputs, lazy_run, func_name, *args):
     version_file_s3 = logparams.get("version_file_s3")
     if version_file_s3:
         version_json = execute_command_with_output("aws s3 cp %s -" % version_file_s3)
-        OUTPUT_VERSIONS.append(version_json)
+        OUTPUT_VERSIONS.append(json.loads(version_json))
 
     # upload version output
     output_version_file = logparams.get("output_version_file")
