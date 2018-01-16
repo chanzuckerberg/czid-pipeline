@@ -48,7 +48,7 @@ UNIDENTIFIED_FASTA_OUT = 'unidentified.fasta'
 COMBINED_JSON_OUT = 'idseq_web_sample.json'
 LOGS_OUT_BASENAME = 'log'
 STATS_OUT = 'stats.json'
-VERSION_OUT = 'versions.json' 
+VERSION_OUT = 'versions.json'
 
 # arguments from environment variables
 FASTQ_BUCKET = os.environ.get('FASTQ_BUCKET')
@@ -72,7 +72,7 @@ DEFAULT_LOGPARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH,
 # versioning
 ## For now, index updates are infrequent and we can get their versions from S3.
 ## If updates ever become frequent, we may want to check instead which version is actually on the
-## machine taking the job, possibly out of sync with the newest version in S3. 
+## machine taking the job, possibly out of sync with the newest version in S3.
 GSNAP_VERSION_FILE_S3 = 's3://czbiohub-infectious-disease/references/nt_k16.version.txt'
 RAPSEARCH_VERSION_FILE_S3 = 's3://czbiohub-infectious-disease/references/nr_rapsearch.version.txt'
 
@@ -94,7 +94,7 @@ TARGET_OUTPUTS = { "run_gsnapl_remotely": [os.path.join(RESULT_DIR, GSNAPL_DEDUP
 # compute capacity
 GSNAPL_MAX_CONCURRENT = 5 # number of gsnapl jobs allowed to run concurrently on 1 machine
 RAPSEARCH2_MAX_CONCURRENT = 3
-GSNAPL_CHUNK_SIZE = 30000 # number of fasta records in a chunk
+GSNAPL_CHUNK_SIZE = 30000 # number of fasta records in a chunk so it runs in ~10 minutes on i3.16xlarge
 RAPSEARCH_CHUNK_SIZE = 10000
 
 # references
@@ -501,15 +501,26 @@ def check_s3_file_presence(s3_path):
       return 0
 
 # job functions
-def chunk_input(input_files_basenames, chunk_nlines, part_suffix):
+def chunk_input(input_files_basenames, chunk_nlines, chunksize):
     part_lists = []
+    known_nlines = None
     for input_file in input_files_basenames:
         input_file_full_local_path = os.path.join(RESULT_DIR, input_file)
+        nlines = int(execute_command_with_output("wc -l %s" % input_file_full_local_path).strip().split()[0])
+        if known_nlines != None:
+            assert nlines == known_nlines, "Mismatched line counts in supposedly paired files: {}".format(input_files_basenames)
+        known_nlines = nlines
+        numparts = (nlines + chunk_nlines - 1) // chunk_nlines
+        ndigits = len(str(numparts - 1))
+        part_suffix = "-chunksize-%d-numparts-%d-part-" % (chunksize, numparts)
         out_prefix = os.path.join(CHUNKS_RESULT_DIR, input_file) + part_suffix
         out_prefix_base = os.path.basename(out_prefix)
-        execute_command("split --numeric-suffixes -l %d %s %s" % (chunk_nlines, input_file_full_local_path, out_prefix))
+        execute_command("split -a %d --numeric-suffixes -l %d %s %s" % (ndigits, chunk_nlines, input_file_full_local_path, out_prefix))
         execute_command("aws s3 cp %s/ %s/ --recursive --exclude '*' --include '%s*'" % (CHUNKS_RESULT_DIR, SAMPLE_S3_OUTPUT_CHUNKS_PATH, out_prefix_base))
         partial_files = [os.path.basename(partial_file) for partial_file in execute_command_with_output("ls %s*" % out_prefix).rstrip().split("\n")]
+        pattern = "{:0%dd}" % ndigits
+        expected_partial_files = [(out_prefix_base + pattern.format(i)) for i in range(numparts)]
+        assert expected_partial_files == partial_files, "something went wrong with chunking: {} != {}".format(partial_files, expected_partial_files)
         part_lists.append(partial_files)
     input_chunks = [list(part) for part in zip(*part_lists)]
     # e.g. [["input_R1.fasta-part-1", "input_R2.fasta-part-1"],["input_R1.fasta-part-2", "input_R2.fasta-part-2"],["input_R1.fasta-part-3", "input_R2.fasta-part-3"],...]
@@ -605,8 +616,7 @@ def run_gsnapl_remotely(input_files, lazy_run):
     remote_index_dir = "%s/share" % remote_home_dir
     # split file:
     chunk_nlines = 2*GSNAPL_CHUNK_SIZE
-    part_suffix = "-chunksize-%d-part-" % GSNAPL_CHUNK_SIZE
-    input_chunks = chunk_input(input_files, chunk_nlines, part_suffix)
+    input_chunks = chunk_input(input_files, chunk_nlines, GSNAPL_CHUNK_SIZE)
     # process chunks:
     chunk_output_files = []
     for chunk_input_files in input_chunks:
@@ -708,8 +718,7 @@ def run_rapsearch2_remotely(input_fasta, lazy_run):
     remote_index_dir = "%s/references/nr_rapsearch" % remote_home_dir
     # split file:
     chunk_nlines = 2*RAPSEARCH_CHUNK_SIZE
-    part_suffix = "-chunksize-%d-part-" % RAPSEARCH_CHUNK_SIZE
-    input_chunks = chunk_input([input_fasta], chunk_nlines, part_suffix)
+    input_chunks = chunk_input([input_fasta], chunk_nlines, RAPSEARCH_CHUNK_SIZE)
     # process chunks:
     chunk_output_files = []
     for chunk_input_file in input_chunks:
