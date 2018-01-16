@@ -48,6 +48,7 @@ UNIDENTIFIED_FASTA_OUT = 'unidentified.fasta'
 COMBINED_JSON_OUT = 'idseq_web_sample.json'
 LOGS_OUT_BASENAME = 'log'
 STATS_OUT = 'stats.json'
+VERSION_OUT = 'versions.json' 
 
 # arguments from environment variables
 FASTQ_BUCKET = os.environ.get('FASTQ_BUCKET')
@@ -67,6 +68,13 @@ RESULT_DIR = SAMPLE_DIR + '/results'
 CHUNKS_RESULT_DIR = os.path.join(RESULT_DIR, "chunks")
 DEFAULT_LOGPARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH,
                      "stats_file": os.path.join(RESULT_DIR, STATS_OUT)}
+
+# versioning
+## For now, index updates are infrequent and we can get their versions from S3.
+## If updates ever become frequent, we may want to check instead which version is actually on the
+## machine taking the job, possibly out of sync with the newest version in S3. 
+GSNAP_VERSION_FILE_S3 = 's3://czbiohub-infectious-disease/references/nt_k16.version.txt'
+RAPSEARCH_VERSION_FILE_S3 = 's3://czbiohub-infectious-disease/references/nr_rapsearch.version.txt'
 
 # target outputs by task
 TARGET_OUTPUTS = { "run_gsnapl_remotely": [os.path.join(RESULT_DIR, GSNAPL_DEDUP_OUT)],
@@ -828,7 +836,8 @@ def run_stage2(lazy_run = True):
     logparams = return_merged_dict(DEFAULT_LOGPARAMS,
         {"title": "GSNAPL", "count_reads": True,
         "before_file_name": before_file_name_for_log, "before_file_type": before_file_type_for_log,
-        "after_file_name": os.path.join(RESULT_DIR, GSNAPL_DEDUP_OUT), "after_file_type": "m8"})
+        "after_file_name": os.path.join(RESULT_DIR, GSNAPL_DEDUP_OUT), "after_file_type": "m8",
+        "version_file_s3": GSNAP_VERSION_FILE_S3, "output_version_file": os.path.join(RESULT_DIR, VERSION_OUT)})
     run_and_log(logparams, TARGET_OUTPUTS["run_gsnapl_remotely"], lazy_run, run_gsnapl_remotely, gsnapl_input_files, lazy_run)
 
     # run_annotate_gsnapl_m8_with_taxids
@@ -876,7 +885,8 @@ def run_stage2(lazy_run = True):
         {"title": "RAPSearch2", "count_reads": True,
         "before_file_name": os.path.join(RESULT_DIR, FILTER_DEUTEROSTOME_FROM_TAXID_ANNOTATED_FASTA_OUT),
         "before_file_type": "fasta",
-        "after_file_name": os.path.join(RESULT_DIR, RAPSEARCH2_OUT), "after_file_type": "m8"})
+        "after_file_name": os.path.join(RESULT_DIR, RAPSEARCH2_OUT), "after_file_type": "m8",
+        "version_file_s3": RAPSEARCH_VERSION_FILE_S3, "output_version_file": os.path.join(RESULT_DIR, VERSION_OUT)})
     run_and_log(logparams, TARGET_OUTPUTS["run_rapsearch2_remotely"], lazy_run, run_rapsearch2_remotely,
         FILTER_DEUTEROSTOME_FROM_TAXID_ANNOTATED_FASTA_OUT, lazy_run)
 

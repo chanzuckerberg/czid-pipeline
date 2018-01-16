@@ -149,4 +149,4 @@ def make_indexes(lazy_run = False):
 
     # upload version tracker file
     if not lazy_run:
-        upload_version_tracker('', version_number, OUTPUT_PATH_S3)
+        upload_version_tracker(INPUT_FASTA_S3, 'human', version_number, OUTPUT_PATH_S3)
