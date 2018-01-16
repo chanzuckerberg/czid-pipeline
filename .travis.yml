@@ -7,4 +7,4 @@ install:
   - pip install pylint
 # command to run tests
 script:
-  - find idseq_pipeline -name '*.py' | xargs pylint -E
+  - # find idseq_pipeline -name '*.py' | xargs pylint -E
