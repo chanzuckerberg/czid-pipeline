@@ -53,7 +53,6 @@ VERSION_OUT = 'versions.json'
 
 # arguments from environment variables
 SUBSAMPLE = os.environ.get('SUBSAMPLE') # number of reads to subsample to, before gsnap
-SUBSAMPLE_FRACTION = None # to be set to (subsampled records)/(total non-host records)
 subsampling_suffix = "/subsample_" + str(SUBSAMPLE) if SUBSAMPLE else ""
 FASTQ_BUCKET = os.environ.get('FASTQ_BUCKET')
 INPUT_BUCKET = os.environ.get('INPUT_BUCKET')
@@ -162,10 +161,8 @@ def extract_read_ids_from_fasta(input_file, read_ids_to_keep, output_file):
 
 def subsample_fastas(input_files, merged_file, target_n_reads):
     total_records = 0.5 * count_lines_in_paired_files(input_files) # each fasta record spans 2 lines
-    global SUBSAMPLE_FRACTION
-    SUBSAMPLE_FRACTION = (1.0 * target_n_reads) / total_records
     # note: target_n_reads and total_records really refer to numbers of read PAIRS
-    if SUBSAMPLE_FRACTION >= 1:
+    if total_records <= target_n_reads:
         return
     subsample_prefix = "subsample_%d" % target_n_reads
     records_to_keep = set(random.sample(xrange(total_records + 1), target_n_reads))
