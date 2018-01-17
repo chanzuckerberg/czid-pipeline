@@ -245,7 +245,7 @@ def upload_commit_sha():
     aws_batch_job_id = os.environ.get('AWS_BATCH_JOB_ID', 'local')
     OUTPUT_VERSIONS.append({"name": "job_id", "version": aws_batch_job_id})
     with open(sha_file, 'r') as f:
-        commit_sha = f.read()
+        commit_sha = f.read().rstrip()
     OUTPUT_VERSIONS.append({"name": "idseq-pipeline", "version": __version__, "commit-sha": commit_sha})
 
 def install_ncbitool_locally(local_work_dir):
