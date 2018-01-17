@@ -52,7 +52,7 @@ VERSION_OUT = 'versions.json'
 
 # arguments from environment variables
 SUBSAMPLE = os.environ.get('SUBSAMPLE') # number of reads to subsample to
-subsampling_suffix = "/subsample_" + str(SUBSAMPLE)
+subsampling_suffix = "/subsample_" + str(SUBSAMPLE) if SUBSAMPLE else ""
 FASTQ_BUCKET = os.environ.get('FASTQ_BUCKET')
 INPUT_BUCKET = os.environ.get('INPUT_BUCKET')
 FILE_TYPE = os.environ.get('FILE_TYPE', 'fastq.gz')
@@ -110,6 +110,10 @@ TAX_LEVEL_SPECIES = 1
 TAX_LEVEL_GENUS = 2
 
 # convenience functions
+def subsample_fastas(input_files, target_n_reads):
+    
+    return subsampled_files
+
 def concatenate_files(file_list, output_file):
     with open(output_file, 'wb') as outf:
         for f in file_list:
@@ -837,7 +841,7 @@ def run_stage2(lazy_run = True):
     # subsample if specified
     if SUBSAMPLE:
         target_n_reads = SUBSAMPLE
-        subsampled_gsnapl_input_files = subsample(gsnapl_input_files, target_n_reads)
+        subsampled_gsnapl_input_files = subsample_fastas(gsnapl_input_files, target_n_reads)
         gsnapl_input_files = subsampled_gsnapl_input_files
 
     # run gsnap remotely
