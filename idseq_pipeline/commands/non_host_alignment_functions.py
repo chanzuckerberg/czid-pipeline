@@ -15,6 +15,7 @@ import logging
 import math
 import threading
 import shutil
+import random
 from .common import *
 
 # data directories
@@ -71,6 +72,9 @@ CHUNKS_RESULT_DIR = os.path.join(RESULT_DIR, "chunks")
 DEFAULT_LOGPARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH,
                      "stats_file": os.path.join(RESULT_DIR, STATS_OUT)}
 
+# For reproducibility of random operations
+random.seed(hash(SAMPLE_NAME))
+
 # versioning
 ## For now, index updates are infrequent and we can get their versions from S3.
 ## If updates ever become frequent, we may want to check instead which version is actually on the
@@ -110,8 +114,44 @@ TAX_LEVEL_SPECIES = 1
 TAX_LEVEL_GENUS = 2
 
 # convenience functions
+def count_lines_in_paired_files(input_files):
+    known_nlines = None
+    for input_file in input_files:
+        nlines = int(execute_command_with_output("wc -l %s" % input_file).strip().split()[0])
+        if known_nlines != None:
+            assert nlines == known_nlines, "Mismatched line counts in supposedly paired files: {}".format(input_files)
+        known_nlines = nlines
+    return nlines
+
+def subsample_single_fasta(input_file, records_to_keep, output_file):
+    record_number = 0
+    input = open(input_file, 'rb')
+    output = open(output_file, 'wb')
+    sequence_name = input.readline()
+    sequence_data = input.readline()
+    while len(sequence_name) > 0 and len(sequence_data) > 0:
+       if record_number in records_to_keep:
+            output.write(sequence_name)
+            output.write(sequence_data)
+       sequence_name = input_fasta_f.readline()
+       sequence_data = input_fasta_f.readline()
+       record_number += 1
+    input.close()
+    output.close()
+
 def subsample_fastas(input_files, target_n_reads):
-    
+    total_records = 0.5 * count_lines_in_paired_files(input_files) # each fasta record spans 2 lines
+    if total_records <= target_n_reads:
+        return
+    records_to_keep = set(random.sample(xrange(total_records + 1), target_n_reads))
+    subsampled_files = []
+    for input_file in input_files:
+        input_dir = os.path.split(input_file)[0]
+        input_basename = os.path.split(input_file)[1]
+        output_basename = "subsample_%d.%s" % (target_n_reads, input_basename)
+        output_file = os.path.join(input_dir, output_basename)
+        subsample_single_fasta(input_file, records_to_keep, output_file)
+        subsampled_files += output_file
     return subsampled_files
 
 def concatenate_files(file_list, output_file):
