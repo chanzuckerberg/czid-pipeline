@@ -52,7 +52,8 @@ STATS_OUT = 'stats.json'
 VERSION_OUT = 'versions.json' 
 
 # arguments from environment variables
-SUBSAMPLE = os.environ.get('SUBSAMPLE') # number of reads to subsample to
+SUBSAMPLE = os.environ.get('SUBSAMPLE') # number of reads to subsample to, before gsnap
+SUBSAMPLE_FRACTION = None # to be set to (subsampled records)/(total non-host records)
 subsampling_suffix = "/subsample_" + str(SUBSAMPLE) if SUBSAMPLE else ""
 FASTQ_BUCKET = os.environ.get('FASTQ_BUCKET')
 INPUT_BUCKET = os.environ.get('INPUT_BUCKET')
@@ -125,6 +126,7 @@ def count_lines_in_paired_files(input_files):
 
 def subsample_single_fasta(input_file, records_to_keep, output_file):
     record_number = 0
+    kept_read_ids = []
     input = open(input_file, 'rb')
     output = open(output_file, 'wb')
     sequence_name = input.readline()
@@ -133,26 +135,59 @@ def subsample_single_fasta(input_file, records_to_keep, output_file):
        if record_number in records_to_keep:
             output.write(sequence_name)
             output.write(sequence_data)
+            kept_read_ids += sequence_name.rstrip()
        sequence_name = input_fasta_f.readline()
        sequence_data = input_fasta_f.readline()
        record_number += 1
     input.close()
     output.close()
+    return kept_read_ids
 
-def subsample_fastas(input_files, target_n_reads):
+def extract_read_ids_from_fasta(input_file, read_ids_to_keep, output_file):
+    input = open(input_file, 'rb')
+    output = open(output_file, 'wb')
+    sequence_name = input.readline()
+    sequence_data = input.readline()
+    while len(sequence_name) > 0 and len(sequence_data) > 0:
+       sequence_basename = sequence_name.rstrip().rsplit('/', 1)[0]
+       if sequence_basename in read_ids_to_keep:
+            output.write(sequence_name)
+            output.write(sequence_data)
+            kept_read_ids += sequence_basename
+       sequence_name = input_fasta_f.readline()
+       sequence_data = input_fasta_f.readline()
+    input.close()
+    output.close()
+    assert set(kept_read_ids) == set(read_ids_to_keep), "Not all desired read IDs were found in the file: {}".format(input_file)
+
+def subsample_fastas(input_files, merged_file, target_n_reads):
     total_records = 0.5 * count_lines_in_paired_files(input_files) # each fasta record spans 2 lines
-    if total_records <= target_n_reads:
+    global SUBSAMPLE_FRACTION
+    SUBSAMPLE_FRACTION = (1.0 * target_n_reads) / total_records
+    # note: target_n_reads and total_records really refer to numbers of read PAIRS
+    if SUBSAMPLE_FRACTION >= 1:
         return
+    subsample_prefix = "subsample_%d" % target_n_reads
     records_to_keep = set(random.sample(xrange(total_records + 1), target_n_reads))
     subsampled_files = []
+    known_kept_read_ids = None
+    # subsample the paired files and record read IDs kept
     for input_file in input_files:
         input_dir = os.path.split(input_file)[0]
         input_basename = os.path.split(input_file)[1]
-        output_basename = "subsample_%d.%s" % (target_n_reads, input_basename)
+        output_basename = "%s.%s" % (subsample_prefix, input_basename)
         output_file = os.path.join(input_dir, output_basename)
-        subsample_single_fasta(input_file, records_to_keep, output_file)
+        kept_read_ids = subsample_single_fasta(input_file, records_to_keep, output_file)
+        if known_kept_read_ids != None:
+            assert set(kept_read_ids) == set(known_kept_read_ids), "Mismatched read IDs kept in supposedly paired files: {}".format(input_files)
         subsampled_files += output_file
-    return subsampled_files
+    # subsample the merged file to the same read IDs
+    input_dir = os.path.split(merged_file)[0]
+    input_basename = os.path.split(merged_file)[1]
+    output_basename = "%s.%s" % (subsample_prefix, input_basename)
+    subsampled_merged_file = os.path.join(input_dir, output_basename)
+    extract_read_ids_from_fasta(merged_file, kept_read_ids, subsampled_merged_file)
+    return subsampled_files, subsampled_merged_file
 
 def concatenate_files(file_list, output_file):
     with open(output_file, 'wb') as outf:
@@ -881,8 +916,9 @@ def run_stage2(lazy_run = True):
     # subsample if specified
     if SUBSAMPLE:
         target_n_reads = SUBSAMPLE
-        subsampled_gsnapl_input_files = subsample_fastas(gsnapl_input_files, target_n_reads)
+        subsampled_gsnapl_input_files, subsampled_merged_fasta = subsample_fastas(gsnapl_input_files, merged_fasta, target_n_reads)
         gsnapl_input_files = subsampled_gsnapl_input_files
+        merged_fasta = subsampled_merged_fasta
 
     # run gsnap remotely
     logparams = return_merged_dict(DEFAULT_LOGPARAMS,
