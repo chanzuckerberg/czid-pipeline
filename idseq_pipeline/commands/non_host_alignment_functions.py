@@ -51,6 +51,8 @@ STATS_OUT = 'stats.json'
 VERSION_OUT = 'versions.json' 
 
 # arguments from environment variables
+SUBSAMPLE = os.environ.get('SUBSAMPLE') # number of reads to subsample to
+subsampling_suffix = "/subsample_" + str(SUBSAMPLE)
 FASTQ_BUCKET = os.environ.get('FASTQ_BUCKET')
 INPUT_BUCKET = os.environ.get('INPUT_BUCKET')
 FILE_TYPE = os.environ.get('FILE_TYPE', 'fastq.gz')
@@ -59,12 +61,12 @@ AWS_BATCH_JOB_ID = os.environ.get('AWS_BATCH_JOB_ID', 'local')
 ENVIRONMENT = os.environ.get('ENVIRONMENT', 'production')
 SAMPLE_S3_FASTQ_PATH = FASTQ_BUCKET.rstrip('/')
 SAMPLE_S3_INPUT_PATH = INPUT_BUCKET.rstrip('/')
-SAMPLE_S3_OUTPUT_PATH = OUTPUT_BUCKET.rstrip('/')
+SAMPLE_S3_OUTPUT_PATH = OUTPUT_BUCKET.rstrip('/') + subsampling_suffix
 SAMPLE_S3_OUTPUT_CHUNKS_PATH = os.path.join(SAMPLE_S3_OUTPUT_PATH, "chunks")
 SAMPLE_NAME = SAMPLE_S3_INPUT_PATH[5:].rstrip('/').replace('/','-')
 SAMPLE_DIR = DEST_DIR + '/' + SAMPLE_NAME
 FASTQ_DIR = SAMPLE_DIR + '/fastqs'
-RESULT_DIR = SAMPLE_DIR + '/results'
+RESULT_DIR = SAMPLE_DIR + '/results' + subsampling_suffix
 CHUNKS_RESULT_DIR = os.path.join(RESULT_DIR, "chunks")
 DEFAULT_LOGPARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH,
                      "stats_file": os.path.join(RESULT_DIR, STATS_OUT)}
@@ -831,6 +833,12 @@ def run_stage2(lazy_run = True):
         execute_command("aws s3 cp %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, STATS_OUT, RESULT_DIR))
         stats_file = os.path.join(RESULT_DIR, STATS_OUT)
         load_existing_stats(stats_file)
+
+    # subsample if specified
+    if SUBSAMPLE:
+        target_n_reads = SUBSAMPLE
+        subsampled_gsnapl_input_files = subsample(gsnapl_input_files, target_n_reads)
+        gsnapl_input_files = subsampled_gsnapl_input_files
 
     # run gsnap remotely
     logparams = return_merged_dict(DEFAULT_LOGPARAMS,
