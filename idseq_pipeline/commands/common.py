@@ -88,8 +88,22 @@ def execute_command_realtime_stdout(command, progress_file=None):
 def execute_command(command, progress_file=None):
     execute_command_realtime_stdout(command, progress_file)
 
+
 def remote_command(base_command, key_path, remote_username, instance_ip):
     return 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s "%s"' % (key_path, remote_username, instance_ip, base_command)
+
+
+def scp(key_path, remote_username, instance_ip, remote_path, local_path):
+    assert " " not in key_path
+    assert " " not in remote_path
+    assert " " not in local_path
+    return 'scp -o "StrictHostKeyChecking no" -i {key_path} {username}@{ip}:{remote_path} {local_path}'.format(
+        key_path=key_path,
+        username=remote_username,
+        ip=instance_ip,
+        remote_path=remote_path,
+        local_path=local_path)
+
 
 class TimeFilter(logging.Filter):
     def filter(self, record):
@@ -284,7 +298,7 @@ def download_reference_on_remote(ncbitool_path, input_fasta_ncbi_path, version_n
 
 def upload_version_tracker(source_file, output_name, reference_version_number, output_path_s3):
     version_tracker_file = "%s.version.txt" % output_name
-    version_json = { "name": output_name, 
+    version_json = { "name": output_name,
                      "source_file": source_file,
                      "source_version": reference_version_number,
                      "indexing_version": __version__ }
