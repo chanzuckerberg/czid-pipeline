@@ -161,6 +161,9 @@ def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads
     subsampled_files = []
     known_kept_read_ids = None
     # subsample the paired files and record read IDs kept
+    print input_files
+    print os.path.isfile(input_file[0])
+    print os.path.isfile(input_file[1])
     for input_file in input_files:
         input_dir = os.path.split(input_file)[0]
         input_basename = os.path.split(input_file)[1]
