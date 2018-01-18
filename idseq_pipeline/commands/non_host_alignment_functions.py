@@ -695,7 +695,8 @@ def run_rapsearch_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_w
             execute_command_realtime_stdout(remote_command(commands, key_path, remote_username, instance_ip))
             write_to_log("finished alignment for chunk %s" % chunk_id)
             # check if every row has correct number of columns (12) in the output file on the remote machine
-            verification_command = "awk '{print NF}' %s | sort -nu | head -n 1" % output_path
+            verification_command = "grep -v '^#' %s" % output_path # first, remove header lines starting with '#'
+            verification_command += " | awk '{print NF}' | sort -nu | head -n 1"
             min_column_number = float(execute_command_with_output(remote_command(verification_command, key_path, remote_username, instance_ip)))
             write_to_log("Try no. %d: Smallest number of columns observed in any line was %d" % (try_number, min_column_number))
             try_number += 1
