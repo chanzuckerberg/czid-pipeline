@@ -905,7 +905,7 @@ def run_stage2(lazy_run = True):
     # subsample if specified
     if SUBSAMPLE:
         target_n_reads = SUBSAMPLE
-        subsampled_gsnapl_input_files, subsampled_merged_fasta = subsample_fastas(gsnapl_input_files, merged_fasta, target_n_reads, RESULT_DIR)
+        subsampled_gsnapl_input_files, subsampled_merged_fasta = subsample_fastas(gsnapl_input_files, merged_fasta, target_n_reads)
         gsnapl_input_files = subsampled_gsnapl_input_files
         merged_fasta = subsampled_merged_fasta
 
