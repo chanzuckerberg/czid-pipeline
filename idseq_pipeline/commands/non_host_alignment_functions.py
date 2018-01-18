@@ -126,7 +126,7 @@ def subsample_single_fasta(input_file, records_to_keep, type, output_file):
     record_number = 0
     kept_read_ids = []
     with open(input_file, 'rb') as input:
-        with open(output_file, 'wb') as input:
+        with open(output_file, 'wb') as output:
             sequence_name = input.readline()
             sequence_data = input.readline()
             while len(sequence_name) > 0 and len(sequence_data) > 0:
@@ -150,7 +150,6 @@ def subsample_single_fasta(input_file, records_to_keep, type, output_file):
     return kept_read_ids
 
 def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads):
-    assert input_files_basenames != None, "input_files_basenames is None"
     input_files = [os.path.join(RESULT_DIR, f) for f in input_files_basenames]
     merged_file = os.path.join(RESULT_DIR, merged_file_basename)
     total_records = 0.5 * count_lines_in_paired_files(input_files) # each fasta record spans 2 lines
@@ -162,7 +161,6 @@ def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads
     subsampled_files = []
     known_kept_read_ids = None
     # subsample the paired files and record read IDs kept
-    assert input_files != None, "input_files is None"
     for input_file in input_files:
         input_dir = os.path.split(input_file)[0]
         input_basename = os.path.split(input_file)[1]
