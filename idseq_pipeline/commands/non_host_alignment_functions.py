@@ -149,7 +149,9 @@ def subsample_single_fasta(input_file, records_to_keep, type, output_file):
         assert set(kept_read_ids) == set(records_to_keep), "Not all desired read IDs were found in the file: {}".format(input_file)
     return kept_read_ids
 
-def subsample_fastas(input_files, merged_file, target_n_reads):
+def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads):
+    input_files = [os.path.join(RESULT_DIR, f) for f in input_files_basenames]
+    merged_file = os.path.join(RESULT_DIR, merged_file_basename)
     total_records = 0.5 * count_lines_in_paired_files(input_files) # each fasta record spans 2 lines
     # note: target_n_reads and total_records really refer to numbers of read PAIRS
     if total_records <= target_n_reads:
@@ -903,7 +905,7 @@ def run_stage2(lazy_run = True):
     # subsample if specified
     if SUBSAMPLE:
         target_n_reads = SUBSAMPLE
-        subsampled_gsnapl_input_files, subsampled_merged_fasta = subsample_fastas(gsnapl_input_files, merged_fasta, target_n_reads)
+        subsampled_gsnapl_input_files, subsampled_merged_fasta = subsample_fastas(gsnapl_input_files, merged_fasta, target_n_reads, RESULT_DIR)
         gsnapl_input_files = subsampled_gsnapl_input_files
         merged_fasta = subsampled_merged_fasta
 
