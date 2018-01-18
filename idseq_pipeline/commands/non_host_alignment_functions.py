@@ -170,6 +170,7 @@ def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads
         if known_kept_read_ids != None:
             assert set(kept_read_ids) == set(known_kept_read_ids), "Mismatched read IDs kept in supposedly paired files: {}".format(input_files)
         subsampled_files += output_file
+        known_kept_read_ids = kept_read_ids
     # subsample the merged file to the same read IDs
     input_dir = os.path.split(merged_file)[0]
     input_basename = os.path.split(merged_file)[1]
