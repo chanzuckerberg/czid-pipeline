@@ -122,41 +122,32 @@ def count_lines_in_paired_files(input_files):
         known_nlines = nlines
     return nlines
 
-def subsample_single_fasta(input_file, records_to_keep, output_file):
+def subsample_single_fasta(input_file, records_to_keep, type, output_file):
     record_number = 0
     kept_read_ids = []
-    input = open(input_file, 'rb')
-    output = open(output_file, 'wb')
-    sequence_name = input.readline()
-    sequence_data = input.readline()
-    while len(sequence_name) > 0 and len(sequence_data) > 0:
-       if record_number in records_to_keep:
-            output.write(sequence_name)
-            output.write(sequence_data)
-            kept_read_ids += sequence_name.rstrip()
-       sequence_name = input_fasta_f.readline()
-       sequence_data = input_fasta_f.readline()
-       record_number += 1
-    input.close()
-    output.close()
+    with open(input_file, 'rb') as input:
+        with open(output_file, 'wb') as input:
+            sequence_name = input.readline()
+            sequence_data = input.readline()
+            while len(sequence_name) > 0 and len(sequence_data) > 0:
+                if type == "read_ids":
+                    sequence_basename = sequence_name.rstrip().rsplit('/', 1)[0]
+                    condition = sequence_basename in records_to_keep
+                elif type == "record_indices":
+                    condition = record_number in records_to_keep
+                    sequence_basename = sequence_name.rstrip()
+                else:
+                    condition = true
+                if condition:
+                    output.write(sequence_name)
+                    output.write(sequence_data)
+                    kept_read_ids += sequence_basename
+                sequence_name = input_fasta_f.readline()
+                sequence_data = input_fasta_f.readline()
+                record_number += 1
+    if type == "read_ids":
+        assert set(kept_read_ids) == set(records_to_keep), "Not all desired read IDs were found in the file: {}".format(input_file)
     return kept_read_ids
-
-def extract_read_ids_from_fasta(input_file, read_ids_to_keep, output_file):
-    input = open(input_file, 'rb')
-    output = open(output_file, 'wb')
-    sequence_name = input.readline()
-    sequence_data = input.readline()
-    while len(sequence_name) > 0 and len(sequence_data) > 0:
-       sequence_basename = sequence_name.rstrip().rsplit('/', 1)[0]
-       if sequence_basename in read_ids_to_keep:
-            output.write(sequence_name)
-            output.write(sequence_data)
-            kept_read_ids += sequence_basename
-       sequence_name = input_fasta_f.readline()
-       sequence_data = input_fasta_f.readline()
-    input.close()
-    output.close()
-    assert set(kept_read_ids) == set(read_ids_to_keep), "Not all desired read IDs were found in the file: {}".format(input_file)
 
 def subsample_fastas(input_files, merged_file, target_n_reads):
     total_records = 0.5 * count_lines_in_paired_files(input_files) # each fasta record spans 2 lines
@@ -173,7 +164,7 @@ def subsample_fastas(input_files, merged_file, target_n_reads):
         input_basename = os.path.split(input_file)[1]
         output_basename = "%s.%s" % (subsample_prefix, input_basename)
         output_file = os.path.join(input_dir, output_basename)
-        kept_read_ids = subsample_single_fasta(input_file, records_to_keep, output_file)
+        kept_read_ids = subsample_single_fasta(input_file, records_to_keep, "record_indices", output_file)
         if known_kept_read_ids != None:
             assert set(kept_read_ids) == set(known_kept_read_ids), "Mismatched read IDs kept in supposedly paired files: {}".format(input_files)
         subsampled_files += output_file
@@ -182,7 +173,7 @@ def subsample_fastas(input_files, merged_file, target_n_reads):
     input_basename = os.path.split(merged_file)[1]
     output_basename = "%s.%s" % (subsample_prefix, input_basename)
     subsampled_merged_file = os.path.join(input_dir, output_basename)
-    extract_read_ids_from_fasta(merged_file, kept_read_ids, subsampled_merged_file)
+    subsample_single_fasta(merged_file, kept_read_ids, "read_ids", subsampled_merged_file)
     return subsampled_files, subsampled_merged_file
 
 def concatenate_files(file_list, output_file):
