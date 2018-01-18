@@ -150,14 +150,12 @@ def subsample_single_fasta(input_file, records_to_keep, type, output_file):
     return kept_read_ids
 
 def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads):
-    return 'a', 'b'
-'''
     input_files = [os.path.join(RESULT_DIR, f) for f in input_files_basenames]
     merged_file = os.path.join(RESULT_DIR, merged_file_basename)
     total_records = 0.5 * count_lines_in_paired_files(input_files) # each fasta record spans 2 lines
     # note: target_n_reads and total_records really refer to numbers of read PAIRS
     if total_records <= target_n_reads:
-        return
+        return input_files, merged_file
     subsample_prefix = "subsample_%d" % target_n_reads
     records_to_keep = random.sample(xrange(total_records), target_n_reads)
     subsampled_files = []
@@ -180,7 +178,6 @@ def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads
     subsampled_merged_file = os.path.join(input_dir, output_basename)
     subsample_single_fasta(merged_file, kept_read_ids, "read_ids", subsampled_merged_file)
     return subsampled_files, subsampled_merged_file
-'''
 
 def concatenate_files(file_list, output_file):
     with open(output_file, 'wb') as outf:
