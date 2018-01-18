@@ -155,7 +155,7 @@ def subsample_fastas(input_files, merged_file, target_n_reads):
     if total_records <= target_n_reads:
         return
     subsample_prefix = "subsample_%d" % target_n_reads
-    records_to_keep = set(random.sample(xrange(total_records + 1), target_n_reads))
+    records_to_keep = random.sample(xrange(total_records), target_n_reads)
     subsampled_files = []
     known_kept_read_ids = None
     # subsample the paired files and record read IDs kept
