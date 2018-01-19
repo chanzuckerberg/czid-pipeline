@@ -52,7 +52,7 @@ STATS_OUT = 'stats.json'
 VERSION_OUT = 'versions.json' 
 
 # arguments from environment variables
-SUBSAMPLE = int(os.environ.get('SUBSAMPLE')) # number of read pairs to subsample to, before gsnap/rapsearch
+SUBSAMPLE = int(os.environ.get('SUBSAMPLE')) if os.environ.get('SUBSAMPLE') else None # number of read pairs to subsample to, before gsnap/rapsearch
 FASTQ_BUCKET = os.environ.get('FASTQ_BUCKET')
 INPUT_BUCKET = os.environ.get('INPUT_BUCKET')
 FILE_TYPE = os.environ.get('FILE_TYPE', 'fastq.gz')
