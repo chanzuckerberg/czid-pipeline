@@ -594,10 +594,10 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
             upload_command = "echo '' >> %s;" % remote_outfile # add a blank line at the end of the file so S3 copy doesn't fail if output is empty
             upload_command += "aws s3 cp %s %s/;" % (remote_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH)
             execute_command(remote_command(upload_command, key_path, remote_username, gsnapl_instance_ip))
-        # move gsnapl output from s3 to local
-        time.sleep(10)
+            execute_command(scp(key_path, remote_username, gsnapl_instance_ip, remote_outfile, CHUNKS_RESULT_DIR + "/" + outfile_basename))
+        else:
+            execute_command("aws s3 cp %s/%s %s/" % (SAMPLE_S3_OUTPUT_CHUNKS_PATH, outfile_basename, CHUNKS_RESULT_DIR))
         write_to_log("finished alignment for chunk %s" % chunk_id)
-        execute_command("aws s3 cp %s/%s %s/" % (SAMPLE_S3_OUTPUT_CHUNKS_PATH, outfile_basename, CHUNKS_RESULT_DIR))
         # Deduplicate m8 input. Sometimes GSNAPL outputs multiple consecutive lines for same original read and same accession id. Count functions expect only 1 (top hit).
         deduplicate_m8(os.path.join(CHUNKS_RESULT_DIR, outfile_basename), os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename))
         execute_command("aws s3 cp %s/%s %s/" % (CHUNKS_RESULT_DIR, dedup_outfile_basename, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
@@ -714,9 +714,9 @@ def run_rapsearch_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_w
         assert min_column_number == correct_number_of_output_columns, "Chunk %s output corrupt; not copying to S3. Re-start pipeline to try again." % chunk_id
         upload_command = "aws s3 cp %s %s/;" % (output_path, SAMPLE_S3_OUTPUT_CHUNKS_PATH)
         execute_command(remote_command(upload_command, key_path, remote_username, instance_ip))
-    # move output from s3 to local
-    time.sleep(10) # wait until the data is synced
-    execute_command("aws s3 cp %s/%s %s/" % (SAMPLE_S3_OUTPUT_CHUNKS_PATH, outfile_basename, CHUNKS_RESULT_DIR))
+        execute_command(scp(key_path, remote_username, instance_ip, output_path, CHUNKS_RESULT_DIR + "/" + outfile_basename))
+    else:
+        execute_command("aws s3 cp %s/%s %s/" % (SAMPLE_S3_OUTPUT_CHUNKS_PATH, outfile_basename, CHUNKS_RESULT_DIR))
     return os.path.join(CHUNKS_RESULT_DIR, outfile_basename)
 
 def run_rapsearch2_remotely(input_fasta, lazy_run):
