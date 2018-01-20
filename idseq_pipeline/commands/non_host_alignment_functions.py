@@ -148,7 +148,7 @@ def subsample_single_fasta(input_file, records_to_keep, type, output_file):
                 record_number += 1
     if type == "read_ids":
         assert set(kept_read_ids) == set(records_to_keep), "Not all desired read IDs were found in the file: {}\nMissing: {}".format(input_file, set(records_to_keep) - set(kept_read_ids))
-        return kept_read_ids
+    return kept_read_ids
 
 def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads):
     input_files = [os.path.join(RESULT_DIR, f) for f in input_files_basenames]
