@@ -152,7 +152,7 @@ def subsample_single_fasta(input_file, records_to_keep, type, output_file):
 def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads):
     input_files = [os.path.join(RESULT_DIR, f) for f in input_files_basenames]
     merged_file = os.path.join(RESULT_DIR, merged_file_basename)
-    total_records = 0.5 * count_lines_in_paired_files(input_files) # each fasta record spans 2 lines
+    total_records = count_lines_in_paired_files(input_files) // 2 # each fasta record spans 2 lines
     # note: target_n_reads and total_records really refer to numbers of read PAIRS
     if total_records <= target_n_reads:
         return input_files, merged_file
