@@ -142,7 +142,7 @@ def subsample_single_fasta(input_file, records_to_keep, type, output_file):
                 if condition:
                     output.write(sequence_name)
                     output.write(sequence_data)
-                    kept_read_ids += sequence_basename
+                    kept_read_ids.append(sequence_basename)
                 sequence_name = input.readline()
                 sequence_data = input.readline()
                 record_number += 1
