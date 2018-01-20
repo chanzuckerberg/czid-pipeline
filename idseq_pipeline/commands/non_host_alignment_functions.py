@@ -125,6 +125,7 @@ def count_lines_in_paired_files(input_files):
 def subsample_single_fasta(input_file, records_to_keep, type, output_file):
     record_number = 0
     kept_read_ids = []
+    write_to_log(records_to_keep)
     with open(input_file, 'rb') as input:
         with open(output_file, 'wb') as output:
             sequence_name = input.readline()
@@ -147,15 +148,14 @@ def subsample_single_fasta(input_file, records_to_keep, type, output_file):
                 record_number += 1
     if type == "read_ids":
         assert set(kept_read_ids) == set(records_to_keep), "Not all desired read IDs were found in the file: {}\nMissing: {}".format(input_file, set(records_to_keep) - set(kept_read_ids))
-        write_to_log("to keep: {}".format(records_to_keep))
-        write_to_log("kept: {}".format(kept_read_ids))
         return kept_read_ids
 
 def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads):
     input_files = [os.path.join(RESULT_DIR, f) for f in input_files_basenames]
     merged_file = os.path.join(RESULT_DIR, merged_file_basename)
     total_records = count_lines_in_paired_files(input_files) // 2 # each fasta record spans 2 lines
-    write_to_log(total_records)
+    write_to_log("total": total_records)
+    write_to_log("target": target_n_reads)
     # note: target_n_reads and total_records really refer to numbers of read PAIRS
     if total_records <= target_n_reads:
         return input_files, merged_file
