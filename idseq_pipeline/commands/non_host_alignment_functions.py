@@ -142,8 +142,8 @@ def subsample_single_fasta(input_file, records_to_keep, type, output_file):
                     output.write(sequence_name)
                     output.write(sequence_data)
                     kept_read_ids += sequence_basename
-                sequence_name = input_fasta_f.readline()
-                sequence_data = input_fasta_f.readline()
+                sequence_name = input.readline()
+                sequence_data = input.readline()
                 record_number += 1
     if type == "read_ids":
         assert set(kept_read_ids) == set(records_to_keep), "Not all desired read IDs were found in the file: {}".format(input_file)
