@@ -524,7 +524,7 @@ def chunk_input(input_files_basenames, chunk_nlines, chunksize):
         part_lists.append(partial_files)
     input_chunks = [list(part) for part in zip(*part_lists)]
     # e.g. [["input_R1.fasta-part-1", "input_R2.fasta-part-1"],["input_R1.fasta-part-2", "input_R2.fasta-part-2"],["input_R1.fasta-part-3", "input_R2.fasta-part-3"],...]
-    return input_chunks
+    return part_suffix, input_chunks
 
 def remove_whitespace_from_files(input_files, replacement, output_files):
     for idx, input_file in enumerate(input_files):
@@ -616,7 +616,7 @@ def run_gsnapl_remotely(input_files, lazy_run):
     remote_index_dir = "%s/share" % remote_home_dir
     # split file:
     chunk_nlines = 2*GSNAPL_CHUNK_SIZE
-    input_chunks = chunk_input(input_files, chunk_nlines, GSNAPL_CHUNK_SIZE)
+    part_suffix, input_chunks = chunk_input(input_files, chunk_nlines, GSNAPL_CHUNK_SIZE)
     # process chunks:
     chunk_output_files = []
     for chunk_input_files in input_chunks:
@@ -731,7 +731,7 @@ def run_rapsearch2_remotely(input_fasta, lazy_run):
     remote_index_dir = "%s/references/nr_rapsearch" % remote_home_dir
     # split file:
     chunk_nlines = 2*RAPSEARCH_CHUNK_SIZE
-    input_chunks = chunk_input([input_fasta], chunk_nlines, RAPSEARCH_CHUNK_SIZE)
+    part_suffix, input_chunks = chunk_input([input_fasta], chunk_nlines, RAPSEARCH_CHUNK_SIZE)
     # process chunks:
     chunk_output_files = []
     for chunk_input_file in input_chunks:
