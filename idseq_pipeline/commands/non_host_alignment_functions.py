@@ -172,14 +172,14 @@ def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads
         kept_read_ids = subsample_single_fasta(input_file, records_to_keep, "record_indices", output_file)
         if known_kept_read_ids is not None:
             assert set(kept_read_ids) == set(known_kept_read_ids), "Mismatched read IDs kept in supposedly paired files: {}".format(input_files)
-        subsampled_files.append(output_file)
+        subsampled_files.append(output_basename)
         known_kept_read_ids = kept_read_ids
     # subsample the merged file to the same read IDs
     input_dir = os.path.split(merged_file)[0]
     input_basename = os.path.split(merged_file)[1]
-    output_basename = "%s.%s" % (subsample_prefix, input_basename)
-    subsampled_merged_file = os.path.join(input_dir, output_basename)
-    subsample_single_fasta(merged_file, kept_read_ids, "read_ids", subsampled_merged_file)
+    subsampled_merged_file = "%s.%s" % (subsample_prefix, input_basename)
+    output_file = os.path.join(input_dir, subsampled_merged_file)
+    subsample_single_fasta(merged_file, kept_read_ids, "read_ids", output_file)
     return subsampled_files, subsampled_merged_file
 
 def concatenate_files(file_list, output_file):
@@ -915,7 +915,7 @@ def run_stage2(lazy_run = True):
         gsnapl_input_files = subsampled_gsnapl_input_files
         merged_fasta = subsampled_merged_fasta
         for file in gsnapl_input_files + [merged_fasta]:
-            execute_command("aws s3 cp %s %s/" % (file, SAMPLE_S3_OUTPUT_PATH))
+            execute_command("aws s3 cp %s/%s %s/" % (RESULT_DIR, file, SAMPLE_S3_OUTPUT_PATH))
 
     # run gsnap remotely
     logparams = return_merged_dict(DEFAULT_LOGPARAMS,
