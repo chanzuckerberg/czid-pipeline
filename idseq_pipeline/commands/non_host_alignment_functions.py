@@ -52,7 +52,7 @@ STATS_OUT = 'stats.json'
 VERSION_OUT = 'versions.json' 
 
 # arguments from environment variables
-SUBSAMPLE = int(os.environ.get('SUBSAMPLE')) if os.environ.get('SUBSAMPLE') else None # number of read pairs to subsample to, before gsnap/rapsearch
+SUBSAMPLE = os.environ.get('SUBSAMPLE') # number of read pairs to subsample to, before gsnap/rapsearch
 FASTQ_BUCKET = os.environ.get('FASTQ_BUCKET')
 INPUT_BUCKET = os.environ.get('INPUT_BUCKET')
 FILE_TYPE = os.environ.get('FILE_TYPE', 'fastq.gz')
@@ -905,7 +905,7 @@ def run_stage2(lazy_run = True):
 
     # subsample if specified
     if SUBSAMPLE:
-        target_n_reads = SUBSAMPLE
+        target_n_reads = int(SUBSAMPLE)
         subsampled_gsnapl_input_files, subsampled_merged_fasta = subsample_fastas(gsnapl_input_files, merged_fasta, target_n_reads)
         gsnapl_input_files = subsampled_gsnapl_input_files
         merged_fasta = subsampled_merged_fasta
