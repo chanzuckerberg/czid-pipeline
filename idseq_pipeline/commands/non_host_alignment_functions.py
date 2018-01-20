@@ -914,6 +914,8 @@ def run_stage2(lazy_run = True):
         subsampled_gsnapl_input_files, subsampled_merged_fasta = subsample_fastas(gsnapl_input_files, merged_fasta, target_n_reads)
         gsnapl_input_files = subsampled_gsnapl_input_files
         merged_fasta = subsampled_merged_fasta
+        for file in gsnapl_input_files + [merged_fasta]:
+            execute_command("aws s3 cp %s %s/" % (file, SAMPLE_S3_OUTPUT_PATH))
 
     # run gsnap remotely
     logparams = return_merged_dict(DEFAULT_LOGPARAMS,
