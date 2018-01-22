@@ -158,7 +158,7 @@ def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads
     write_to_log("target: %d" % target_n_reads)
     # note: target_n_reads and total_records really refer to numbers of read PAIRS
     if total_records <= target_n_reads:
-        return input_files, merged_file
+        return input_files_basenames, merged_file_basename
     subsample_prefix = "subsample_%d" % target_n_reads
     records_to_keep = random.sample(xrange(total_records), target_n_reads)
     subsampled_files = []
