@@ -180,6 +180,8 @@ def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads
     subsampled_merged_file = "%s.%s" % (subsample_prefix, input_basename)
     output_file = os.path.join(input_dir, subsampled_merged_file)
     subsample_single_fasta(merged_file, kept_read_ids, "read_ids", output_file)
+    write_to_log("Return 1: {}".format(subsampled_files))
+    write_to_log("Return 2: {}".format(subsampled_merged_file))
     return subsampled_files, subsampled_merged_file
 
 def concatenate_files(file_list, output_file):
