@@ -49,7 +49,7 @@ UNIDENTIFIED_FASTA_OUT = 'unidentified.fasta'
 COMBINED_JSON_OUT = 'idseq_web_sample.json'
 LOGS_OUT_BASENAME = 'log'
 STATS_OUT = 'stats.json'
-VERSION_OUT = 'versions.json' 
+VERSION_OUT = 'versions.json'
 
 # arguments from environment variables
 SUBSAMPLE = os.environ.get('SUBSAMPLE') # number of read pairs to subsample to, before gsnap/rapsearch
@@ -77,7 +77,7 @@ random.seed(hash(SAMPLE_NAME))
 # versioning
 ## For now, index updates are infrequent and we can get their versions from S3.
 ## If updates ever become frequent, we may want to check instead which version is actually on the
-## machine taking the job, possibly out of sync with the newest version in S3. 
+## machine taking the job, possibly out of sync with the newest version in S3.
 GSNAP_VERSION_FILE_S3 = 's3://czbiohub-infectious-disease/references/nt_k16.version.txt'
 RAPSEARCH_VERSION_FILE_S3 = 's3://czbiohub-infectious-disease/references/nr_rapsearch.version.txt'
 
@@ -99,7 +99,7 @@ TARGET_OUTPUTS = { "run_gsnapl_remotely": [os.path.join(RESULT_DIR, GSNAPL_DEDUP
 # compute capacity
 GSNAPL_MAX_CONCURRENT = 5 # number of gsnapl jobs allowed to run concurrently on 1 machine
 RAPSEARCH2_MAX_CONCURRENT = 3
-GSNAPL_CHUNK_SIZE = 30000 # number of fasta records in a chunk
+GSNAPL_CHUNK_SIZE = 30000 # number of fasta records in a chunk so it runs in ~10 minutes on i3.16xlarge
 RAPSEARCH_CHUNK_SIZE = 10000
 
 # references
@@ -575,17 +575,26 @@ def check_s3_file_presence(s3_path):
       return 0
 
 # job functions
-def chunk_input(input_files_basenames, chunk_nlines, part_suffix):
+def chunk_input(input_files_basenames, chunk_nlines, chunksize):
     part_lists = []
+    known_nlines = None
     for input_file in input_files_basenames:
         input_file_full_local_path = os.path.join(RESULT_DIR, input_file)
+        nlines = int(execute_command_with_output("wc -l %s" % input_file_full_local_path).strip().split()[0])
+        if known_nlines != None:
+            assert nlines == known_nlines, "Mismatched line counts in supposedly paired files: {}".format(input_files_basenames)
+        known_nlines = nlines
+        numparts = (nlines + chunk_nlines - 1) // chunk_nlines
+        ndigits = len(str(numparts - 1))
+        part_suffix = "-chunksize-%d-numparts-%d-part-" % (chunksize, numparts)
         out_prefix = os.path.join(CHUNKS_RESULT_DIR, input_file) + part_suffix
         out_prefix_base = os.path.basename(out_prefix)
-        write_to_log("input_file_full_local_path:" + input_file_full_local_path)
-        write_to_log("Command:" + "split --numeric-suffixes -l %d %s %s" % (chunk_nlines, input_file_full_local_path, out_prefix))
-        execute_command("split --numeric-suffixes -l %d %s %s" % (chunk_nlines, input_file_full_local_path, out_prefix))
+        execute_command("split -a %d --numeric-suffixes -l %d %s %s" % (ndigits, chunk_nlines, input_file_full_local_path, out_prefix))
         execute_command("aws s3 cp %s/ %s/ --recursive --exclude '*' --include '%s*'" % (CHUNKS_RESULT_DIR, SAMPLE_S3_OUTPUT_CHUNKS_PATH, out_prefix_base))
         partial_files = [os.path.basename(partial_file) for partial_file in execute_command_with_output("ls %s*" % out_prefix).rstrip().split("\n")]
+        pattern = "{:0%dd}" % ndigits
+        expected_partial_files = [(out_prefix_base + pattern.format(i)) for i in range(numparts)]
+        assert expected_partial_files == partial_files, "something went wrong with chunking: {} != {}".format(partial_files, expected_partial_files)
         part_lists.append(partial_files)
     input_chunks = [list(part) for part in zip(*part_lists)]
     # e.g. [["input_R1.fasta-part-1", "input_R2.fasta-part-1"],["input_R1.fasta-part-2", "input_R2.fasta-part-2"],["input_R1.fasta-part-3", "input_R2.fasta-part-3"],...]
@@ -659,10 +668,10 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
             upload_command = "echo '' >> %s;" % remote_outfile # add a blank line at the end of the file so S3 copy doesn't fail if output is empty
             upload_command += "aws s3 cp %s %s/;" % (remote_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH)
             execute_command(remote_command(upload_command, key_path, remote_username, gsnapl_instance_ip))
-        # move gsnapl output from s3 to local
-        time.sleep(10)
+            execute_command(scp(key_path, remote_username, gsnapl_instance_ip, remote_outfile, CHUNKS_RESULT_DIR + "/" + outfile_basename))
+        else:
+            execute_command("aws s3 cp %s/%s %s/" % (SAMPLE_S3_OUTPUT_CHUNKS_PATH, outfile_basename, CHUNKS_RESULT_DIR))
         write_to_log("finished alignment for chunk %s" % chunk_id)
-        execute_command("aws s3 cp %s/%s %s/" % (SAMPLE_S3_OUTPUT_CHUNKS_PATH, outfile_basename, CHUNKS_RESULT_DIR))
         # Deduplicate m8 input. Sometimes GSNAPL outputs multiple consecutive lines for same original read and same accession id. Count functions expect only 1 (top hit).
         deduplicate_m8(os.path.join(CHUNKS_RESULT_DIR, outfile_basename), os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename))
         execute_command("aws s3 cp %s/%s %s/" % (CHUNKS_RESULT_DIR, dedup_outfile_basename, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
@@ -681,8 +690,7 @@ def run_gsnapl_remotely(input_files, lazy_run):
     remote_index_dir = "%s/share" % remote_home_dir
     # split file:
     chunk_nlines = 2*GSNAPL_CHUNK_SIZE
-    part_suffix = "-chunksize-%d-part-" % GSNAPL_CHUNK_SIZE
-    part_suffix, input_chunks = chunk_input(input_files, chunk_nlines, part_suffix)
+    part_suffix, input_chunks = chunk_input(input_files, chunk_nlines, GSNAPL_CHUNK_SIZE)
     # process chunks:
     chunk_output_files = []
     for chunk_input_files in input_chunks:
@@ -759,17 +767,30 @@ def run_rapsearch_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_w
                           '-q', input_path,
                           '-o', output_path[:-3],
                           ';'])
-    commands += "aws s3 cp %s %s/;" % (output_path, SAMPLE_S3_OUTPUT_CHUNKS_PATH)
     if not lazy_run or not check_s3_file_presence(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, outfile_basename)):
-        write_to_log("waiting for server")
-        instance_ip = wait_for_server_ip('rapsearch', key_path, remote_username, ENVIRONMENT, RAPSEARCH2_MAX_CONCURRENT)
-        write_to_log("starting alignment for chunk %s on machine %s" % (chunk_id, instance_ip))
-        remote_command = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s "%s"' % (key_path, remote_username, instance_ip, commands)
-        execute_command_realtime_stdout(remote_command)
-        write_to_log("finished alignment for chunk %s" % chunk_id)
-    # move output back to local
-    time.sleep(10) # wait until the data is synced
-    execute_command("aws s3 cp %s/%s %s/" % (SAMPLE_S3_OUTPUT_CHUNKS_PATH, outfile_basename, CHUNKS_RESULT_DIR))
+        correct_number_of_output_columns = 12
+        min_column_number = 0
+        max_tries = 2
+        try_number = 1
+        while (min_column_number != correct_number_of_output_columns and try_number <= max_tries):
+            write_to_log("waiting for server")
+            instance_ip = wait_for_server_ip('rapsearch', key_path, remote_username, ENVIRONMENT, RAPSEARCH2_MAX_CONCURRENT)
+            write_to_log("starting alignment for chunk %s on machine %s" % (chunk_id, instance_ip))
+            execute_command_realtime_stdout(remote_command(commands, key_path, remote_username, instance_ip))
+            write_to_log("finished alignment for chunk %s" % chunk_id)
+            # check if every row has correct number of columns (12) in the output file on the remote machine
+            verification_command = "grep -v '^#' %s" % output_path # first, remove header lines starting with '#'
+            verification_command += " | awk '{print NF}' | sort -nu | head -n 1"
+            min_column_number = float(execute_command_with_output(remote_command(verification_command, key_path, remote_username, instance_ip)))
+            write_to_log("Try no. %d: Smallest number of columns observed in any line was %d" % (try_number, min_column_number))
+            try_number += 1
+        # move output from remote machine to s3
+        assert min_column_number == correct_number_of_output_columns, "Chunk %s output corrupt; not copying to S3. Re-start pipeline to try again." % chunk_id
+        upload_command = "aws s3 cp %s %s/;" % (output_path, SAMPLE_S3_OUTPUT_CHUNKS_PATH)
+        execute_command(remote_command(upload_command, key_path, remote_username, instance_ip))
+        execute_command(scp(key_path, remote_username, instance_ip, output_path, CHUNKS_RESULT_DIR + "/" + outfile_basename))
+    else:
+        execute_command("aws s3 cp %s/%s %s/" % (SAMPLE_S3_OUTPUT_CHUNKS_PATH, outfile_basename, CHUNKS_RESULT_DIR))
     return os.path.join(CHUNKS_RESULT_DIR, outfile_basename)
 
 def run_rapsearch2_remotely(input_fasta, lazy_run):
@@ -784,8 +805,7 @@ def run_rapsearch2_remotely(input_fasta, lazy_run):
     remote_index_dir = "%s/references/nr_rapsearch" % remote_home_dir
     # split file:
     chunk_nlines = 2*RAPSEARCH_CHUNK_SIZE
-    part_suffix = "-chunksize-%d-part-" % RAPSEARCH_CHUNK_SIZE
-    part_suffix, input_chunks = chunk_input([input_fasta], chunk_nlines, part_suffix)
+    part_suffix, input_chunks = chunk_input([input_fasta], chunk_nlines, RAPSEARCH_CHUNK_SIZE)
     # process chunks:
     chunk_output_files = []
     for chunk_input_file in input_chunks:
