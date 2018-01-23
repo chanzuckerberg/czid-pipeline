@@ -15,6 +15,7 @@ import logging
 import math
 import threading
 import shutil
+import random
 from .common import *
 
 # data directories
@@ -51,6 +52,7 @@ STATS_OUT = 'stats.json'
 VERSION_OUT = 'versions.json'
 
 # arguments from environment variables
+SUBSAMPLE = os.environ.get('SUBSAMPLE') # number of read pairs to subsample to, before gsnap/rapsearch
 FASTQ_BUCKET = os.environ.get('FASTQ_BUCKET')
 INPUT_BUCKET = os.environ.get('INPUT_BUCKET')
 FILE_TYPE = os.environ.get('FILE_TYPE', 'fastq.gz')
@@ -68,6 +70,9 @@ RESULT_DIR = SAMPLE_DIR + '/results'
 CHUNKS_RESULT_DIR = os.path.join(RESULT_DIR, "chunks")
 DEFAULT_LOGPARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH,
                      "stats_file": os.path.join(RESULT_DIR, STATS_OUT)}
+
+# For reproducibility of random operations
+random.seed(hash(SAMPLE_NAME))
 
 # versioning
 ## For now, index updates are infrequent and we can get their versions from S3.
@@ -108,6 +113,75 @@ TAX_LEVEL_SPECIES = 1
 TAX_LEVEL_GENUS = 2
 
 # convenience functions
+def count_lines_in_paired_files(input_files):
+    known_nlines = None
+    for input_file in input_files:
+        nlines = int(execute_command_with_output("wc -l %s" % input_file).strip().split()[0])
+        if known_nlines != None:
+            assert nlines == known_nlines, "Mismatched line counts in supposedly paired files: {}".format(input_files)
+        known_nlines = nlines
+    return nlines
+
+def subsample_single_fasta(input_file, records_to_keep, type, output_file):
+    record_number = 0
+    kept_read_ids = []
+    write_to_log(records_to_keep)
+    with open(input_file, 'rb') as input:
+        with open(output_file, 'wb') as output:
+            sequence_name = input.readline()
+            sequence_data = input.readline()
+            while len(sequence_name) > 0 and len(sequence_data) > 0:
+                if type == "read_ids":
+                    sequence_basename = sequence_name.rstrip().rsplit('/', 1)[0]
+                    condition = sequence_basename in records_to_keep
+                elif type == "record_indices":
+                    condition = record_number in records_to_keep
+                    sequence_basename = sequence_name.rstrip()
+                else:
+                    condition = true
+                if condition:
+                    output.write(sequence_name)
+                    output.write(sequence_data)
+                    kept_read_ids.append(sequence_basename)
+                sequence_name = input.readline()
+                sequence_data = input.readline()
+                record_number += 1
+    if type == "read_ids":
+        assert set(kept_read_ids) == set(records_to_keep), "Not all desired read IDs were found in the file: {}\nMissing: {}".format(input_file, set(records_to_keep) - set(kept_read_ids))
+    return kept_read_ids
+
+def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads):
+    input_files = [os.path.join(RESULT_DIR, f) for f in input_files_basenames]
+    merged_file = os.path.join(RESULT_DIR, merged_file_basename)
+    total_records = count_lines_in_paired_files(input_files) // 2 # each fasta record spans 2 lines
+    write_to_log("total read pairs: %d" % total_records)
+    write_to_log("target read pairs: %d" % target_n_reads)
+    # note: target_n_reads and total_records really refer to numbers of read PAIRS
+    if total_records <= target_n_reads:
+        return input_files_basenames, merged_file_basename
+    subsample_prefix = "subsample_%d" % target_n_reads
+    records_to_keep = random.sample(xrange(total_records), target_n_reads)
+    subsampled_files = []
+    known_kept_read_ids = None
+    # subsample the paired files and record read IDs kept
+    for input_file in input_files:
+        input_dir = os.path.split(input_file)[0]
+        input_basename = os.path.split(input_file)[1]
+        output_basename = "%s.%s" % (subsample_prefix, input_basename)
+        output_file = os.path.join(input_dir, output_basename)
+        kept_read_ids = subsample_single_fasta(input_file, records_to_keep, "record_indices", output_file)
+        if known_kept_read_ids is not None:
+            assert set(kept_read_ids) == set(known_kept_read_ids), "Mismatched read IDs kept in supposedly paired files: {}".format(input_files)
+        subsampled_files.append(output_basename)
+        known_kept_read_ids = kept_read_ids
+    # subsample the merged file to the same read IDs
+    input_dir = os.path.split(merged_file)[0]
+    input_basename = os.path.split(merged_file)[1]
+    subsampled_merged_file = "%s.%s" % (subsample_prefix, input_basename)
+    output_file = os.path.join(input_dir, subsampled_merged_file)
+    subsample_single_fasta(merged_file, kept_read_ids, "read_ids", output_file)
+    return subsampled_files, subsampled_merged_file
+
 def concatenate_files(file_list, output_file):
     with open(output_file, 'wb') as outf:
         for f in file_list:
@@ -853,6 +927,16 @@ def run_stage2(lazy_run = True):
         execute_command("aws s3 cp %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, STATS_OUT, RESULT_DIR))
         stats_file = os.path.join(RESULT_DIR, STATS_OUT)
         load_existing_stats(stats_file)
+
+    # subsample if specified
+    if SUBSAMPLE:
+        target_n_reads = int(SUBSAMPLE)
+        subsampled_gsnapl_input_files, subsampled_merged_fasta = subsample_fastas(gsnapl_input_files, os.path.basename(merged_fasta), target_n_reads)
+        gsnapl_input_files = subsampled_gsnapl_input_files
+        merged_fasta = os.path.join(RESULT_DIR, subsampled_merged_fasta)
+        for f in gsnapl_input_files:
+            execute_command("aws s3 cp %s/%s %s/" % (RESULT_DIR, f, SAMPLE_S3_OUTPUT_PATH))
+        execute_command("aws s3 cp %s %s/" % (merged_fasta, SAMPLE_S3_OUTPUT_PATH))
 
     # run gsnap remotely
     logparams = return_merged_dict(DEFAULT_LOGPARAMS,
