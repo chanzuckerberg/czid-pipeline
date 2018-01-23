@@ -154,8 +154,8 @@ def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads
     input_files = [os.path.join(RESULT_DIR, f) for f in input_files_basenames]
     merged_file = os.path.join(RESULT_DIR, merged_file_basename)
     total_records = count_lines_in_paired_files(input_files) // 2 # each fasta record spans 2 lines
-    write_to_log("total: %d" % total_records)
-    write_to_log("target: %d" % target_n_reads)
+    write_to_log("total read pairs: %d" % total_records)
+    write_to_log("target read pairs: %d" % target_n_reads)
     # note: target_n_reads and total_records really refer to numbers of read PAIRS
     if total_records <= target_n_reads:
         return input_files_basenames, merged_file_basename
@@ -180,8 +180,6 @@ def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads
     subsampled_merged_file = "%s.%s" % (subsample_prefix, input_basename)
     output_file = os.path.join(input_dir, subsampled_merged_file)
     subsample_single_fasta(merged_file, kept_read_ids, "read_ids", output_file)
-    write_to_log("Return 1: {}".format(subsampled_files))
-    write_to_log("Return 2: {}".format(subsampled_merged_file))
     return subsampled_files, subsampled_merged_file
 
 def concatenate_files(file_list, output_file):
@@ -917,7 +915,6 @@ def run_stage2(lazy_run = True):
         gsnapl_input_files = subsampled_gsnapl_input_files
         merged_fasta = os.path.join(RESULT_DIR, subsampled_merged_fasta)
         for f in gsnapl_input_files:
-            write_to_log("gsnapl_input_files: " + f)
             execute_command("aws s3 cp %s/%s %s/" % (RESULT_DIR, f, SAMPLE_S3_OUTPUT_PATH))
         execute_command("aws s3 cp %s %s/" % (merged_fasta, SAMPLE_S3_OUTPUT_PATH))
 
