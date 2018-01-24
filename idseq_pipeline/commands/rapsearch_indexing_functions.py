@@ -30,7 +30,7 @@ def get_key():
     KEY_PATH = os.path.join(LOCAL_WORK_DIR, os.path.basename(KEY_S3_PATH))
     execute_command("chmod 400 %s" % KEY_PATH)
 
-def make_index():
+def make_index(version):
     # Set up
     execute_command("mkdir -p %s" % LOCAL_WORK_DIR)
     get_key()
@@ -58,4 +58,4 @@ def make_index():
     execute_command(remote_command(upload_command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
     # upload version tracker file
-    upload_version_tracker(INPUT_FASTA_S3, OUTPUT_NAME, version_number, OUTPUT_PATH_S3)
+    upload_version_tracker(INPUT_FASTA_S3, OUTPUT_NAME, version_number, OUTPUT_PATH_S3, version)

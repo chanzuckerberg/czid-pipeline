@@ -7,7 +7,7 @@ OUTPUT_PATH_S3 = os.environ.get('OUTPUT_PATH_S3').rstrip('/')
 # input reference: path relative to ftp://ftp.ncbi.nlm.nih.gov, but we retrieve it using ncbitool
 INPUT = "/pub/taxonomy/taxdump.tar.gz"
 
-def make_lineages():
+def make_lineages(version):
     # Install ncbitax2lin
     scratch_dir = os.path.join(os.getcwd(), "idseq-pipeline-lineages")
     execute_command("mkdir -p %s" % scratch_dir)
@@ -42,4 +42,4 @@ def make_lineages():
     execute_command(command)
 
     # upload version:
-    upload_version_tracker('lineage_and_deuterostome', version_number, OUTPUT_PATH_S3)
+    upload_version_tracker('lineage_and_deuterostome', version_number, OUTPUT_PATH_S3, version)

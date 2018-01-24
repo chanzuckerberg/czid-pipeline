@@ -166,7 +166,7 @@ def run_generate_taxid_fasta_from_accid(input_fasta, output_fasta):
     accession2taxid_path = REF_DIR + '/' + accession2taxid_gz[:-3]
     if not os.path.isfile(accession2taxid_path):
         execute_command("aws s3 cp %s %s/" % (ACCESSION2TAXID, REF_DIR))
-        execute_command("cd %s; gunzip %s" % (REF_DIR, accession2taxid_gz))
+        execute_command("cd %s; gunzip -f %s" % (REF_DIR, accession2taxid_gz))
         logging.getLogger().info("downloaded accession-to-taxid map")
     lineage_filename = os.path.basename(LINEAGE_SHELF)
     lineage_path = REF_DIR + '/' + lineage_filename

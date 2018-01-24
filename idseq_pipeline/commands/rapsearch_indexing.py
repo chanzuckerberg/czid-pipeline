@@ -8,4 +8,4 @@ class Rapsearch_indexing(Base):
         from .rapsearch_indexing_functions import *
 
         unbuffer_stdout()
-        make_index()
+        make_index(self.version)

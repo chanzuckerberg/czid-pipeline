@@ -8,6 +8,6 @@ class Host_filtering(Base):
         from .host_filtering_functions import *
 
         unbuffer_stdout()
-        upload_commit_sha()
+        upload_commit_sha(self.version)
 
         run_stage1(True)

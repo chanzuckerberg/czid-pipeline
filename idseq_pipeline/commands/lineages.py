@@ -8,4 +8,4 @@ class Lineages(Base):
         from .lineages_functions import *
 
         unbuffer_stdout()
-        make_lineages()
+        make_lineages(self.version)

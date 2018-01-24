@@ -8,6 +8,6 @@ class Non_host_alignment(Base):
         from .non_host_alignment_functions import *
 
         unbuffer_stdout()
-        upload_commit_sha()
+        upload_commit_sha(self.version)
 
         run_stage2(True)
