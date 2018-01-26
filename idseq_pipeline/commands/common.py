@@ -179,8 +179,10 @@ def get_total_reads_from_stats():
     for item in STATS:
         if item.get("task") == 'run_star':
             return item["reads_before"]
-    # no entry
-    return 0.1
+    # if no entry for run_star, host-filtering was skipped: use "remaining_reads" instead
+    return get_remaining_reads_from_stats()
+    # previous fall-back value didn't fit into integer type of SQL dfatabase:
+    # return 0.1
 
 def get_remaining_reads_from_stats():
     return (item for item in STATS if item.get("task") == "run_gsnapl_remotely").next().get("reads_before")
