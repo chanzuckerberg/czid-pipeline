@@ -231,7 +231,7 @@ def run_and_log(logparams, target_outputs, lazy_run, func_name, *args):
 
     # write stats
     stats_path = logparams.get("stats_file")
-    if stats_path and os.path.isfile(stats_path):
+    if stats_path:
         with open(stats_path, 'wb') as f:
             json.dump(STATS, f)
         execute_command("aws s3 cp %s %s/;" % (stats_path, logparams["sample_s3_output_path"]))
