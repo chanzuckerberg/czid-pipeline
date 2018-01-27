@@ -175,7 +175,7 @@ def generate_unmapped_pairs_from_sam(sam_file, output_prefix):
     output_merged_read.close()
 
 # job functions
-def run_star_part(output_dir, genome_dir, fastq_file_1, fastq_file_2):
+def run_star_part(output_dir, genome_dir, fastq_files):
     execute_command("mkdir -p %s" % output_dir)
     star_command_params = ['cd', output_dir, ';', STAR,
                            '--outFilterMultimapNmax', '99999',
@@ -187,12 +187,12 @@ def run_star_part(output_dir, genome_dir, fastq_file_1, fastq_file_2):
                            '--clip3pNbases', '0',
                            '--runThreadN', str(multiprocessing.cpu_count()),
                            '--genomeDir', genome_dir,
-                           '--readFilesIn', fastq_file_1, fastq_file_2]
-    if fastq_file_1[-3:] == '.gz':
+                           '--readFilesIn', " ".join(fastq_files)]
+    if fastq_files[0][-3:] == '.gz':
         star_command_params += ['--readFilesCommand', 'zcat']
     execute_command_realtime_stdout(" ".join(star_command_params), os.path.join(output_dir, "Log.progress.out"))
 
-def run_star(fastq_file_1, fastq_file_2):
+def run_star(fastq_files):
     # check if genome downloaded already
     genome_file = os.path.basename(STAR_GENOME)
     if not os.path.isfile("%s/%s" % (REF_DIR, genome_file)):
@@ -205,23 +205,32 @@ def run_star(fastq_file_1, fastq_file_2):
             num_parts = int(parts_f.read())
         part_idx = 0
         tmp_result_dir = "%s/star-part-%d" % (SCRATCH_DIR, part_idx)
-        run_star_part(tmp_result_dir, REF_DIR + "/STAR_genome/part-%d" % part_idx, fastq_file_1, fastq_file_2)
+        run_star_part(tmp_result_dir, REF_DIR + "/STAR_genome/part-%d" % part_idx, fastq_files)
         for i in range(1, num_parts):
-            fastq_1 = "%s/Unmapped.out.mate1" % tmp_result_dir
-            fastq_2 = "%s/Unmapped.out.mate2" % tmp_result_dir
+            if len(fastq_files) == 2:
+                fastq_files = ["%s/Unmapped.out.mate1" % tmp_result_dir, "%s/Unmapped.out.mate2" % tmp_result_dir]
+            else:
+                fastq_files = ["%s/Unmapped.out" % tmp_result_dir]
             tmp_result_dir = "%s/star-part-%d" % (SCRATCH_DIR, i)
-            run_star_part(tmp_result_dir, REF_DIR + "/STAR_genome/part-%d" % i, fastq_1, fastq_2)
+            run_star_part(tmp_result_dir, REF_DIR + "/STAR_genome/part-%d" % i, fastq_files)
         # extract out unmapped files
-        execute_command("cp %s/%s %s/%s;" % (tmp_result_dir, 'Unmapped.out.mate1', RESULT_DIR, STAR_OUT1))
-        execute_command("cp %s/%s %s/%s;" % (tmp_result_dir, 'Unmapped.out.mate2', RESULT_DIR, STAR_OUT2))
+        if len(fastq_files) == 2:
+            execute_command("cp %s/%s %s/%s;" % (tmp_result_dir, 'Unmapped.out.mate1', RESULT_DIR, STAR_OUT1))
+            execute_command("cp %s/%s %s/%s;" % (tmp_result_dir, 'Unmapped.out.mate2', RESULT_DIR, STAR_OUT2))
+        else:
+            execute_command("cp %s/%s %s/%s;" % (tmp_result_dir, 'Unmapped.out', RESULT_DIR, STAR_OUT1)) 
     else:
-        run_star_part(SCRATCH_DIR, REF_DIR + '/STAR_genome', fastq_file_1, fastq_file_2)
+        run_star_part(SCRATCH_DIR, REF_DIR + '/STAR_genome', fastq_files)
         # extract out unmapped files
-        execute_command("cp %s/%s %s/%s;" % (SCRATCH_DIR, 'Unmapped.out.mate1', RESULT_DIR, STAR_OUT1))
-        execute_command("cp %s/%s %s/%s;" % (SCRATCH_DIR, 'Unmapped.out.mate2', RESULT_DIR, STAR_OUT2))
+        if len(fastq_files) == 2:
+            execute_command("cp %s/%s %s/%s;" % (SCRATCH_DIR, 'Unmapped.out.mate1', RESULT_DIR, STAR_OUT1))
+            execute_command("cp %s/%s %s/%s;" % (SCRATCH_DIR, 'Unmapped.out.mate2', RESULT_DIR, STAR_OUT2))
+        else:
+            execute_command("cp %s/%s %s/%s;" % (SCRATCH_DIR, 'Unmapped.out', RESULT_DIR, STAR_OUT1))
     # copy back to aws
     execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, STAR_OUT1, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, STAR_OUT2, SAMPLE_S3_OUTPUT_PATH))
+    if len(fastq_files) == 2:
+        execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, STAR_OUT2, SAMPLE_S3_OUTPUT_PATH))
     # cleanup
     execute_command("cd %s; rm -rf *" % SCRATCH_DIR)
     write_to_log("finished job")
