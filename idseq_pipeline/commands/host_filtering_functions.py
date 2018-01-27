@@ -302,14 +302,15 @@ def run_bowtie2(input_fa_1, input_fa_2):
     execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
     execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3, SAMPLE_S3_OUTPUT_PATH))
 
-def run_host_filtering(fastq_file_1, fastq_file_2, initial_file_type_for_log, lazy_run):
+def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run):
+
     # run STAR
     logparams = return_merged_dict(DEFAULT_LOGPARAMS,
         {"title": "STAR", "count_reads": True,
-        "before_file_name": fastq_file_1, "before_file_type": initial_file_type_for_log,
+        "before_file_name": fastq_files[0], "before_file_type": initial_file_type_for_log,
         "after_file_name": os.path.join(RESULT_DIR, STAR_OUT1), "after_file_type": initial_file_type_for_log,
         "version_file_s3": STAR_BOWTIE_VERSION_FILE_S3, "output_version_file": os.path.join(RESULT_DIR, VERSION_OUT)})
-    run_and_log(logparams, TARGET_OUTPUTS["run_star"], lazy_run, run_star, fastq_file_1, fastq_file_2)
+    run_and_log(logparams, TARGET_OUTPUTS["run_star"], lazy_run, run_star, fastq_files)
 
     # run priceseqfilter
     logparams = return_merged_dict(DEFAULT_LOGPARAMS,
@@ -375,11 +376,8 @@ def run_stage1(lazy_run = True):
     fastq_files = execute_command_with_output("ls %s/*.%s" % (FASTQ_DIR, FILE_TYPE)).rstrip().split("\n")
 
     # Identify input files and characteristics
-    if len(fastq_files) <= 1:
-        return # only support paired reads for now
-    else:
-        fastq_file_1 = fastq_files[0]
-        fastq_file_2 = fastq_files[1]
+    if len(fastq_files) not in [1, 2]:
+        return # only support either 1 file or 2 (paired) files
 
     # Download existing data and see what has been done
     if lazy_run:
@@ -395,7 +393,7 @@ def run_stage1(lazy_run = True):
     execute_command("aws s3 cp %s %s/;" % (stats_path, SAMPLE_S3_OUTPUT_PATH))
 
     # run host filtering
-    run_host_filtering(fastq_file_1, fastq_file_2, initial_file_type_for_log, lazy_run)
+    run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run)
     # copy the merged fasta file back to results folder to change time stamp
     execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1, SAMPLE_S3_OUTPUT_PATH))
     execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
