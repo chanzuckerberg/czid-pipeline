@@ -308,14 +308,14 @@ def run_lzw(input_fas):
     if len(input_fas) == 2:
         execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, LZW_OUT2, SAMPLE_S3_OUTPUT_PATH))
 
-def run_bowtie2(input_fa_1, input_fa_2):
+def run_bowtie2(input_fas)
     # check if genome downloaded already
     genome_file = os.path.basename(BOWTIE2_GENOME)
     if not os.path.isfile("%s/%s" % (REF_DIR, genome_file)):
         execute_command("aws s3 cp %s %s/" % (BOWTIE2_GENOME, REF_DIR))
         execute_command("cd %s; tar xvfz %s" % (REF_DIR, genome_file))
         write_to_log("downloaded index")
-    local_genome_dir_ls =  execute_command_with_output("ls %s/bowtie2_genome/*.bt2*" % REF_DIR)
+    local_genome_dir_ls = execute_command_with_output("ls %s/bowtie2_genome/*.bt2*" % REF_DIR)
     genome_basename = local_genome_dir_ls.split("\n")[0][:-6]
     if genome_basename[-1] == '.':
         genome_basename = genome_basename[:-1]
@@ -324,8 +324,11 @@ def run_bowtie2(input_fa_1, input_fa_2):
                      '-p', str(multiprocessing.cpu_count()),
                      '-x', genome_basename,
                      '--very-sensitive-local',
-                     '-f', '-1', input_fa_1, '-2', input_fa_2,
                      '-S', RESULT_DIR + '/' + BOWTIE2_OUT]
+    if len(input_fas) == 2:
+        bowtie2_params.extend(['-f', '-1', input_fas[0], '-2', input_fas[1]])
+    else:
+        bowtie2_params.extend(['-f', input_fas[0]])
     execute_command_realtime_stdout(" ".join(bowtie2_params))
     write_to_log("finished alignment")
     # extract out unmapped files from sam
@@ -413,6 +416,7 @@ def run_stage1(lazy_run = True):
 
     # Identify input files and characteristics
     if len(fastq_files) not in [1, 2]:
+        write_to_log("Number of input files was neither 1 nor 2. Aborting computation.")
         return # only support either 1 file or 2 (paired) files
 
     # Download existing data and see what has been done
