@@ -275,8 +275,8 @@ def run_priceseqfilter(input_fqs):
         execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, PRICESEQFILTER_OUT2, SAMPLE_S3_OUTPUT_PATH))
 
 def run_fq2fa(input_fqs):
-    fq2fa(input_fq_1, os.path.join(RESULT_DIR, FQ2FA_OUT1))
-    fq2fa(input_fq_2, os.path.join(RESULT_DIR, FQ2FA_OUT2))
+    fq2fa(input_fqs[0], os.path.join(RESULT_DIR, FQ2FA_OUT1))
+    fq2fa(input_fqs[1], os.path.join(RESULT_DIR, FQ2FA_OUT2))
     write_to_log("finished job")
     if len(input_fqs) == 2:
         execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, FQ2FA_OUT1, SAMPLE_S3_OUTPUT_PATH))
