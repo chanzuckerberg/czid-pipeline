@@ -255,24 +255,25 @@ def run_priceseqfilter(input_fqs):
 
 def run_fq2fa(input_fqs):
     fq2fa(input_fq_1, os.path.join(RESULT_DIR, FQ2FA_OUT1))
-    execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, FQ2FA_OUT1, SAMPLE_S3_OUTPUT_PATH))
-    if len(input_fqs) == 2:
-        fq2fa(input_fq_2, os.path.join(RESULT_DIR, FQ2FA_OUT2))
-        execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, FQ2FA_OUT2, SAMPLE_S3_OUTPUT_PATH))
+    fq2fa(input_fq_2, os.path.join(RESULT_DIR, FQ2FA_OUT2))
     write_to_log("finished job")
+    if len(input_fqs) == 2:
+        execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, FQ2FA_OUT1, SAMPLE_S3_OUTPUT_PATH))
+        execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, FQ2FA_OUT2, SAMPLE_S3_OUTPUT_PATH))
 
-def run_cdhitdup(input_fa_1, input_fa_2):
+def run_cdhitdup(input_fas):
     cdhitdup_params = [CDHITDUP,
-                       '-i',  input_fa_1,
-                       '-i2', input_fa_2,
+                       '-i',  input_fas[0],
                        '-o',  RESULT_DIR + '/' + CDHITDUP_OUT1,
-                       '-o2', RESULT_DIR + '/' + CDHITDUP_OUT2,
                        '-e',  '0.05', '-u', '70']
+    if len(input_fas) == 2:
+        cdhitdup_params.extend(['-i2', input_fas[1],
+                                '-o2', RESULT_DIR + '/' + CDHITDUP_OUT2])
     execute_command_realtime_stdout(" ".join(cdhitdup_params))
     write_to_log("finished job")
-    # copy back to aws
     execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, CDHITDUP_OUT1, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, CDHITDUP_OUT2, SAMPLE_S3_OUTPUT_PATH))
+    if len(input_fas) == 2:
+        execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, CDHITDUP_OUT2, SAMPLE_S3_OUTPUT_PATH))
 
 def run_lzw(input_fa_1, input_fa_2):
     output_prefix = RESULT_DIR + '/' + LZW_OUT1[:-8]
