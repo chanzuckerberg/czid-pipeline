@@ -391,8 +391,7 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run):
         else:
             input_files = [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1)]
             next_inputs = [os.path.join(RESULT_DIR, FQ2FA_OUT1)]
-        run_and_log(logparams, TARGET_OUTPUTS["run_fq2fa"], lazy_run, run_fq2fa,
-            os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1), os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2))
+        run_and_log(logparams, TARGET_OUTPUTS["run_fq2fa"], lazy_run, run_fq2fa, input_files)
     else:
         if number_of_input_files == 2:
             next_inputs = [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1), os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2)]
