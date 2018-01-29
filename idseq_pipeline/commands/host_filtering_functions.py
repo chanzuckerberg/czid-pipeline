@@ -322,7 +322,7 @@ def run_lzw(input_fas):
     if len(input_fas) == 2:
         execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, LZW_OUT2, SAMPLE_S3_OUTPUT_PATH))
 
-def run_bowtie2(input_fas)
+def run_bowtie2(input_fas):
     # check if genome downloaded already
     genome_file = os.path.basename(BOWTIE2_GENOME)
     if not os.path.isfile("%s/%s" % (REF_DIR, genome_file)):

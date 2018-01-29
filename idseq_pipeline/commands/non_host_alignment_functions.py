@@ -138,7 +138,7 @@ def subsample_single_fasta(input_file, records_to_keep, type, output_file):
                     condition = record_number in records_to_keep
                     sequence_basename = sequence_name.rstrip()
                 else:
-                    condition = true
+                    condition = True
                 if condition:
                     output.write(sequence_name)
                     output.write(sequence_data)
@@ -507,11 +507,6 @@ def filter_taxids_from_fasta(input_fa, output_fa, annotation_prefix, accession2t
         sequence_data = input_f.readline()
     input_f.close()
     output_f.close()
-
-def return_merged_dict(dict1, dict2):
-    result = dict1.copy()
-    result.update(dict2)
-    return result
 
 def environment_for_aligners(environment):
     return "production" ## temporary fix since we only have "production" gsnap/rapsearch machines right now
