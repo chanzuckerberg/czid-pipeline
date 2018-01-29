@@ -91,6 +91,9 @@ STAR_GENOME = 's3://czbiohub-infectious-disease/references/human/STAR_genome.tar
 BOWTIE2_GENOME = 's3://czbiohub-infectious-disease/references/human/bowtie2_genome.tar.gz'
 
 # convenience functions
+def fq2fa(input_fastq, output_fasta):
+    execute_command("sed -n '1~4s/^@/>/p;2~4p' <%s >%s" % (input_fastq, output_fasta))
+
 def lzw_fraction(sequence):
     if sequence == "":
         return 0.0
@@ -207,26 +210,21 @@ def run_star(fastq_files):
         tmp_result_dir = "%s/star-part-%d" % (SCRATCH_DIR, part_idx)
         run_star_part(tmp_result_dir, REF_DIR + "/STAR_genome/part-%d" % part_idx, fastq_files)
         for i in range(1, num_parts):
+            fastq_files = ["%s/Unmapped.out.mate1" % tmp_result_dir]
             if len(fastq_files) == 2:
-                fastq_files = ["%s/Unmapped.out.mate1" % tmp_result_dir, "%s/Unmapped.out.mate2" % tmp_result_dir]
-            else:
-                fastq_files = ["%s/Unmapped.out" % tmp_result_dir]
+                fastq_files.extend(["%s/Unmapped.out.mate2" % tmp_result_dir])
             tmp_result_dir = "%s/star-part-%d" % (SCRATCH_DIR, i)
             run_star_part(tmp_result_dir, REF_DIR + "/STAR_genome/part-%d" % i, fastq_files)
         # extract out unmapped files
+        execute_command("cp %s/%s %s/%s;" % (tmp_result_dir, 'Unmapped.out.mate1', RESULT_DIR, STAR_OUT1))
         if len(fastq_files) == 2:
-            execute_command("cp %s/%s %s/%s;" % (tmp_result_dir, 'Unmapped.out.mate1', RESULT_DIR, STAR_OUT1))
             execute_command("cp %s/%s %s/%s;" % (tmp_result_dir, 'Unmapped.out.mate2', RESULT_DIR, STAR_OUT2))
-        else:
-            execute_command("cp %s/%s %s/%s;" % (tmp_result_dir, 'Unmapped.out', RESULT_DIR, STAR_OUT1)) 
     else:
         run_star_part(SCRATCH_DIR, REF_DIR + '/STAR_genome', fastq_files)
         # extract out unmapped files
+        execute_command("cp %s/%s %s/%s;" % (SCRATCH_DIR, 'Unmapped.out.mate1', RESULT_DIR, STAR_OUT1))
         if len(fastq_files) == 2:
-            execute_command("cp %s/%s %s/%s;" % (SCRATCH_DIR, 'Unmapped.out.mate1', RESULT_DIR, STAR_OUT1))
             execute_command("cp %s/%s %s/%s;" % (SCRATCH_DIR, 'Unmapped.out.mate2', RESULT_DIR, STAR_OUT2))
-        else:
-            execute_command("cp %s/%s %s/%s;" % (SCRATCH_DIR, 'Unmapped.out', RESULT_DIR, STAR_OUT1))
     # copy back to aws
     execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, STAR_OUT1, SAMPLE_S3_OUTPUT_PATH))
     if len(fastq_files) == 2:
@@ -235,30 +233,33 @@ def run_star(fastq_files):
     execute_command("cd %s; rm -rf *" % SCRATCH_DIR)
     write_to_log("finished job")
 
-def run_priceseqfilter(input_fq_1, input_fq_2):
+def run_priceseqfilter(input_fqs):
     priceseq_params = [PRICESEQ_FILTER,
                        '-a','12',
-                       '-fp',input_fq_1 , input_fq_2,
-                       '-op',
-                       RESULT_DIR +'/' + PRICESEQFILTER_OUT1,
-                       RESULT_DIR +'/' + PRICESEQFILTER_OUT2,
                        '-rnf','90',
                        '-log','c']
+    if len(input_fqs) == 2:
+        priceseq_params.extend(['-fp', input_fqs[0], input_fqs[1],
+                                '-op', RESULT_DIR + '/' + PRICESEQFILTER_OUT1, RESULT_DIR + '/' + PRICESEQFILTER_OUT2])
+    else:
+        priceseq_params.extend(['-f', input_fqs[0],
+                                '-o', RESULT_DIR + '/' + PRICESEQFILTER_OUT1])
     if "fastq" in FILE_TYPE:
         priceseq_params.extend(['-rqf','85','0.98'])
     execute_command_realtime_stdout(" ".join(priceseq_params))
     write_to_log("finished job")
     # copy back to aws
     execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, PRICESEQFILTER_OUT1, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, PRICESEQFILTER_OUT2, SAMPLE_S3_OUTPUT_PATH))
+    if len(input_fqs) == 2:
+        execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, PRICESEQFILTER_OUT2, SAMPLE_S3_OUTPUT_PATH))
 
-def run_fq2fa(input_fq_1, input_fq_2):
-    execute_command("sed -n '1~4s/^@/>/p;2~4p' <%s >%s/%s" % (input_fq_1, RESULT_DIR, FQ2FA_OUT1))
-    execute_command("sed -n '1~4s/^@/>/p;2~4p' <%s >%s/%s" % (input_fq_2, RESULT_DIR, FQ2FA_OUT2))
-    write_to_log("finished job")
-    # copy back to aws
+def run_fq2fa(input_fqs):
+    fq2fa(input_fq_1, os.path.join(RESULT_DIR, FQ2FA_OUT1))
     execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, FQ2FA_OUT1, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, FQ2FA_OUT2, SAMPLE_S3_OUTPUT_PATH))
+    if len(input_fqs) == 2:
+        fq2fa(input_fq_2, os.path.join(RESULT_DIR, FQ2FA_OUT2))
+        execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, FQ2FA_OUT2, SAMPLE_S3_OUTPUT_PATH))
+    write_to_log("finished job")
 
 def run_cdhitdup(input_fa_1, input_fa_2):
     cdhitdup_params = [CDHITDUP,
