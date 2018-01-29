@@ -62,19 +62,27 @@ DEFAULT_LOGPARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH,
 STAR_BOWTIE_VERSION_FILE_S3 = 's3://czbiohub-infectious-disease/references/human/human.version.txt'
 
 # target outputs by task
-TARGET_OUTPUTS = { "run_star": [os.path.join(RESULT_DIR, STAR_OUT1),
-                                os.path.join(RESULT_DIR, STAR_OUT2)],
-                   "run_priceseqfilter": [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1),
-                                         os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2)],
-                   "run_fq2fa": [os.path.join(RESULT_DIR, FQ2FA_OUT1),
-                                 os.path.join(RESULT_DIR, FQ2FA_OUT2)],
-                   "run_cdhitdup": [os.path.join(RESULT_DIR, CDHITDUP_OUT1),
-                                    os.path.join(RESULT_DIR, CDHITDUP_OUT2)],
-                   "run_lzw": [os.path.join(RESULT_DIR, LZW_OUT1),
-                               os.path.join(RESULT_DIR, LZW_OUT2)],
-                   "run_bowtie2": [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1),
-                                   os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2),
-                                   os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3)] }
+TARGET_OUTPUTS_SINGLE = { "run_star": [os.path.join(RESULT_DIR, STAR_OUT1)],
+                          "run_priceseqfilter": [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1)],
+                          "run_fq2fa": [os.path.join(RESULT_DIR, FQ2FA_OUT1)],
+                          "run_cdhitdup": [os.path.join(RESULT_DIR, CDHITDUP_OUT1)],
+                          "run_lzw": [os.path.join(RESULT_DIR, LZW_OUT1)],
+                          "run_bowtie2": [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1),
+                                          os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3)] }
+TARGET_OUTPUTS_PAIRED = { "run_star": [os.path.join(RESULT_DIR, STAR_OUT1),
+                                       os.path.join(RESULT_DIR, STAR_OUT2)],
+                          "run_priceseqfilter": [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1),
+                                                 os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2)],
+                          "run_fq2fa": [os.path.join(RESULT_DIR, FQ2FA_OUT1),
+                                        os.path.join(RESULT_DIR, FQ2FA_OUT2)],
+                          "run_cdhitdup": [os.path.join(RESULT_DIR, CDHITDUP_OUT1),
+                                           os.path.join(RESULT_DIR, CDHITDUP_OUT2)],
+                          "run_lzw": [os.path.join(RESULT_DIR, LZW_OUT1),
+                                      os.path.join(RESULT_DIR, LZW_OUT2)],
+                          "run_bowtie2": [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1),
+                                          os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2),
+                                          os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3)] }
+
 
 # software packages
 STAR="STAR"
@@ -362,6 +370,8 @@ def run_bowtie2(input_fas):
 
 def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run):
     number_of_input_files = len(fastq_files)
+    global TARGET_OUTPUTS
+    TARGET_OUTPUTS = TARGET_OUTPUTS_PAIRED if number_of_input_files == 2 else TARGET_OUTPUTS_SINGLE
 
     # run STAR
     logparams = return_merged_dict(DEFAULT_LOGPARAMS,
