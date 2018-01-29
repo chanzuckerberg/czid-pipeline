@@ -119,6 +119,27 @@ def lzw_fraction(sequence):
         results.append(dictionary[word])
     return float(len(results))/len(sequence)
 
+def generate_lzw_filtered_single(fasta_file, output_prefix, cutoff_fraction):
+    output_read_1 = open(output_prefix + '.1.fasta', 'wb')
+    read_1 = open(fasta_file_1, 'rb')
+    count = 0
+    filtered = 0
+    while True:
+        line_r1_header   = read_1.readline()
+        line_r1_sequence = read_1.readline()
+        if line_r1_header and line_r1_sequence:
+            fraction_1 = lzw_fraction(line_r1_sequence.rstrip())
+            count += 1
+            if fraction_1 > cutoff_fraction:
+                output_read_1.write(line_r1_header)
+                output_read_1.write(line_r1_sequence)
+            else:
+                filtered += 1
+        else:
+            break
+    print "LZW filter: total reads: %d, filtered reads: %d, kept ratio: %f" % (count, filtered, 1 - float(filtered)/count)
+    output_read_1.close()
+
 def generate_lzw_filtered_paired(fasta_file_1, fasta_file_2, output_prefix, cutoff_fraction):
     output_read_1 = open(output_prefix + '.1.fasta', 'wb')
     output_read_2 = open(output_prefix + '.2.fasta', 'wb')
@@ -275,13 +296,17 @@ def run_cdhitdup(input_fas):
     if len(input_fas) == 2:
         execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, CDHITDUP_OUT2, SAMPLE_S3_OUTPUT_PATH))
 
-def run_lzw(input_fa_1, input_fa_2):
+def run_lzw(input_fas):
     output_prefix = RESULT_DIR + '/' + LZW_OUT1[:-8]
-    generate_lzw_filtered_paired(input_fa_1, input_fa_2, output_prefix, LZW_FRACTION_CUTOFF)
+    if len(input_fas) == 2:
+        generate_lzw_filtered_paired(input_fas[0], input_fas[1], output_prefix, LZW_FRACTION_CUTOFF)
+    else:
+        generate_lzw_filtered_single(input_fas[0], output_prefix, LZW_FRACTION_CUTOFF)
     write_to_log("finished job")
     # copy back to aws
     execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, LZW_OUT1, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, LZW_OUT2, SAMPLE_S3_OUTPUT_PATH))
+    if len(input_fas) == 2:
+        execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, LZW_OUT2, SAMPLE_S3_OUTPUT_PATH))
 
 def run_bowtie2(input_fa_1, input_fa_2):
     # check if genome downloaded already
