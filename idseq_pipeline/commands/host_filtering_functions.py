@@ -422,8 +422,11 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run):
         {"title": "bowtie2", "count_reads": True,
         "before_file_name": os.path.join(RESULT_DIR, LZW_OUT1), "before_file_type": "fasta_paired",
         "after_file_name": os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1), "after_file_type": "fasta_paired"})
-    run_and_log(logparams, TARGET_OUTPUTS["run_bowtie2"], lazy_run, run_bowtie2,
-        os.path.join(RESULT_DIR, LZW_OUT1), os.path.join(RESULT_DIR, LZW_OUT2))
+    if number_of_input_files == 2:
+        input_files = [os.path.join(RESULT_DIR, LZW_OUT1), os.path.join(RESULT_DIR, LZW_OUT2)]
+    else:
+        input_files = [os.path.join(RESULT_DIR, LZW_OUT1)]
+    run_and_log(logparams, TARGET_OUTPUTS["run_bowtie2"], lazy_run, run_bowtie2, input_files)
 
 def run_stage1(lazy_run = True):
     execute_command("mkdir -p %s %s %s %s" % (SAMPLE_DIR, FASTQ_DIR, RESULT_DIR, SCRATCH_DIR))
@@ -466,5 +469,6 @@ def run_stage1(lazy_run = True):
     run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run)
     # copy the merged fasta file back to results folder to change time stamp
     execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
+    if len(fastq_files) == 2:
+        execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
     execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3, SAMPLE_S3_OUTPUT_PATH))
