@@ -180,7 +180,6 @@ def generate_lzw_filtered_paired(fasta_file_1, fasta_file_2, output_prefix, cuto
 def generate_unmapped_singles_from_sam(sam_file, output_prefix):
     output_read_1 = open(output_prefix + '.1.fasta', 'wb')
     output_merged_read = open(output_prefix + '.merged.fasta', 'wb')
-    header = True
     with open(sam_file, 'rb') as samf:
         line = samf.readline()
         while line[0] == '@':
@@ -199,7 +198,6 @@ def generate_unmapped_pairs_from_sam(sam_file, output_prefix):
     output_read_1 = open(output_prefix + '.1.fasta', 'wb')
     output_read_2 = open(output_prefix + '.2.fasta', 'wb')
     output_merged_read = open(output_prefix + '.merged.fasta', 'wb')
-    header = True
     with open(sam_file, 'rb') as samf:
         line = samf.readline()
         while line[0] == '@':
@@ -352,7 +350,7 @@ def run_bowtie2(input_fas):
     if len(input_fas) == 2:
         bowtie2_params.extend(['-1', input_fas[0], '-2', input_fas[1]])
     else:
-        bowtie2_params.extend(['-U', input_fas[0]])
+        bowtie2_params.extend(['-1', input_fas[0]])
     execute_command_realtime_stdout(" ".join(bowtie2_params))
     write_to_log("finished alignment")
     # extract out unmapped files from sam
