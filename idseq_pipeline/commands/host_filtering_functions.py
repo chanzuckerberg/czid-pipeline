@@ -169,6 +169,24 @@ def generate_lzw_filtered_paired(fasta_file_1, fasta_file_2, output_prefix, cuto
     output_read_1.close()
     output_read_2.close()
 
+def generate_unmapped_singles_from_sam(sam_file, output_prefix):
+    output_read_1 = open(output_prefix + '.1.fasta', 'wb')
+    output_merged_read = open(output_prefix + '.merged.fasta', 'wb')
+    header = True
+    with open(sam_file, 'rb') as samf:
+        line = samf.readline()
+        while line[0] == '@':
+            line = samf.readline() # skip headers
+        read1 = line
+        while read1:
+            parts1 = read1.split("\t")
+            if parts1[1] == "4": # read unmapped, see https://broadinstitute.github.io/picard/explain-flags.html
+                output_read_1.write(">%s\n%s\n" %(parts1[0], parts1[9]))
+                output_merged_read.write(">%s/1\n%s\n" %(parts1[0], parts1[9]))
+            read1 = samf.readline()
+    output_read_1.close()
+    output_merged_read.close()
+
 def generate_unmapped_pairs_from_sam(sam_file, output_prefix):
     output_read_1 = open(output_prefix + '.1.fasta', 'wb')
     output_read_2 = open(output_prefix + '.2.fasta', 'wb')
@@ -183,15 +201,11 @@ def generate_unmapped_pairs_from_sam(sam_file, output_prefix):
         while read1 and read2:
             parts1 = read1.split("\t")
             parts2 = read2.split("\t")
-            if parts1[1] == "77" and parts2[1] == "141": # both parts unmapped
+            if parts1[1] == "77" and parts2[1] == "141": # both parts unmapped, see https://broadinstitute.github.io/picard/explain-flags.html
                 output_read_1.write(">%s\n%s\n" %(parts1[0], parts1[9]))
                 output_read_2.write(">%s\n%s\n" %(parts2[0], parts2[9]))
                 output_merged_read.write(">%s/1\n%s\n" %(parts1[0], parts1[9]))
                 output_merged_read.write(">%s/2\n%s\n" %(parts2[0], parts2[9]))
-            else: # parts mapped
-                print "Matched HG38 -----"
-                print read1
-                print read2
             read1 = samf.readline()
             read2 = samf.readline()
     output_read_1.close()
@@ -323,22 +337,26 @@ def run_bowtie2(input_fas)
                      '-q',
                      '-p', str(multiprocessing.cpu_count()),
                      '-x', genome_basename,
+                     '-f',
                      '--very-sensitive-local',
                      '-S', RESULT_DIR + '/' + BOWTIE2_OUT]
     if len(input_fas) == 2:
-        bowtie2_params.extend(['-f', '-1', input_fas[0], '-2', input_fas[1]])
+        bowtie2_params.extend(['-1', input_fas[0], '-2', input_fas[1]])
     else:
-        bowtie2_params.extend(['-f', input_fas[0]])
+        bowtie2_params.extend(['-U', input_fas[0]])
     execute_command_realtime_stdout(" ".join(bowtie2_params))
     write_to_log("finished alignment")
     # extract out unmapped files from sam
     output_prefix = RESULT_DIR + '/' + EXTRACT_UNMAPPED_FROM_SAM_OUT1[:-8]
-    generate_unmapped_pairs_from_sam(RESULT_DIR + '/' + BOWTIE2_OUT, output_prefix)
-    write_to_log("extracted unmapped pairs from SAM file")
-    # copy back to aws
+    if len(input_fas) == 2:
+        generate_unmapped_pairs_from_sam(RESULT_DIR + '/' + BOWTIE2_OUT, output_prefix)
+    else:
+        generate_unmapped_singles_from_sam(RESULT_DIR + '/' + BOWTIE2_OUT, output_prefix)
+    write_to_log("extracted unmapped fragments from SAM file")
     execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, BOWTIE2_OUT, SAMPLE_S3_OUTPUT_PATH))
     execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
+    if len(input_fas) == 2:
+        execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
     execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3, SAMPLE_S3_OUTPUT_PATH))
 
 def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run):
