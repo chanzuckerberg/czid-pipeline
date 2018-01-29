@@ -121,7 +121,7 @@ def lzw_fraction(sequence):
 
 def generate_lzw_filtered_single(fasta_file, output_prefix, cutoff_fraction):
     output_read_1 = open(output_prefix + '.1.fasta', 'wb')
-    read_1 = open(fasta_file_1, 'rb')
+    read_1 = open(fasta_file, 'rb')
     count = 0
     filtered = 0
     while True:
