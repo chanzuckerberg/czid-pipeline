@@ -487,3 +487,4 @@ def run_stage1(lazy_run = True):
     if len(fastq_files) == 2:
         execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
     execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3, SAMPLE_S3_OUTPUT_PATH))
+    write_to_log("Host filtering complete")
