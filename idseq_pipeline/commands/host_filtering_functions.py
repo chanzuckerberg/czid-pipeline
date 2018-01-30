@@ -278,7 +278,7 @@ def run_priceseqfilter(input_fqs):
     # It will throw an exception if output extension doesn't match input.
     correct_file_extenstion = os.path.splitext(FILE_TYPE)[0]
     input_files = ["%s.%s" % (f, correct_file_extenstion) for f in input_fqs]
-    output_files = ["priceseqfilter_output_%d.%s" % (idx, correct_file_extenstion) for idx in range(len(input_fqs))]
+    output_files = ["%s_priceseqfilter_output.%s" % (f, correct_file_extenstion) for f in input_files]
     for idx in range(len(input_fqs)):
         execute_command("mv %s %s" % (input_fqs[idx], input_files[idx]))
     priceseq_params = [PRICESEQ_FILTER,
@@ -287,10 +287,10 @@ def run_priceseqfilter(input_fqs):
                        '-log','c']
     if len(input_fqs) == 2:
         priceseq_params.extend(['-fp', input_files[0], input_files[1],
-                                '-op', RESULT_DIR + '/' + PRICESEQFILTER_OUT1, RESULT_DIR + '/' + PRICESEQFILTER_OUT2])
+                                '-op', output_files[0], output_files[1]])
     else:
         priceseq_params.extend(['-f', input_files[0],
-                                '-o', RESULT_DIR + '/' + PRICESEQFILTER_OUT1])
+                                '-o', output_files[0]])
     if "fastq" in FILE_TYPE:
         priceseq_params.extend(['-rqf','85','0.98'])
     execute_command_realtime_stdout(" ".join(priceseq_params))
