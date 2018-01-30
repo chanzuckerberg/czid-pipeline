@@ -274,15 +274,17 @@ def run_star(fastq_files):
     write_to_log("finished job")
 
 def run_priceseqfilter(input_fqs):
+    correct_file_extenstion = os.path.splitext(FILE_TYPE)[0]
+    input_files = ["%s.%s" % (f, correct_file_extenstion) for f in input_fqs] # PriceSeqFilter determines input type based on extension
     priceseq_params = [PRICESEQ_FILTER,
                        '-a','12',
                        '-rnf','90',
                        '-log','c']
     if len(input_fqs) == 2:
-        priceseq_params.extend(['-fp', input_fqs[0], input_fqs[1],
+        priceseq_params.extend(['-fp', input_files[0], input_files[1],
                                 '-op', RESULT_DIR + '/' + PRICESEQFILTER_OUT1, RESULT_DIR + '/' + PRICESEQFILTER_OUT2])
     else:
-        priceseq_params.extend(['-f', input_fqs[0],
+        priceseq_params.extend(['-f', input_files[0],
                                 '-o', RESULT_DIR + '/' + PRICESEQFILTER_OUT1])
     if "fastq" in FILE_TYPE:
         priceseq_params.extend(['-rqf','85','0.98'])
