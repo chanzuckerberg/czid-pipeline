@@ -274,8 +274,11 @@ def run_star(fastq_files):
     write_to_log("finished job")
 
 def run_priceseqfilter(input_fqs):
+    # PriceSeqFilter determines input type based on extension.
+    # It will throw an exception if output extension doesn't match input.
     correct_file_extenstion = os.path.splitext(FILE_TYPE)[0]
-    input_files = ["%s.%s" % (f, correct_file_extenstion) for f in input_fqs] # PriceSeqFilter determines input type based on extension
+    input_files = ["%s.%s" % (f, correct_file_extenstion) for f in input_fqs]
+    output_files = ["priceseqfilter_output_%d.%s" % (idx, correct_file_extenstion) for idx in range(len(input_fqs))]
     for idx in range(len(input_fqs)):
         execute_command("mv %s %s" % (input_fqs[idx], input_files[idx]))
     priceseq_params = [PRICESEQ_FILTER,
@@ -292,9 +295,10 @@ def run_priceseqfilter(input_fqs):
         priceseq_params.extend(['-rqf','85','0.98'])
     execute_command_realtime_stdout(" ".join(priceseq_params))
     write_to_log("finished job")
-    # copy back to aws
+    execute_command("mv %s %s" % (output_files[0], os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1)))
     execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, PRICESEQFILTER_OUT1, SAMPLE_S3_OUTPUT_PATH))
     if len(input_fqs) == 2:
+        execute_command("mv %s %s" % (output_files[1], os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2)))
         execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, PRICESEQFILTER_OUT2, SAMPLE_S3_OUTPUT_PATH))
 
 def run_fq2fa(input_fqs):
