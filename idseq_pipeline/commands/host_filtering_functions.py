@@ -276,11 +276,11 @@ def run_star(fastq_files):
 def run_priceseqfilter(input_fqs):
     # PriceSeqFilter determines input type based on extension.
     # It will throw an exception if output extension doesn't match input.
-    correct_file_extenstion = os.path.splitext(FILE_TYPE)[0]
-    input_files = ["%s.%s" % (f, correct_file_extenstion) for f in input_fqs]
-    output_files = ["%s_priceseqfilter_output.%s" % (f, correct_file_extenstion) for f in input_files]
+    correct_file_extension = os.path.splitext(FILE_TYPE)[0]
+    input_files = ["%s.%s" % (f, correct_file_extension) for f in input_fqs]
+    output_files = ["%s_priceseqfilter_output.%s" % (f, correct_file_extension) for f in input_files]
     for idx in range(len(input_fqs)):
-        execute_command("mv %s %s" % (input_fqs[idx], input_files[idx]))
+        execute_command("cp %s %s" % (input_fqs[idx], input_files[idx]))
     priceseq_params = [PRICESEQ_FILTER,
                        '-a','12',
                        '-rnf','90',
