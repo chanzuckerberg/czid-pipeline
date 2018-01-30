@@ -133,7 +133,7 @@ def generate_lzw_filtered_single(fasta_file, output_prefix, cutoff_fraction):
     count = 0
     filtered = 0
     while True:
-        line_r1_header   = read_1.readline()
+        line_r1_header = read_1.readline()
         line_r1_sequence = read_1.readline()
         if line_r1_header and line_r1_sequence:
             fraction_1 = lzw_fraction(line_r1_sequence.rstrip())
@@ -350,7 +350,7 @@ def run_bowtie2(input_fas):
     if len(input_fas) == 2:
         bowtie2_params.extend(['-1', input_fas[0], '-2', input_fas[1]])
     else:
-        bowtie2_params.extend(['-1', input_fas[0]])
+        bowtie2_params.extend(['-U', input_fas[0]])
     execute_command_realtime_stdout(" ".join(bowtie2_params))
     write_to_log("finished alignment")
     # extract out unmapped files from sam
