@@ -92,7 +92,6 @@ BOWTIE2="bowtie2"
 
 # pipeline configuration
 LZW_FRACTION_CUTOFF = 0.45
-FILE_TYPE = 'fastq.gz'
 
 # reference genomes
 STAR_GENOME = 's3://czbiohub-infectious-disease/references/human/STAR_genome.tar.gz'
