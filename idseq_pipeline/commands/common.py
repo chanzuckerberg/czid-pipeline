@@ -7,13 +7,18 @@ import logging
 import json
 import gzip
 import os
-from .. import __version__
 
 NCBITOOL_S3_PATH = "s3://czbiohub-infectious-disease/ncbitool" # S3 location of ncbitool executable
 
 STATS = []
 LOGGER = None
 OUTPUT_VERSIONS = []
+
+
+# peak network & storage perf for a typical small instance is saturated by just a few concurrent streams
+MAX_CONCURRENT_COPY_OPERATIONS = 8
+iostream = threading.Semaphore(MAX_CONCURRENT_COPY_OPERATIONS)
+
 
 class Updater(object):
 
@@ -187,9 +192,58 @@ def get_total_reads_from_stats():
 def get_remaining_reads_from_stats():
     return (item for item in STATS if item.get("task") == "run_gsnapl_remotely").next().get("reads_before")
 
+
+def fetch_lazy_result(source, destination, mutex=threading.RLock(), locks={}):  #pylint: disable=dangerous-default-value
+    with mutex:
+        if os.path.exists(destination):
+            if os.path.isdir(destination):
+                destination = os.path.join(destination, os.path.basename(source))
+        abspath = os.path.abspath(destination)
+        if abspath not in locks:
+            locks[abspath] = threading.RLock()
+        destination_lock = locks[abspath]
+    with destination_lock:
+        if os.path.exists(destination):
+            # no need to fetch this file from s3, it has been just produced on this instance
+            return True
+        try:
+            destdir = os.path.dirname(destination)
+            if destdir:
+                os.makedirs(destdir)
+        except OSError, e:
+            # It's okay if the parent directory already exists, but all other errors are fatal.
+            if e.errno != os.errno.EEXIST:
+                raise
+        with iostream:
+            try:
+                execute_command("aws s3 cp %s %s" % (source, destination))
+                return True
+            except subprocess.CalledProcessError:
+                # Most likely the file doesn't exist in S3.
+                return False
+
+
+run_and_log_mutex = threading.RLock()
+
 def run_and_log(logparams, target_outputs, lazy_run, func_name, *args):
+    with run_and_log_mutex:
+        return run_and_log_work(logparams, target_outputs, lazy_run, func_name, os.path.isfile, *args)
+
+def run_and_log_eager(logparams, target_outputs, func_name, *args):
+    with run_and_log_mutex:
+        return run_and_log_work(logparams, target_outputs, False, func_name, None, *args)
+
+def run_and_log_s3(logparams, target_outputs, lazy_run, s3_result_dir, func_name, *args):
+    def lazy_fetch(output_file):
+        return fetch_lazy_result(os.path.join(s3_result_dir, os.path.basename(output_file)), output_file)
+    with run_and_log_mutex:
+        return run_and_log_work(logparams, target_outputs, lazy_run, func_name, lazy_fetch, *args)
+
+def run_and_log_work(logparams, target_outputs, lazy_run, func_name, lazy_fetch, *args):
     global OUTPUT_VERSIONS
     global LOGGER
+    global run_and_log_mutex
+
     LOGGER = logging.getLogger()
     LOGGER.info("========== %s ==========" % logparams.get("title"))
 
@@ -211,10 +265,18 @@ def run_and_log(logparams, target_outputs, lazy_run, func_name, *args):
         execute_command("aws s3 cp %s %s/;" % (output_version_file, logparams["sample_s3_output_path"]))
 
     # produce the output
-    if lazy_run and all(os.path.isfile(output) for output in target_outputs):
+    # This is the slow part that happens outside the mutex
+    run_and_log_mutex.release()
+    try:
+        was_lazy = lazy_run and all(lazy_fetch(output) for output in target_outputs)
+        if not was_lazy:
+            func_name(*args)
+    finally:
+        run_and_log_mutex.acquire()
+
+    if was_lazy:
         LOGGER.info("output exists, lazy run")
     else:
-        func_name(*args)
         LOGGER.info("uploaded output")
 
     # copy log file -- after work is done
@@ -238,15 +300,17 @@ def run_and_log(logparams, target_outputs, lazy_run, func_name, *args):
             json.dump(STATS, f)
         execute_command("aws s3 cp %s %s/;" % (stats_path, logparams["sample_s3_output_path"]))
 
-def write_to_log(message):
-    LOGGER.info(message)
+
+def write_to_log(message, lock=threading.RLock()):
+    with lock:
+        LOGGER.info(message)
 
 def unbuffer_stdout():
     # Unbuffer stdout and redirect stderr into stdout. This helps observe logged events in realtime.
     sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
     os.dup2(sys.stdout.fileno(), sys.stderr.fileno())
 
-def upload_commit_sha():
+def upload_commit_sha(version):
     sha_file = os.environ.get('COMMIT_SHA_FILE')
     s3_destination = os.environ.get('OUTPUT_BUCKET')
     if sha_file is None or s3_destination is None:
@@ -262,7 +326,7 @@ def upload_commit_sha():
     OUTPUT_VERSIONS.append({"name": "job_id", "version": aws_batch_job_id})
     with open(sha_file, 'r') as f:
         commit_sha = f.read().rstrip()
-    OUTPUT_VERSIONS.append({"name": "idseq-pipeline", "version": __version__, "commit-sha": commit_sha})
+    OUTPUT_VERSIONS.append({"name": "idseq-pipeline", "version": version, "commit-sha": commit_sha})
 
 def install_ncbitool_locally(local_work_dir):
     execute_command("aws s3 cp %s %s/" % (NCBITOOL_S3_PATH, local_work_dir))
@@ -298,12 +362,12 @@ def download_reference_on_remote(ncbitool_path, input_fasta_ncbi_path, version_n
     execute_command(remote_command(command, key_path, remote_username, server_ip))
     return os.path.join(destination_dir, os.path.basename(input_fasta_ncbi_path))
 
-def upload_version_tracker(source_file, output_name, reference_version_number, output_path_s3):
+def upload_version_tracker(source_file, output_name, reference_version_number, output_path_s3, indexing_version):
     version_tracker_file = "%s.version.txt" % output_name
-    version_json = { "name": output_name,
-                     "source_file": source_file,
-                     "source_version": reference_version_number,
-                     "indexing_version": __version__ }
+    version_json = {"name": output_name,
+                    "source_file": source_file,
+                    "source_version": reference_version_number,
+                    "indexing_version": indexing_version}
     with open(version_tracker_file, 'wb') as f:
         json.dump(version_json, f)
     execute_command("aws s3 cp %s %s/" % (version_tracker_file, output_path_s3))

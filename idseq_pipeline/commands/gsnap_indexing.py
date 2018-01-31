@@ -8,4 +8,4 @@ class Gsnap_indexing(Base):
         from .gsnap_indexing_functions import *
 
         unbuffer_stdout()
-        make_index()
+        make_index(self.version)

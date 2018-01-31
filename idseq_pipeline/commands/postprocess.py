@@ -8,6 +8,6 @@ class Postprocess(Base):
         from .postprocess_functions import *
 
         unbuffer_stdout()
-        upload_commit_sha()
+        upload_commit_sha(self.version)
 
         run_stage3(True)

@@ -48,19 +48,19 @@ from inspect import getmembers, isclass
 
 from docopt import docopt
 
-from . import __version__ as VERSION
-
+from version import __version__
 
 def main():
     """Main CLI entrypoint."""
-    import idseq_pipeline.commands
-    options = docopt(__doc__, version=VERSION)
+    import commands as idseq_pipeline_commands
+    options = docopt(__doc__, version=__version__)
 
     # Match user-entered command
-    for (k, v) in options.items(): 
-        if hasattr(idseq_pipeline.commands, k) and v:
-            module = getattr(idseq_pipeline.commands, k)
-            idseq_pipeline.commands = getmembers(module, isclass)
-            command = [command[1] for command in idseq_pipeline.commands if command[0] != 'Base'][0]
+    for (k, v) in options.items():
+        if hasattr(idseq_pipeline_commands, k) and v:
+            module = getattr(idseq_pipeline_commands, k)
+            pipeline_commands = getmembers(module, isclass)
+            command = [command[1] for command in pipeline_commands if command[0] != 'Base'][0]
             command = command(options)
+            command.version = __version__
             command.run()

@@ -7,6 +7,7 @@ class Base(object):
         self.options = options
         self.args = args
         self.kwargs = kwargs
+        self.version = None
 
     def run(self):
         raise NotImplementedError('You must implement the run() method yourself!')

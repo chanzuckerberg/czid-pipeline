@@ -22,7 +22,7 @@ def make_blacklist():
     accession2taxid_path = os.path.join(REF_DIR, accession2taxid_gz[:-3])
     if not os.path.isfile(accession2taxid_path):
         execute_command("aws s3 cp %s %s/" % (ACCESSION2TAXID_DB_S3_PATH, REF_DIR))
-        execute_command("cd %s; gunzip %s" % (REF_DIR, accession2taxid_gz))
+        execute_command("cd %s; gunzip -f %s" % (REF_DIR, accession2taxid_gz))
 
     # Generate blacklist:
     accession2taxid_dict = shelve.open(accession2taxid_path)
