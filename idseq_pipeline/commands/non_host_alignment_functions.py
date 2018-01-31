@@ -137,8 +137,9 @@ def count_lines_in_paired_files(input_files):
 
 def subsample_single_fasta(input_file, records_to_keep, type_, output_file):
     record_number = 0
-    kept_read_ids = []
-    write_to_log(records_to_keep)
+    assert isinstance(records_to_keep, set), "Essential for this to complete in our lifetimes."
+    kept_read_ids = set()
+    write_to_log(sorted(records_to_keep))
     with open(input_file, 'rb') as input_f:
         with open(output_file, 'wb') as output_f:
             sequence_name = input_f.readline()
@@ -155,12 +156,15 @@ def subsample_single_fasta(input_file, records_to_keep, type_, output_file):
                 if condition:
                     output_f.write(sequence_name)
                     output_f.write(sequence_data)
-                    kept_read_ids.append(sequence_basename)
+                    kept_read_ids.add(sequence_basename)
                 sequence_name = input_f.readline()
                 sequence_data = input_f.readline()
                 record_number += 1
     if type_ == "read_ids":
-        assert set(kept_read_ids) == set(records_to_keep), "Not all desired read IDs were found in the file: {}\nMissing: {}".format(input_file, set(records_to_keep) - set(kept_read_ids))
+        if kept_read_ids != records_to_keep:
+            missing = records_to_keep - kept_read_ids
+            examples = sorted(random.sample(missing, min(10, len(missing))))
+            assert kept_read_ids == records_to_keep, "Not all desired read IDs were found in the file: {}\nMissing: {}".format(input_file, examples)
     return kept_read_ids
 
 def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads):
@@ -173,9 +177,9 @@ def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads
     if total_records <= target_n_reads:
         return input_files_basenames, merged_file_basename
     subsample_prefix = "subsample_%d" % target_n_reads
-    records_to_keep = random.sample(xrange(total_records), target_n_reads)
+    records_to_keep = set(random.sample(xrange(total_records), target_n_reads))
     subsampled_files = []
-    known_kept_read_ids = None
+    known_kept_read_ids = set()
     # subsample the paired files and record read IDs kept
     for input_file in input_files:
         input_dir = os.path.split(input_file)[0]
@@ -183,10 +187,8 @@ def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads
         output_basename = "%s.%s" % (subsample_prefix, input_basename)
         output_file = os.path.join(input_dir, output_basename)
         kept_read_ids = subsample_single_fasta(input_file, records_to_keep, "record_indices", output_file)
-        if known_kept_read_ids is not None:
-            assert set(kept_read_ids) == set(known_kept_read_ids), "Mismatched read IDs kept in supposedly paired files: {}".format(input_files)
         subsampled_files.append(output_basename)
-        known_kept_read_ids = kept_read_ids
+        known_kept_read_ids |= kept_read_ids
     # subsample the merged file to the same read IDs
     input_dir = os.path.split(merged_file)[0]
     input_basename = os.path.split(merged_file)[1]
