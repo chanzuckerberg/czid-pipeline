@@ -565,18 +565,6 @@ def get_server_ips(service_name, environment, aggressive=False, cache={}, mutex=
         return []
 
 
-def sleep_in_flight(wait_seconds):
-    # while this chunk is just waiting around, some other chunk can take off and
-    # check for its results in s3 (if the other chunk's results are not in s3 it will be queued
-    # behind this chunk;  but if the results are already in s3, they will be copied from s3
-    # while this chunk is just sitting around sleeping)
-    chunks_in_flight.release()
-    try:
-        time.sleep(wait_seconds)
-    finally:
-        chunks_in_flight.acquire()
-
-
 def wait_for_server_ip_work(service_name, key_path, remote_username, environment, max_concurrent, had_to_wait=[False]): #pylint: disable=dangerous-default-value
     while True:
         instance_ips = get_server_ips(service_name, environment, aggressive=had_to_wait[0])
@@ -610,7 +598,7 @@ def wait_for_server_ip_work(service_name, key_path, remote_username, environment
             wait_seconds = random.randint(30, 60)
             print "%s servers busy. Wait for %d seconds" % \
                   (service_name, wait_seconds)
-            sleep_in_flight(wait_seconds)
+            time.sleep(wait_seconds)
 
 
 def wait_for_server_ip(service_name, key_path, remote_username, environment, max_concurrent, mutex=threading.RLock(), last_check=[None]): #pylint: disable=dangerous-default-value
@@ -620,7 +608,7 @@ def wait_for_server_ip(service_name, key_path, remote_username, environment, max
         if last_check[0] != None:
             sleep_time = (60.0 / MAX_DISPATCHES_PER_MINUTE) - (now - last_check[0])
             if sleep_time > 0:
-                sleep_in_flight(sleep_time)
+                time.sleep(sleep_time)
                 now = time.time()
         last_check[0] = now
         return wait_for_server_ip_work(service_name, key_path, remote_username, environment, max_concurrent)
