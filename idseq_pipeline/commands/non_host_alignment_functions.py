@@ -530,7 +530,7 @@ def fetch_key(environment, mutex=threading.RLock()):
         key_name = os.path.basename(key_s3_path)
         key_path = REF_DIR +'/' + key_name
         if not os.path.exists(key_path):
-            execute_command("aws s3 cp %s %s/" % (key_s3_path, REF_DIR))
+            execute_command("aws s3 cp --quiet %s %s/" % (key_s3_path, REF_DIR))
             execute_command("chmod 400 %s" % key_path)
         return key_path
 
@@ -570,25 +570,35 @@ def wait_for_server_ip_work(service_name, key_path, remote_username, environment
         instance_ips = get_server_ips(service_name, environment, aggressive=had_to_wait[0])
         instance_ips = random.sample(instance_ips, min(MAX_INSTANCES_TO_POLL, len(instance_ips)))
         ip_nproc_dict = {}
-        for ip in instance_ips:
-            command = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s "ps aux|grep %s|grep -v bash" || echo "error"' % (key_path, remote_username, ip, service_name)
+        dict_mutex = threading.RLock()
+        def poll_server(ip):
+            command = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s "ps aux | grep %s | grep -v bash | grep -v grep" || echo "error"' % (key_path, remote_username, ip, service_name)
             output = execute_command_with_output(command).rstrip().split("\n")
             if output != ["error"]:
-                ip_nproc_dict[ip] = len(output) - 1
+                with dict_mutex:
+                    ip_nproc_dict[ip] = len(output) - 1
+        poller_threads = []
+        for ip in instance_ips:
+            pt = threading.Thread(target=poll_server, args=[ip])
+            pt.start()
+            poller_threads.append(pt)
+        for pt in poller_threads:
+            pt.join()
         if not ip_nproc_dict:
             have_capacity = False
         else:
             min_nproc_ip = min(ip_nproc_dict, key=ip_nproc_dict.get)
             min_nproc = ip_nproc_dict[min_nproc_ip]
-            have_capacity = (min_nproc <= max_concurrent)
+            have_capacity = (min_nproc < max_concurrent)
         if have_capacity:
             had_to_wait[0] = False
             # Make an urn where each ip occurs more times if it has more free slots, and not at all if it lacks free slots
             urn = []
             for ip, nproc in ip_nproc_dict.iteritems():
                 free_slots = max_concurrent - nproc
-                weight = 2 ** free_slots - 1
-                urn.extend([ip] * weight)
+                if free_slots > 0:
+                    weight = 2**free_slots - 1
+                    urn.extend([ip] * weight)
             min_nproc_ip = random.choice(urn)
             free_slots = max_concurrent - ip_nproc_dict[min_nproc_ip]
             print "%s server %s has capacity %d. Kicking off " % (service_name, min_nproc_ip, free_slots)
@@ -601,17 +611,24 @@ def wait_for_server_ip_work(service_name, key_path, remote_username, environment
             time.sleep(wait_seconds)
 
 
-def wait_for_server_ip(service_name, key_path, remote_username, environment, max_concurrent, mutex=threading.RLock(), last_check=[None]): #pylint: disable=dangerous-default-value
+def wait_for_server_ip(service_name, key_path, remote_username, environment, max_concurrent, mutex=threading.RLock(), mutexes={}, last_checks={}): #pylint: disable=dangerous-default-value
     # We rate limit these to ensure fairness across jobs regardless of job size
     with mutex:
-        now = time.time()
-        if last_check[0] != None:
-            sleep_time = (60.0 / MAX_DISPATCHES_PER_MINUTE) - (now - last_check[0])
+        if environment not in mutexes:
+            mutexes[environment] = threading.RLock()
+            last_checks[environment] = [None]
+        lc = last_checks[environment]
+        mx = mutexes[environment]
+    with mx:
+        if lc[0] != None:
+            sleep_time = (60.0 / MAX_DISPATCHES_PER_MINUTE) - (time.time() - lc[0])
             if sleep_time > 0:
+                print "Sleeping for {:3.1f} seconds to rate-limit wait_for_server_ip.".format(sleep_time)
                 time.sleep(sleep_time)
-                now = time.time()
-        last_check[0] = now
-        return wait_for_server_ip_work(service_name, key_path, remote_username, environment, max_concurrent)
+        lc[0] = time.time()
+        # if we had to wait here, that counts toward the rate limit delay
+        result = wait_for_server_ip_work(service_name, key_path, remote_username, environment, max_concurrent)
+        return result
 
 
 def check_s3_file_presence(s3_path):
@@ -638,7 +655,7 @@ def chunk_input(input_files_basenames, chunk_nlines, chunksize):
         out_prefix_base = os.path.basename(input_file) + part_suffix
         out_prefix = os.path.join(CHUNKS_RESULT_DIR, out_prefix_base)
         execute_command("split -a %d --numeric-suffixes -l %d %s %s" % (ndigits, chunk_nlines, input_file_full_local_path, out_prefix))
-        execute_command("aws s3 cp %s/ %s/ --recursive --exclude '*' --include '%s*'" % (CHUNKS_RESULT_DIR, SAMPLE_S3_OUTPUT_CHUNKS_PATH, out_prefix_base))
+        execute_command("aws s3 cp --quiet %s/ %s/ --recursive --exclude '*' --include '%s*'" % (CHUNKS_RESULT_DIR, SAMPLE_S3_OUTPUT_CHUNKS_PATH, out_prefix_base))
         # note: no sleep(10) after this upload to s3... not sure if that was ever needed
         partial_files = [os.path.basename(partial_file) for partial_file in execute_command_with_output("ls %s*" % out_prefix).rstrip().split("\n")]
         pattern = "{:0%dd}" % ndigits
@@ -678,7 +695,7 @@ def clean_direct_gsnapl_input(fastq_files):
         file_type_for_log += "_paired"
     # copy files to S3
     for f in cleaned_files:
-        execute_command("aws s3 cp %s %s/" % (f, SAMPLE_S3_OUTPUT_PATH))
+        execute_command("aws s3 cp --quiet %s %s/" % (f, SAMPLE_S3_OUTPUT_PATH))
     return cleaned_files, file_type_for_log
 
 
@@ -700,7 +717,7 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
     remote_outfile = os.path.join(remote_work_dir, outfile_basename)
     commands = "mkdir -p %s;" % remote_work_dir
     for input_fa in input_files:
-        commands += "aws s3 cp %s/%s %s/ ; " % \
+        commands += "aws s3 cp --quiet %s/%s %s/ ; " % \
                  (SAMPLE_S3_OUTPUT_CHUNKS_PATH, input_fa, remote_work_dir)
     commands += " ".join([remote_home_dir+'/bin/gsnapl',
                           '-A', 'm8', '--batch=0', '--use-shared-memory=0',
@@ -711,7 +728,7 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
                          + [remote_work_dir+'/'+input_fa for input_fa in input_files]
                          + ['> '+remote_outfile, ';'])
 
-    if not lazy_run or not fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, dedup_outfile_basename), CHUNKS_RESULT_DIR):
+    if not lazy_run or not fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, outfile_basename), CHUNKS_RESULT_DIR):
         correct_number_of_output_columns = 12
         min_column_number = 0
         max_tries = 2
@@ -729,7 +746,7 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
         # move output from remote machine to s3
         assert min_column_number == correct_number_of_output_columns, "Chunk %s output corrupt; not copying to S3. Re-start pipeline to try again." % chunk_id
         upload_command = "echo '' >> %s;" % remote_outfile # add a blank line at the end of the file so S3 copy doesn't fail if output is empty
-        upload_command += "aws s3 cp %s %s/;" % (remote_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH)
+        upload_command += "aws s3 cp --quiet %s %s/;" % (remote_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH)
         execute_command(remote_command(upload_command, key_path, remote_username, gsnapl_instance_ip))
         with iostream:
             execute_command(scp(key_path, remote_username, gsnapl_instance_ip, remote_outfile, CHUNKS_RESULT_DIR + "/" + outfile_basename))
@@ -737,7 +754,7 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
     # Deduplicate m8 input. Sometimes GSNAPL outputs multiple consecutive lines for same original read and same accession id. Count functions expect only 1 (top hit).
     with iostream:
         deduplicate_m8(os.path.join(CHUNKS_RESULT_DIR, outfile_basename), os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename))
-        execute_command("aws s3 cp %s/%s %s/" % (CHUNKS_RESULT_DIR, dedup_outfile_basename, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
+        execute_command("aws s3 cp --quiet %s/%s %s/" % (CHUNKS_RESULT_DIR, dedup_outfile_basename, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
         execute_command("sed -i '$ {/^$/d;}' %s" % os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename)) # remove blank line from end of file
     return os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename)
 
@@ -776,7 +793,7 @@ def run_gsnapl_remotely(input_files, lazy_run):
     # merge output chunks:
     with iostream:
         concatenate_files(chunk_output_files, os.path.join(RESULT_DIR, GSNAPL_DEDUP_OUT))
-        execute_command("aws s3 cp %s/%s %s" % (RESULT_DIR, GSNAPL_DEDUP_OUT, output_file))
+        execute_command("aws s3 cp --quiet %s/%s %s" % (RESULT_DIR, GSNAPL_DEDUP_OUT, output_file))
 
 
 
@@ -785,7 +802,7 @@ def fetch_accession2taxid(mutex=threading.RLock()):
         accession2taxid_gz = os.path.basename(ACCESSION2TAXID)
         accession2taxid_path = REF_DIR + '/' + accession2taxid_gz[:-3]
         if not os.path.isfile(accession2taxid_path):
-            execute_command("aws s3 cp %s %s/" % (ACCESSION2TAXID, REF_DIR))
+            execute_command("aws s3 cp --quiet %s %s/" % (ACCESSION2TAXID, REF_DIR))
             execute_command("cd %s; gunzip -f %s" % (REF_DIR, accession2taxid_gz))
             write_to_log("downloaded accession-to-taxid map")
         return  accession2taxid_path
@@ -800,7 +817,7 @@ def run_annotate_m8_with_taxids(input_m8, output_m8):
         raise Exception("Failed generate_taxid_annotated_m8 on {}".format(input_m8))
     write_to_log("finished annotation")
     # move the output back to S3
-    execute_command("aws s3 cp %s %s/" % (output_m8, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s %s/" % (output_m8, SAMPLE_S3_OUTPUT_PATH))
 
 
 def fetch_deuterostome_file(lock=threading.RLock()):  #pylint: disable=dangerous-default-value
@@ -808,7 +825,7 @@ def fetch_deuterostome_file(lock=threading.RLock()):  #pylint: disable=dangerous
         deuterostome_file_basename = os.path.basename(DEUTEROSTOME_TAXIDS)
         deuterostome_file = os.path.join(REF_DIR, deuterostome_file_basename)
         if not os.path.isfile(deuterostome_file):
-            execute_command("aws s3 cp %s %s/" % (DEUTEROSTOME_TAXIDS, REF_DIR))
+            execute_command("aws s3 cp --quiet %s %s/" % (DEUTEROSTOME_TAXIDS, REF_DIR))
             write_to_log("downloaded deuterostome list")
         return deuterostome_file
 
@@ -818,7 +835,7 @@ def run_filter_deuterostomes_from_m8(input_m8, output_m8):
     filter_deuterostomes_from_m8(input_m8, output_m8, deuterostome_file)
     write_to_log("finished job")
     # move the output back to S3
-    execute_command("aws s3 cp %s %s/" % (output_m8, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s %s/" % (output_m8, SAMPLE_S3_OUTPUT_PATH))
 
 
 def run_generate_taxid_annotated_fasta_from_m8(input_m8, input_fasta,
@@ -826,7 +843,7 @@ def run_generate_taxid_annotated_fasta_from_m8(input_m8, input_fasta,
     generate_taxid_annotated_fasta_from_m8(input_fasta, input_m8, output_fasta, annotation_prefix)
     write_to_log("finished job")
     # move the output back to S3
-    execute_command("aws s3 cp %s %s/" % (output_fasta, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s %s/" % (output_fasta, SAMPLE_S3_OUTPUT_PATH))
 
 
 
@@ -835,7 +852,7 @@ def run_rapsearch_chunk(part_suffix, _remote_home_dir, remote_index_dir, remote_
                         input_fasta, key_path, lazy_run):
     chunk_id = input_fasta.split(part_suffix)[-1]
     commands = "mkdir -p %s;" % remote_work_dir
-    commands += "aws s3 cp %s/%s %s/ ; " % \
+    commands += "aws s3 cp --quiet %s/%s %s/ ; " % \
                  (SAMPLE_S3_OUTPUT_CHUNKS_PATH, input_fasta, remote_work_dir)
     input_path = remote_work_dir + '/' + input_fasta
     outfile_basename = 'rapsearch2-out' + part_suffix + chunk_id + '.m8'
@@ -870,7 +887,7 @@ def run_rapsearch_chunk(part_suffix, _remote_home_dir, remote_index_dir, remote_
             try_number += 1
         # move output from remote machine to s3
         assert min_column_number == correct_number_of_output_columns, "Chunk %s output corrupt; not copying to S3. Re-start pipeline to try again." % chunk_id
-        upload_command = "aws s3 cp %s %s/;" % (output_path, SAMPLE_S3_OUTPUT_CHUNKS_PATH)
+        upload_command = "aws s3 cp --quiet %s %s/;" % (output_path, SAMPLE_S3_OUTPUT_CHUNKS_PATH)
         execute_command(remote_command(upload_command, key_path, remote_username, instance_ip))
         with iostream:
             execute_command(scp(key_path, remote_username, instance_ip, output_path, CHUNKS_RESULT_DIR + "/" + outfile_basename))
@@ -934,7 +951,7 @@ def run_rapsearch2_remotely(input_fasta, lazy_run):
     # merge output chunks:
     with iostream:
         concatenate_files(chunk_output_files, os.path.join(RESULT_DIR, RAPSEARCH2_OUT))
-        execute_command("aws s3 cp %s/%s %s" % (RESULT_DIR, RAPSEARCH2_OUT, output_file))
+        execute_command("aws s3 cp --quiet %s/%s %s" % (RESULT_DIR, RAPSEARCH2_OUT, output_file))
 
 
 def run_generate_taxid_outputs_from_m8(annotated_m8, taxon_counts_csv_file, taxon_counts_json_file,
@@ -944,14 +961,14 @@ def run_generate_taxid_outputs_from_m8(annotated_m8, taxon_counts_csv_file, taxo
     taxoninfo_filename = os.path.basename(TAXID_TO_INFO)
     taxoninfo_path = REF_DIR + '/' + taxoninfo_filename
     if not os.path.isfile(taxoninfo_path):
-        execute_command("aws s3 cp %s %s/" % (TAXID_TO_INFO, REF_DIR))
+        execute_command("aws s3 cp --quiet %s %s/" % (TAXID_TO_INFO, REF_DIR))
         write_to_log("downloaded taxon info database")
 
     # download lineage db if not exist
     lineage_filename = os.path.basename(LINEAGE_SHELF)
     lineage_path = REF_DIR + '/' + lineage_filename
     if not os.path.isfile(lineage_path):
-        execute_command("aws s3 cp %s %s/" % (LINEAGE_SHELF, REF_DIR))
+        execute_command("aws s3 cp --quiet %s %s/" % (LINEAGE_SHELF, REF_DIR))
         logging.getLogger().info("downloaded taxid-lineage shelf")
     lineage_map = shelve.open(lineage_path)
 
@@ -965,23 +982,23 @@ def run_generate_taxid_outputs_from_m8(annotated_m8, taxon_counts_csv_file, taxo
                                    taxon_species_rpm_file, taxon_genus_rpm_file)
     write_to_log("calculated RPM from taxon counts")
     # move the output back to S3
-    execute_command("aws s3 cp %s %s/" % (taxon_counts_csv_file, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp %s %s/" % (taxon_counts_json_file, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp %s %s/" % (taxon_species_rpm_file, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp %s %s/" % (taxon_genus_rpm_file, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s %s/" % (taxon_counts_csv_file, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s %s/" % (taxon_counts_json_file, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s %s/" % (taxon_species_rpm_file, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s %s/" % (taxon_genus_rpm_file, SAMPLE_S3_OUTPUT_PATH))
 
 
 def run_combine_json_outputs(input_json_1, input_json_2, output_json):
     combine_pipeline_output_json(input_json_1, input_json_2, output_json)
     write_to_log("finished job")
     # move it the output back to S3
-    execute_command("aws s3 cp %s %s/" % (output_json, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s %s/" % (output_json, SAMPLE_S3_OUTPUT_PATH))
 
 
 def run_generate_unidentified_fasta(input_fa, output_fa):
     subprocess.check_output("grep -A 1 '>NR::NT::' %s | sed '/^--$/d' > %s" % (input_fa, output_fa), shell=True)
     write_to_log("finished job")
-    execute_command("aws s3 cp %s %s/" % (output_fa, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s %s/" % (output_fa, SAMPLE_S3_OUTPUT_PATH))
 
 
 def run_stage2(lazy_run=True):
@@ -1002,9 +1019,9 @@ def run_stage2(lazy_run=True):
     if input1_present and input2_present and input3_present:
         # output of previous stage
         if SAMPLE_S3_INPUT_PATH != SAMPLE_S3_OUTPUT_PATH:
-            execute_command("aws s3 cp %s %s/" % (input1_s3_path, SAMPLE_S3_OUTPUT_PATH))
-            execute_command("aws s3 cp %s %s/" % (input2_s3_path, SAMPLE_S3_OUTPUT_PATH))
-            execute_command("aws s3 cp %s %s/" % (input3_s3_path, SAMPLE_S3_OUTPUT_PATH))
+            execute_command("aws s3 cp --quiet %s %s/" % (input1_s3_path, SAMPLE_S3_OUTPUT_PATH))
+            execute_command("aws s3 cp --quiet %s %s/" % (input2_s3_path, SAMPLE_S3_OUTPUT_PATH))
+            execute_command("aws s3 cp --quiet %s %s/" % (input3_s3_path, SAMPLE_S3_OUTPUT_PATH))
         _gsnapl_input_files = [EXTRACT_UNMAPPED_FROM_SAM_OUT1, EXTRACT_UNMAPPED_FROM_SAM_OUT2]
         before_file_name_for_log = os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1)
         before_file_type_for_log = "fasta_paired"
@@ -1015,7 +1032,7 @@ def run_stage2(lazy_run=True):
         for line in output:
             m = re.match(".*?([^ ]*." + re.escape(FILE_TYPE) + ")", line)
             if m:
-                execute_command("aws s3 cp %s/%s %s/" % (SAMPLE_S3_FASTQ_PATH, m.group(1), FASTQ_DIR))
+                execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_FASTQ_PATH, m.group(1), FASTQ_DIR))
             else:
                 print "%s doesn't match %s" % (line, FILE_TYPE)
         fastq_files = execute_command_with_output("ls %s/*.%s" % (FASTQ_DIR, FILE_TYPE)).rstrip().split("\n")
@@ -1026,24 +1043,24 @@ def run_stage2(lazy_run=True):
         # make combined fasta needed later
         _merged_fasta = os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3)
         generate_merged_fasta(cleaned_files, _merged_fasta)
-        execute_command("aws s3 cp %s %s/" % (_merged_fasta, SAMPLE_S3_OUTPUT_PATH))
+        execute_command("aws s3 cp --quiet %s %s/" % (_merged_fasta, SAMPLE_S3_OUTPUT_PATH))
 
     # Make sure there are no tabs in sequence names, since tabs are used as a delimiter in m8 files
     files_to_collapse_basenames = _gsnapl_input_files + [EXTRACT_UNMAPPED_FROM_SAM_OUT3]
     collapsed_files = ["%s/nospace.%s" % (RESULT_DIR, f) for f in files_to_collapse_basenames]
     for file_basename in files_to_collapse_basenames:
-        execute_command("aws s3 cp %s/%s %s/" % (SAMPLE_S3_OUTPUT_PATH, file_basename, RESULT_DIR))
+        execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_OUTPUT_PATH, file_basename, RESULT_DIR))
     remove_whitespace_from_files([os.path.join(RESULT_DIR, file_basename) for file_basename in files_to_collapse_basenames],
                                  ";", collapsed_files)
     for filename in collapsed_files:
-        execute_command("aws s3 cp %s %s/" % (filename, SAMPLE_S3_OUTPUT_PATH))
+        execute_command("aws s3 cp --quiet %s %s/" % (filename, SAMPLE_S3_OUTPUT_PATH))
     gsnapl_input_files = [os.path.basename(f) for f in collapsed_files[:-1]]
     merged_fasta = collapsed_files[-1]
 
     # Import existing job stats
     stats_s3_path = os.path.join(SAMPLE_S3_INPUT_PATH, STATS_OUT)
     if check_s3_file_presence(stats_s3_path):
-        execute_command("aws s3 cp %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, STATS_OUT, RESULT_DIR))
+        execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, STATS_OUT, RESULT_DIR))
         stats_file = os.path.join(RESULT_DIR, STATS_OUT)
         load_existing_stats(stats_file)
 
@@ -1054,8 +1071,8 @@ def run_stage2(lazy_run=True):
         gsnapl_input_files = subsampled_gsnapl_input_files
         merged_fasta = os.path.join(RESULT_DIR, subsampled_merged_fasta)
         for f in gsnapl_input_files:
-            execute_command("aws s3 cp %s/%s %s/" % (RESULT_DIR, f, SAMPLE_S3_OUTPUT_PATH))
-        execute_command("aws s3 cp %s %s/" % (merged_fasta, SAMPLE_S3_OUTPUT_PATH))
+            execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, f, SAMPLE_S3_OUTPUT_PATH))
+        execute_command("aws s3 cp --quiet %s %s/" % (merged_fasta, SAMPLE_S3_OUTPUT_PATH))
 
 
     thread_success = {}
