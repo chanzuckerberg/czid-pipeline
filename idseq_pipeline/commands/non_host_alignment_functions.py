@@ -802,8 +802,7 @@ def fetch_accession2taxid(mutex=threading.RLock()):
         accession2taxid_gz = os.path.basename(ACCESSION2TAXID)
         accession2taxid_path = REF_DIR + '/' + accession2taxid_gz[:-3]
         if not os.path.isfile(accession2taxid_path):
-            execute_command("aws s3 cp --quiet %s %s/" % (ACCESSION2TAXID, REF_DIR))
-            execute_command("cd %s; gunzip -f %s" % (REF_DIR, accession2taxid_gz))
+            execute_command("aws s3 cp --quiet %s - | gzip -dc > %s" % (ACCESSION2TAXID, accession2taxid_path))
             write_to_log("downloaded accession-to-taxid map")
         return  accession2taxid_path
 
