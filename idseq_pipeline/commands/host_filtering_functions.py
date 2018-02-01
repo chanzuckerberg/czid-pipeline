@@ -236,39 +236,37 @@ def run_star_part(output_dir, genome_dir, fastq_files):
     execute_command_realtime_stdout(" ".join(star_command_params), os.path.join(output_dir, "Log.progress.out"))
 
 def run_star(fastq_files):
-    # check if genome downloaded already
-    genome_file = os.path.basename(STAR_GENOME)
-    if not os.path.isfile("%s/%s" % (REF_DIR, genome_file)):
-        execute_command("aws s3 cp --quiet %s %s/" % (STAR_GENOME, REF_DIR))
-        execute_command("cd %s; tar xvfz %s" % (REF_DIR, genome_file))
+    star_outputs = [STAR_OUT1, STAR_OUT2]
+    num_fastqs = len(fastq_files)
+    def unmapped_files_in(some_dir):
+        return ["%s/Unmapped.out.mate%d" % (some_dir, i+1) for i in range(num_fastqs)]
+    genome_name = os.path.basename(STAR_GENOME).rstrip(".gz").rstrip(".tar")
+    if genome_name != "STAR_genome":
+        with print_lock:
+            print "Oh hello interesting new genome {}".format(genome_name)
+    genome_dir = os.path.join(REF_DIR, genome_name)
+    if not os.path.exists(genome_dir):
+        execute_command("aws s3 cp --quiet {s3genome} - | tar xvfz - -C {refdir}".format(s3genome=STAR_GENOME, refdir=REF_DIR))
         write_to_log("downloaded index")
+    assert os.path.isdir(genome_dir)
     # Check if parts.txt file exists, if so use the new version of (partitioned indices). Otherwise, stay put
-    if os.path.isfile("%s/STAR_genome/parts.txt" % REF_DIR):
-        with open("%s/STAR_genome/parts.txt" % REF_DIR, 'rb') as parts_f:
+    parts_file = os.path.join(genome_dir, "parts.txt")
+    if os.path.isfile(parts_file):
+        with open(parts_file, 'rb') as parts_f:
             num_parts = int(parts_f.read())
-        part_idx = 0
-        tmp_result_dir = "%s/star-part-%d" % (SCRATCH_DIR, part_idx)
-        run_star_part(tmp_result_dir, REF_DIR + "/STAR_genome/part-%d" % part_idx, fastq_files)
-        for i in range(1, num_parts):
-            fastq_files = ["%s/Unmapped.out.mate1" % tmp_result_dir]
-            if len(fastq_files) == 2:
-                fastq_files.extend(["%s/Unmapped.out.mate2" % tmp_result_dir])
-            tmp_result_dir = "%s/star-part-%d" % (SCRATCH_DIR, i)
-            run_star_part(tmp_result_dir, REF_DIR + "/STAR_genome/part-%d" % i, fastq_files)
-        # extract out unmapped files
-        execute_command("cp %s/%s %s/%s;" % (tmp_result_dir, 'Unmapped.out.mate1', RESULT_DIR, STAR_OUT1))
-        if len(fastq_files) == 2:
-            execute_command("cp %s/%s %s/%s;" % (tmp_result_dir, 'Unmapped.out.mate2', RESULT_DIR, STAR_OUT2))
+        unmapped = fastq_files
+        for part_idx in range(num_parts):
+            tmp_result_dir = "%s/star-part-%d" % (SCRATCH_DIR, part_idx)
+            genome_part =  "%s/part-%d" % (genome_dir, part_idx)
+            run_star_part(tmp_result_dir, genome_part, unmapped)
+            unmapped = unmapped_files_in(tmp_result_dir)
     else:
-        run_star_part(SCRATCH_DIR, REF_DIR + '/STAR_genome', fastq_files)
-        # extract out unmapped files
-        execute_command("cp %s/%s %s/%s;" % (SCRATCH_DIR, 'Unmapped.out.mate1', RESULT_DIR, STAR_OUT1))
-        if len(fastq_files) == 2:
-            execute_command("cp %s/%s %s/%s;" % (SCRATCH_DIR, 'Unmapped.out.mate2', RESULT_DIR, STAR_OUT2))
-    # copy back to aws
-    execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, STAR_OUT1, SAMPLE_S3_OUTPUT_PATH))
-    if len(fastq_files) == 2:
-        execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, STAR_OUT2, SAMPLE_S3_OUTPUT_PATH))
+        run_star_part(SCRATCH_DIR, genome_dir, fastq_files)
+        unmapped = unmapped_files_in(SCRATCH_DIR)
+    for i, f in enumerate(unmapped):
+        output_i = os.path.join(RESULT_DIR, star_outputs[i])
+        execute_command("mv %s %s;" % (f, output_i))
+        execute_command("aws s3 cp --quiet %s %s/;" % (output_i, SAMPLE_S3_OUTPUT_PATH))
     # cleanup
     execute_command("cd %s; rm -rf *" % SCRATCH_DIR)
     write_to_log("finished job")
