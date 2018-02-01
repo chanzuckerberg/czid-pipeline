@@ -165,28 +165,28 @@ def run_generate_taxid_fasta_from_accid(input_fasta, output_fasta):
     accession2taxid_gz = os.path.basename(ACCESSION2TAXID)
     accession2taxid_path = REF_DIR + '/' + accession2taxid_gz[:-3]
     if not os.path.isfile(accession2taxid_path):
-        execute_command("aws s3 cp %s %s/" % (ACCESSION2TAXID, REF_DIR))
+        execute_command("aws s3 cp --quiet %s %s/" % (ACCESSION2TAXID, REF_DIR))
         execute_command("cd %s; gunzip -f %s" % (REF_DIR, accession2taxid_gz))
         logging.getLogger().info("downloaded accession-to-taxid map")
     lineage_filename = os.path.basename(LINEAGE_SHELF)
     lineage_path = REF_DIR + '/' + lineage_filename
     if not os.path.isfile(lineage_path):
-        execute_command("aws s3 cp %s %s/" % (LINEAGE_SHELF, REF_DIR))
+        execute_command("aws s3 cp --quiet %s %s/" % (LINEAGE_SHELF, REF_DIR))
         logging.getLogger().info("downloaded taxid-lineage shelf")
     generate_taxid_fasta_from_accid(input_fasta, accession2taxid_path, lineage_path, output_fasta)
     logging.getLogger().info("finished job")
-    execute_command("aws s3 cp %s %s/" % (output_fasta, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s %s/" % (output_fasta, SAMPLE_S3_OUTPUT_PATH))
 
 def run_generate_taxid_locator(input_fasta, taxid_field, hit_type, output_fasta, output_json):
     generate_taxid_locator(input_fasta, taxid_field, hit_type, output_fasta, output_json)
     logging.getLogger().info("finished job")
-    execute_command("aws s3 cp %s %s/" % (output_fasta, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp %s %s/" % (output_json, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s %s/" % (output_fasta, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s %s/" % (output_json, SAMPLE_S3_OUTPUT_PATH))
 
 def run_combine_json(input_json_list, output_json):
     combine_json(input_json_list, output_json)
     logging.getLogger().info("finished job")
-    execute_command("aws s3 cp %s %s/" % (output_json, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s %s/" % (output_json, SAMPLE_S3_OUTPUT_PATH))
 
 def run_stage3(lazy_run = True):
     # make data directories
@@ -197,12 +197,12 @@ def run_stage3(lazy_run = True):
     configure_logger(log_file)
 
     # download input
-    execute_command("aws s3 cp %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, ACCESSION_ANNOTATED_FASTA, INPUT_DIR))
+    execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, ACCESSION_ANNOTATED_FASTA, INPUT_DIR))
     input_file = os.path.join(INPUT_DIR, ACCESSION_ANNOTATED_FASTA)
 
     if lazy_run:
        # Download existing data and see what has been done
-        command = "aws s3 cp %s %s --recursive" % (SAMPLE_S3_OUTPUT_PATH, RESULT_DIR)
+        command = "aws s3 cp --quiet %s %s --recursive" % (SAMPLE_S3_OUTPUT_PATH, RESULT_DIR)
         print execute_command(command)
 
     # generate taxid fasta

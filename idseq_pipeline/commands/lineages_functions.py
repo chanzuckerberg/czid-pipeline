@@ -24,9 +24,9 @@ def make_lineages(version):
 
     # Make and upload lineage files
     execute_command("cd %s; make" % work_dir)
-    execute_command("aws s3 cp %s/taxid-lineages.db %s/" % (work_dir, OUTPUT_PATH_S3))
-    execute_command("aws s3 cp %s/taxid-lineages.csv.gz %s/" % (work_dir, OUTPUT_PATH_S3))
-    execute_command("aws s3 cp %s/names.csv.gz %s/" % (work_dir, OUTPUT_PATH_S3))
+    execute_command("aws s3 cp --quiet %s/taxid-lineages.db %s/" % (work_dir, OUTPUT_PATH_S3))
+    execute_command("aws s3 cp --quiet %s/taxid-lineages.csv.gz %s/" % (work_dir, OUTPUT_PATH_S3))
+    execute_command("aws s3 cp --quiet %s/names.csv.gz %s/" % (work_dir, OUTPUT_PATH_S3))
 
     # Make and upload deuterostome list
     input_filename = "lineages.csv.gz"
@@ -38,7 +38,7 @@ def make_lineages(version):
     ## remove the header line:
     command += " | tail -n +2 > %s; " % output_filename
     ## upload output file:
-    command += "aws s3 cp %s %s/" % (output_filename, OUTPUT_PATH_S3)
+    command += "aws s3 cp --quiet %s %s/" % (output_filename, OUTPUT_PATH_S3)
     execute_command(command)
 
     # upload version:
