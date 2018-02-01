@@ -714,6 +714,7 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
     chunk_id = input_files[0].split(part_suffix)[-1]
     outfile_basename = 'gsnapl-out' + part_suffix + chunk_id
     dedup_outfile_basename = 'dedup-' + outfile_basename
+    local_outfile = CHUNKS_RESULT_DIR + "/" + outfile_basename
     remote_outfile = os.path.join(remote_work_dir, outfile_basename)
     commands = "mkdir -p %s;" % remote_work_dir
     for input_fa in input_files:
@@ -728,7 +729,7 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
                          + [remote_work_dir+'/'+input_fa for input_fa in input_files]
                          + ['> '+remote_outfile, ';'])
 
-    if not lazy_run or not fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, outfile_basename), CHUNKS_RESULT_DIR):
+    if not lazy_run or not fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, dedup_outfile_basename), CHUNKS_RESULT_DIR):
         correct_number_of_output_columns = 12
         min_column_number = 0
         max_tries = 2
@@ -745,17 +746,16 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
             try_number += 1
         # move output from remote machine to s3
         assert min_column_number == correct_number_of_output_columns, "Chunk %s output corrupt; not copying to S3. Re-start pipeline to try again." % chunk_id
-        upload_command = "echo '' >> %s;" % remote_outfile # add a blank line at the end of the file so S3 copy doesn't fail if output is empty
-        upload_command += "aws s3 cp --quiet %s %s/;" % (remote_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH)
-        execute_command(remote_command(upload_command, key_path, remote_username, gsnapl_instance_ip))
         with iostream:
-            execute_command(scp(key_path, remote_username, gsnapl_instance_ip, remote_outfile, CHUNKS_RESULT_DIR + "/" + outfile_basename))
-    write_to_log("finished alignment for chunk %s" % chunk_id)
-    # Deduplicate m8 input. Sometimes GSNAPL outputs multiple consecutive lines for same original read and same accession id. Count functions expect only 1 (top hit).
-    with iostream:
+            execute_command(scp(key_path, remote_username, gsnapl_instance_ip, remote_outfile, local_outfile))
+        # Deduplicate m8 input. Sometimes GSNAPL outputs multiple consecutive lines for same original read and same accession id. Count functions expect only 1 (top hit).
+        execute_command("echo '' >> %s;" % local_outfile) # add a blank line at the end of the file so S3 copy doesn't fail if output is empty
         deduplicate_m8(os.path.join(CHUNKS_RESULT_DIR, outfile_basename), os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename))
-        execute_command("aws s3 cp --quiet %s/%s %s/" % (CHUNKS_RESULT_DIR, dedup_outfile_basename, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
+        with iostream:
+            execute_command("aws s3 cp --quiet %s/%s %s/" % (CHUNKS_RESULT_DIR, dedup_outfile_basename, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
+    with iostream:
         execute_command("sed -i '$ {/^$/d;}' %s" % os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename)) # remove blank line from end of file
+    write_to_log("finished alignment for chunk %s" % chunk_id)
     return os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename)
 
 
