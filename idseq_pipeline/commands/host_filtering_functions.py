@@ -239,7 +239,7 @@ def run_star(fastq_files):
     # check if genome downloaded already
     genome_file = os.path.basename(STAR_GENOME)
     if not os.path.isfile("%s/%s" % (REF_DIR, genome_file)):
-        execute_command("aws s3 cp %s %s/" % (STAR_GENOME, REF_DIR))
+        execute_command("aws s3 cp --quiet %s %s/" % (STAR_GENOME, REF_DIR))
         execute_command("cd %s; tar xvfz %s" % (REF_DIR, genome_file))
         write_to_log("downloaded index")
     # Check if parts.txt file exists, if so use the new version of (partitioned indices). Otherwise, stay put
@@ -266,9 +266,9 @@ def run_star(fastq_files):
         if len(fastq_files) == 2:
             execute_command("cp %s/%s %s/%s;" % (SCRATCH_DIR, 'Unmapped.out.mate2', RESULT_DIR, STAR_OUT2))
     # copy back to aws
-    execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, STAR_OUT1, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, STAR_OUT1, SAMPLE_S3_OUTPUT_PATH))
     if len(fastq_files) == 2:
-        execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, STAR_OUT2, SAMPLE_S3_OUTPUT_PATH))
+        execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, STAR_OUT2, SAMPLE_S3_OUTPUT_PATH))
     # cleanup
     execute_command("cd %s; rm -rf *" % SCRATCH_DIR)
     write_to_log("finished job")
@@ -296,19 +296,19 @@ def run_priceseqfilter(input_fqs):
     execute_command_realtime_stdout(" ".join(priceseq_params))
     write_to_log("finished job")
     execute_command("mv %s %s" % (output_files[0], os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1)))
-    execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, PRICESEQFILTER_OUT1, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, PRICESEQFILTER_OUT1, SAMPLE_S3_OUTPUT_PATH))
     if len(input_fqs) == 2:
         execute_command("mv %s %s" % (output_files[1], os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2)))
-        execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, PRICESEQFILTER_OUT2, SAMPLE_S3_OUTPUT_PATH))
+        execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, PRICESEQFILTER_OUT2, SAMPLE_S3_OUTPUT_PATH))
 
 def run_fq2fa(input_fqs):
     fq2fa(input_fqs[0], os.path.join(RESULT_DIR, FQ2FA_OUT1))
     if len(input_fqs) == 2:
         fq2fa(input_fqs[1], os.path.join(RESULT_DIR, FQ2FA_OUT2))
     write_to_log("finished job")
-    execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, FQ2FA_OUT1, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, FQ2FA_OUT1, SAMPLE_S3_OUTPUT_PATH))
     if len(input_fqs) == 2:
-        execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, FQ2FA_OUT2, SAMPLE_S3_OUTPUT_PATH))
+        execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, FQ2FA_OUT2, SAMPLE_S3_OUTPUT_PATH))
 
 def run_cdhitdup(input_fas):
     cdhitdup_params = [CDHITDUP,
@@ -320,9 +320,9 @@ def run_cdhitdup(input_fas):
                                 '-o2', RESULT_DIR + '/' + CDHITDUP_OUT2])
     execute_command_realtime_stdout(" ".join(cdhitdup_params))
     write_to_log("finished job")
-    execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, CDHITDUP_OUT1, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, CDHITDUP_OUT1, SAMPLE_S3_OUTPUT_PATH))
     if len(input_fas) == 2:
-        execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, CDHITDUP_OUT2, SAMPLE_S3_OUTPUT_PATH))
+        execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, CDHITDUP_OUT2, SAMPLE_S3_OUTPUT_PATH))
 
 def run_lzw(input_fas):
     output_prefix = RESULT_DIR + '/' + LZW_OUT1[:-8]
@@ -332,15 +332,15 @@ def run_lzw(input_fas):
         generate_lzw_filtered_single(input_fas[0], output_prefix, LZW_FRACTION_CUTOFF)
     write_to_log("finished job")
     # copy back to aws
-    execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, LZW_OUT1, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, LZW_OUT1, SAMPLE_S3_OUTPUT_PATH))
     if len(input_fas) == 2:
-        execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, LZW_OUT2, SAMPLE_S3_OUTPUT_PATH))
+        execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, LZW_OUT2, SAMPLE_S3_OUTPUT_PATH))
 
 def run_bowtie2(input_fas):
     # check if genome downloaded already
     genome_file = os.path.basename(BOWTIE2_GENOME)
     if not os.path.isfile("%s/%s" % (REF_DIR, genome_file)):
-        execute_command("aws s3 cp %s %s/" % (BOWTIE2_GENOME, REF_DIR))
+        execute_command("aws s3 cp --quiet %s %s/" % (BOWTIE2_GENOME, REF_DIR))
         execute_command("cd %s; tar xvfz %s" % (REF_DIR, genome_file))
         write_to_log("downloaded index")
     local_genome_dir_ls = execute_command_with_output("ls %s/bowtie2_genome/*.bt2*" % REF_DIR)
@@ -367,11 +367,11 @@ def run_bowtie2(input_fas):
     else:
         generate_unmapped_singles_from_sam(RESULT_DIR + '/' + BOWTIE2_OUT, output_prefix)
     write_to_log("extracted unmapped fragments from SAM file")
-    execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, BOWTIE2_OUT, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, BOWTIE2_OUT, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1, SAMPLE_S3_OUTPUT_PATH))
     if len(input_fas) == 2:
-        execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3, SAMPLE_S3_OUTPUT_PATH))
+        execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3, SAMPLE_S3_OUTPUT_PATH))
 
 def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run):
     number_of_input_files = len(fastq_files)
@@ -457,7 +457,7 @@ def run_stage1(lazy_run = True):
     for line in output:
         m = re.match(".*?([^ ]*." + re.escape(FILE_TYPE) + ")", line)
         if m:
-            execute_command("aws s3 cp %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, m.group(1), FASTQ_DIR))
+            execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, m.group(1), FASTQ_DIR))
         else:
             print "%s doesn't match %s" % (line, FILE_TYPE)
     fastq_files = execute_command_with_output("ls %s/*.%s" % (FASTQ_DIR, FILE_TYPE)).rstrip().split("\n")
@@ -469,7 +469,7 @@ def run_stage1(lazy_run = True):
 
     # Download existing data and see what has been done
     if lazy_run:
-        command = "aws s3 cp %s %s --recursive" % (SAMPLE_S3_OUTPUT_PATH, RESULT_DIR)
+        command = "aws s3 cp --quiet %s %s --recursive" % (SAMPLE_S3_OUTPUT_PATH, RESULT_DIR)
         print execute_command_with_output(command)
 
     # Record total number of input reads
@@ -478,13 +478,13 @@ def run_stage1(lazy_run = True):
     stats_path = os.path.join(RESULT_DIR, STATS_OUT)
     with open(stats_path, 'wb') as f:
         json.dump(STATS, f)
-    execute_command("aws s3 cp %s %s/;" % (stats_path, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s %s/;" % (stats_path, SAMPLE_S3_OUTPUT_PATH))
 
     # run host filtering
     run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run)
     # copy the merged fasta file back to results folder to change time stamp
-    execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1, SAMPLE_S3_OUTPUT_PATH))
     if len(fastq_files) == 2:
-        execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3, SAMPLE_S3_OUTPUT_PATH))
+        execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3, SAMPLE_S3_OUTPUT_PATH))
     write_to_log("Host filtering complete")

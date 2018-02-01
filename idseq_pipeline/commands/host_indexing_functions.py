@@ -82,7 +82,7 @@ def make_star_index(fasta_file, result_dir, scratch_dir, lazy_run):
     # archive and compress
     execute_command("tar czvf %s/%s -C %s %s" % (result_dir, STAR_INDEX_OUT, scratch_dir, star_genome_dir_name))
     # copy to S3
-    execute_command("aws s3 cp %s/%s %s/;" % (result_dir, STAR_INDEX_OUT, OUTPUT_PATH_S3))
+    execute_command("aws s3 cp --quiet %s/%s %s/;" % (result_dir, STAR_INDEX_OUT, OUTPUT_PATH_S3))
     # cleanup
     execute_command("cd %s; rm -rf *" % scratch_dir)
 
@@ -101,7 +101,7 @@ def make_bowtie2_index(host_name, fasta_file, result_dir, scratch_dir, lazy_run)
     # archive and compress
     execute_command("tar czvf %s/%s -C %s %s" % (result_dir, BOWTIE2_INDEX_OUT, scratch_dir, bowtie2_genome_dir_name))
     # copy to S3
-    execute_command("aws s3 cp %s/%s %s/;" % (result_dir, BOWTIE2_INDEX_OUT, OUTPUT_PATH_S3))
+    execute_command("aws s3 cp --quiet %s/%s %s/;" % (result_dir, BOWTIE2_INDEX_OUT, OUTPUT_PATH_S3))
     # cleanup
     execute_command("cd %s; rm -rf *" % scratch_dir)
 
@@ -118,7 +118,7 @@ def make_indexes(version, lazy_run = False):
     # Get input reference and version number.
     # If download does not use ncbitool (e.g. direct s3 link), indicate that there is no versioning.
     if INPUT_FASTA_S3.startswith("s3://"):
-        execute_command("aws s3 cp %s %s/" % (INPUT_FASTA_S3, fasta_dir))
+        execute_command("aws s3 cp --quiet %s %s/" % (INPUT_FASTA_S3, fasta_dir))
         input_fasta_local = os.path.join(fasta_dir, input_fasta_name)
         version_number = VERSION_NONE
     elif INPUT_FASTA_S3.startswith("ftp://"):
@@ -138,7 +138,7 @@ def make_indexes(version, lazy_run = False):
     # handle lazy_run
     if lazy_run:
        # Download existing files and see what has been done
-        command = "aws s3 cp %s %s --recursive" % (OUTPUT_PATH_S3, result_dir)
+        command = "aws s3 cp --quiet %s %s --recursive" % (OUTPUT_PATH_S3, result_dir)
         execute_command(command)
 
     # make STAR index

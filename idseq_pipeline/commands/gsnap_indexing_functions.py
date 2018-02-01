@@ -29,7 +29,7 @@ LOCAL_WORK_DIR = "idseq_pipeline_temp" # locally
 
 def get_key():
     global KEY_PATH
-    execute_command("aws s3 cp %s %s/" % (KEY_S3_PATH, LOCAL_WORK_DIR))
+    execute_command("aws s3 cp --quiet %s %s/" % (KEY_S3_PATH, LOCAL_WORK_DIR))
     KEY_PATH = os.path.join(LOCAL_WORK_DIR, os.path.basename(KEY_S3_PATH))
     execute_command("chmod 400 %s" % KEY_PATH)
 
@@ -55,7 +55,7 @@ def make_index(version):
     execute_command(remote_command(indexing_command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
     # upload index
-    upload_command = "aws s3 cp %s/%s %s/%s/ --recursive" % (GMAPDB_PATH, OUTPUT_NAME, OUTPUT_PATH_S3, OUTPUT_NAME)
+    upload_command = "aws s3 cp --quiet %s/%s %s/%s/ --recursive" % (GMAPDB_PATH, OUTPUT_NAME, OUTPUT_PATH_S3, OUTPUT_NAME)
     execute_command(remote_command(upload_command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
     # upload version tracker file

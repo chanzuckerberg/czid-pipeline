@@ -21,12 +21,12 @@ def make_blacklist():
     accession2taxid_gz = os.path.basename(ACCESSION2TAXID_DB_S3_PATH)
     accession2taxid_path = os.path.join(REF_DIR, accession2taxid_gz[:-3])
     if not os.path.isfile(accession2taxid_path):
-        execute_command("aws s3 cp %s %s/" % (ACCESSION2TAXID_DB_S3_PATH, REF_DIR))
+        execute_command("aws s3 cp --quiet %s %s/" % (ACCESSION2TAXID_DB_S3_PATH, REF_DIR))
         execute_command("cd %s; gunzip -f %s" % (REF_DIR, accession2taxid_gz))
 
     # Generate blacklist:
     accession2taxid_dict = shelve.open(accession2taxid_path)
-    execute_command("mkdir -p %s/data; aws s3 cp %s %s/data/" % (ROOT_DIR, INPUT_FASTA_S3, ROOT_DIR))
+    execute_command("mkdir -p %s/data; aws s3 cp --quiet %s %s/data/" % (ROOT_DIR, INPUT_FASTA_S3, ROOT_DIR))
     input_gz_file = "%s/data/%s" % (ROOT_DIR, os.path.basename(INPUT_FASTA_S3))
     with gzip.open(input_gz_file, 'rb') as f:
         for line in f:
