@@ -4,7 +4,6 @@ import json
 import shelve
 import re
 import time
-import logging
 import math
 import threading
 import shutil
@@ -116,10 +115,10 @@ GSNAPL_CHUNK_SIZE = 30000 # number of fasta records in a chunk so it runs in ~10
 RAPSEARCH_CHUNK_SIZE = 10000
 
 # references
-ACCESSION2TAXID = 's3://czbiohub-infectious-disease/references/accession2taxid.db.gz'
+# from common import ACCESSION2TAXID
 DEUTEROSTOME_TAXIDS = 's3://czbiohub-infectious-disease/references/deuterostome_taxids.txt'
 TAXID_TO_INFO = 's3://czbiohub-infectious-disease/references/taxon_info.db'
-LINEAGE_SHELF = 's3://czbiohub-infectious-disease/references/taxid-lineages.db'
+# from common import LINEAGE_SHELF
 
 # definitions for integration with web app
 TAX_LEVEL_SPECIES = 1
@@ -797,18 +796,9 @@ def run_gsnapl_remotely(input_files, lazy_run):
 
 
 
-def fetch_accession2taxid(mutex=threading.RLock()):
-    with mutex:
-        accession2taxid_gz = os.path.basename(ACCESSION2TAXID)
-        accession2taxid_path = REF_DIR + '/' + accession2taxid_gz[:-3]
-        if not os.path.isfile(accession2taxid_path):
-            execute_command("aws s3 cp --quiet %s - | gzip -dc > %s" % (ACCESSION2TAXID, accession2taxid_path))
-            write_to_log("downloaded accession-to-taxid map")
-        return  accession2taxid_path
-
 
 def run_annotate_m8_with_taxids(input_m8, output_m8):
-    accession2taxid_path = fetch_accession2taxid()
+    accession2taxid_path = fetch_reference(ACCESSION2TAXID)
     p = multiprocessing.Process(target=generate_taxid_annotated_m8, args=[input_m8, output_m8, accession2taxid_path])
     p.start()
     p.join()
@@ -956,19 +946,8 @@ def run_rapsearch2_remotely(input_fasta, lazy_run):
 def run_generate_taxid_outputs_from_m8(annotated_m8, taxon_counts_csv_file, taxon_counts_json_file,
                                        taxon_species_rpm_file, taxon_genus_rpm_file, count_type, e_value_type):
 
-    # download taxoninfodb if not exist
-    taxoninfo_filename = os.path.basename(TAXID_TO_INFO)
-    taxoninfo_path = REF_DIR + '/' + taxoninfo_filename
-    if not os.path.isfile(taxoninfo_path):
-        execute_command("aws s3 cp --quiet %s %s/" % (TAXID_TO_INFO, REF_DIR))
-        write_to_log("downloaded taxon info database")
-
-    # download lineage db if not exist
-    lineage_filename = os.path.basename(LINEAGE_SHELF)
-    lineage_path = REF_DIR + '/' + lineage_filename
-    if not os.path.isfile(lineage_path):
-        execute_command("aws s3 cp --quiet %s %s/" % (LINEAGE_SHELF, REF_DIR))
-        logging.getLogger().info("downloaded taxid-lineage shelf")
+    taxoninfo_path = fetch_reference(TAXID_TO_INFO)
+    lineage_path = fetch_reference(LINEAGE_SHELF)
     lineage_map = shelve.open(lineage_path)
 
     species_concordant, genus_concordant, family_concordant = generate_tax_counts_from_m8(annotated_m8, e_value_type,

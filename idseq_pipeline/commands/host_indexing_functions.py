@@ -7,7 +7,7 @@ MAX_STAR_PART_SIZE = 3252010122
 VERSION_NONE = -1
 
 # data directories
-ROOT_DIR = '/mnt'
+# from common import ROOT_DIR
 DEST_DIR = ROOT_DIR + '/idseq/indexes' # generated indexes go here
 
 # arguments from environment variables

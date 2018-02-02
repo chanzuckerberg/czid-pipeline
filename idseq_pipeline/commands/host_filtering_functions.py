@@ -1,25 +1,8 @@
 import os
-import sys
 import multiprocessing
-import subprocess
 import json
-import csv
-import shelve
-import argparse
 import re
-import time
-import random
-import datetime
-import gzip
-import logging
-import math
-import threading
 from .common import *
-
-# data directories
-ROOT_DIR = '/mnt'
-DEST_DIR = ROOT_DIR + '/idseq/data' # generated data go here
-REF_DIR = ROOT_DIR + '/idseq/ref' # referene genome / ref databases go here
 
 # output files
 STAR_OUT1 = 'unmapped.star.1.fq'
@@ -44,8 +27,9 @@ VERSION_OUT = 'versions.json'
 INPUT_BUCKET = os.environ.get('INPUT_BUCKET')
 FILE_TYPE = os.environ.get('FILE_TYPE')
 OUTPUT_BUCKET = os.environ.get('OUTPUT_BUCKET')
-STAR_GENOME = os.environ.get('STAR_GENOME')
-BOWTIE2_GENOME = os.environ.get('BOWTIE2_GENOME')
+STAR_GENOME = os.environ.get('STAR_GENOME', 's3://czbiohub-infectious-disease/references/human/STAR_genome.tar.gz')
+BOWTIE2_GENOME = os.environ.get('BOWTIE2_GENOME', 's3://czbiohub-infectious-disease/references/human/bowtie2_genome.tar.gz')
+STAR_BOWTIE_VERSION_FILE_S3 = os.environ.get('STAR_BOWTIE_VERSION_FILE_S3','s3://czbiohub-infectious-disease/references/{host}/{host}.version.txt'.format(host=os.path.basename(os.path.dirname(STAR_GENOME))))
 DB_SAMPLE_ID = os.environ['DB_SAMPLE_ID']
 AWS_BATCH_JOB_ID = os.environ.get('AWS_BATCH_JOB_ID', 'local')
 SAMPLE_S3_INPUT_PATH = INPUT_BUCKET.rstrip('/')
@@ -59,7 +43,6 @@ DEFAULT_LOGPARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH,
                      "stats_file": os.path.join(RESULT_DIR, STATS_OUT)}
 
 # versioning
-STAR_BOWTIE_VERSION_FILE_S3 = 's3://czbiohub-infectious-disease/references/human/human.version.txt'
 
 # target outputs by task
 TARGET_OUTPUTS_SINGLE = { "run_star": [os.path.join(RESULT_DIR, STAR_OUT1)],
@@ -83,6 +66,7 @@ TARGET_OUTPUTS_PAIRED = { "run_star": [os.path.join(RESULT_DIR, STAR_OUT1),
                                           os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2),
                                           os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3)] }
 
+TARGET_OUTPUTS = None
 
 # software packages
 STAR="STAR"
@@ -92,10 +76,6 @@ BOWTIE2="bowtie2"
 
 # pipeline configuration
 LZW_FRACTION_CUTOFF = 0.45
-
-# reference genomes
-STAR_GENOME = 's3://czbiohub-infectious-disease/references/human/STAR_genome.tar.gz'
-BOWTIE2_GENOME = 's3://czbiohub-infectious-disease/references/human/bowtie2_genome.tar.gz'
 
 # convenience functions
 def fq2fa(input_fastq, output_fasta):
