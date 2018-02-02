@@ -1,25 +1,8 @@
 import os
-import sys
 import multiprocessing
-import subprocess
 import json
-import csv
-import shelve
-import argparse
 import re
-import time
-import random
-import datetime
-import gzip
-import logging
-import math
-import threading
 from .common import *
-
-# data directories
-ROOT_DIR = '/mnt'
-DEST_DIR = ROOT_DIR + '/idseq/data' # generated data go here
-REF_DIR = ROOT_DIR + '/idseq/ref' # referene genome / ref databases go here
 
 # output files
 STAR_OUT1 = 'unmapped.star.1.fq'
@@ -83,6 +66,7 @@ TARGET_OUTPUTS_PAIRED = { "run_star": [os.path.join(RESULT_DIR, STAR_OUT1),
                                           os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2),
                                           os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3)] }
 
+TARGET_OUTPUTS = None
 
 # software packages
 STAR="STAR"

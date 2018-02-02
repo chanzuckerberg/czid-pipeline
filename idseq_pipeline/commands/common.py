@@ -9,6 +9,13 @@ import gzip
 import os
 
 NCBITOOL_S3_PATH = "s3://czbiohub-infectious-disease/ncbitool" # S3 location of ncbitool executable
+ACCESSION2TAXID = 's3://czbiohub-infectious-disease/references/accession2taxid.db.gz'
+LINEAGE_SHELF = 's3://czbiohub-infectious-disease/references/taxid-lineages.db'
+
+# data directories
+ROOT_DIR = '/mnt'
+DEST_DIR = ROOT_DIR + '/idseq/data' # generated data go here
+REF_DIR = ROOT_DIR + '/idseq/ref' # referene genome / ref databases go here
 
 STATS = []
 LOGGER = None
@@ -153,10 +160,12 @@ def count_reads(file_name, file_type):
     f.close()
     return int(count)
 
+
 def return_merged_dict(dict1, dict2):
     result = dict1.copy()
     result.update(dict2)
     return result
+
 
 def configure_logger(log_file):
     global LOGGER
@@ -174,11 +183,13 @@ def configure_logger(log_file):
     handler.setFormatter(formatter)
     LOGGER.addHandler(handler)
 
+
 def load_existing_stats(stats_file):
     global STATS
     if os.path.isfile(stats_file):
         with open(stats_file) as f:
             STATS = json.load(f)
+
 
 def get_total_reads_from_stats():
     for item in STATS:
@@ -193,15 +204,19 @@ def get_total_reads_from_stats():
     # previous fall-back value didn't fit into integer type of SQL dfatabase:
     # return 0.1
 
+
 def get_remaining_reads_from_stats():
     return (item for item in STATS if item.get("task") == "run_gsnapl_remotely").next().get("reads_before")
 
 
-def fetch_lazy_result(source, destination, mutex=threading.RLock(), locks={}):  #pylint: disable=dangerous-default-value
+def fetch_from_s3(source, destination, auto_unzip, mutex=threading.RLock(), locks={}):  #pylint: disable=dangerous-default-value
     with mutex:
         if os.path.exists(destination):
             if os.path.isdir(destination):
                 destination = os.path.join(destination, os.path.basename(source))
+        unzip = auto_unzip and destination.endswith(".gz")
+        if unzip:
+            destination = destination[:-3]
         abspath = os.path.abspath(destination)
         if abspath not in locks:
             locks[abspath] = threading.RLock()
@@ -209,7 +224,7 @@ def fetch_lazy_result(source, destination, mutex=threading.RLock(), locks={}):  
     with destination_lock:
         if os.path.exists(destination):
             # no need to fetch this file from s3, it has been just produced on this instance
-            return True
+            return destination
         try:
             destdir = os.path.dirname(destination)
             if destdir:
@@ -220,11 +235,24 @@ def fetch_lazy_result(source, destination, mutex=threading.RLock(), locks={}):  
                 raise
         with iostream:
             try:
-                execute_command("aws s3 cp --quiet %s %s" % (source, destination))
-                return True
+                if unzip:
+                    execute_command("aws s3 cp --quiet %s - | gzip -dc > %s" % (source, destination))
+                else:
+                    execute_command("aws s3 cp --quiet %s %s" % (source, destination))
+                return destination
             except subprocess.CalledProcessError:
                 # Most likely the file doesn't exist in S3.
-                return False
+                return None
+
+
+def fetch_lazy_result(source, destination):
+    return fetch_from_s3(source, destination, auto_unzip=False) != None
+
+
+def fetch_reference(source):
+    path = fetch_from_s3(source, REF_DIR, auto_unzip=True)
+    assert path != None
+    return path
 
 
 run_and_log_mutex = threading.RLock()

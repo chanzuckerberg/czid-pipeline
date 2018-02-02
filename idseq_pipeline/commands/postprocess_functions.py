@@ -1,24 +1,14 @@
 import os
-import sys
-import multiprocessing
 import subprocess
 import json
-import csv
 import shelve
-import argparse
-import re
-import time
-import random
-import datetime
-import gzip
 import logging
-import math
 from .common import *
 
 # data directories
-ROOT_DIR = '/mnt'
+# from common import ROOT_DIR
+# from common import REF_DIR
 DEST_DIR = ROOT_DIR + '/idseq/data' # generated data go here
-REF_DIR = ROOT_DIR + '/idseq/ref' # referene genome / ref databases go here
 TEMP_DIR = ROOT_DIR + '/tmp' # tmp directory with a lot of space for sorting large files
 
 # arguments from environment variables
@@ -70,7 +60,7 @@ TARGET_OUTPUTS = { "run_generate_taxid_fasta_from_accid": [os.path.join(RESULT_D
                    "run_combine_json": [os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_ALL)] }
 
 # references
-ACCESSION2TAXID = 's3://czbiohub-infectious-disease/references/accession2taxid.db.gz'
+# from common import ACCESSION2TAXID
 LINEAGE_SHELF = 's3://czbiohub-infectious-disease/references/taxid-lineages.db'
 
 # processing functions
@@ -162,17 +152,8 @@ def combine_json(input_json_list, output_json):
 
 # job functions
 def run_generate_taxid_fasta_from_accid(input_fasta, output_fasta):
-    accession2taxid_gz = os.path.basename(ACCESSION2TAXID)
-    accession2taxid_path = REF_DIR + '/' + accession2taxid_gz[:-3]
-    if not os.path.isfile(accession2taxid_path):
-        execute_command("aws s3 cp --quiet %s %s/" % (ACCESSION2TAXID, REF_DIR))
-        execute_command("cd %s; gunzip -f %s" % (REF_DIR, accession2taxid_gz))
-        logging.getLogger().info("downloaded accession-to-taxid map")
-    lineage_filename = os.path.basename(LINEAGE_SHELF)
-    lineage_path = REF_DIR + '/' + lineage_filename
-    if not os.path.isfile(lineage_path):
-        execute_command("aws s3 cp --quiet %s %s/" % (LINEAGE_SHELF, REF_DIR))
-        logging.getLogger().info("downloaded taxid-lineage shelf")
+    accession2taxid_path = fetch_reference(ACCESSION2TAXID)
+    lineage_path = fetch_reference(LINEAGE_SHELF)
     generate_taxid_fasta_from_accid(input_fasta, accession2taxid_path, lineage_path, output_fasta)
     logging.getLogger().info("finished job")
     execute_command("aws s3 cp --quiet %s %s/" % (output_fasta, SAMPLE_S3_OUTPUT_PATH))
@@ -191,7 +172,7 @@ def run_combine_json(input_json_list, output_json):
 def run_stage3(lazy_run = True):
     # make data directories
     execute_command("mkdir -p %s %s %s %s" % (SAMPLE_DIR, RESULT_DIR, REF_DIR, TEMP_DIR))
- 
+
     # configure logger
     log_file = "%s/%s.%s.txt" % (RESULT_DIR, LOGS_OUT_BASENAME, AWS_BATCH_JOB_ID)
     configure_logger(log_file)
