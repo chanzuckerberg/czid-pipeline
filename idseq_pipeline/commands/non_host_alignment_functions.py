@@ -118,6 +118,7 @@ RAPSEARCH_CHUNK_SIZE = 10000
 # from common import ACCESSION2TAXID
 DEUTEROSTOME_TAXIDS = 's3://czbiohub-infectious-disease/references/deuterostome_taxids.txt'
 TAXID_TO_INFO = 's3://czbiohub-infectious-disease/references/taxon_info.db'
+# from common import LINEAGE_SHELF
 
 # definitions for integration with web app
 TAX_LEVEL_SPECIES = 1
@@ -945,7 +946,6 @@ def run_rapsearch2_remotely(input_fasta, lazy_run):
 def run_generate_taxid_outputs_from_m8(annotated_m8, taxon_counts_csv_file, taxon_counts_json_file,
                                        taxon_species_rpm_file, taxon_genus_rpm_file, count_type, e_value_type):
 
-    # What is this used for?
     taxoninfo_path = fetch_reference(TAXID_TO_INFO)
     lineage_path = fetch_reference(LINEAGE_SHELF)
     lineage_map = shelve.open(lineage_path)

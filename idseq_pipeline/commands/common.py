@@ -249,8 +249,8 @@ def fetch_lazy_result(source, destination):
     return fetch_from_s3(source, destination, auto_unzip=False) != None
 
 
-def fetch_reference(source):
-    path = fetch_from_s3(source, REF_DIR, auto_unzip=True)
+def fetch_reference(source, auto_unzip=True):
+    path = fetch_from_s3(source, REF_DIR, auto_unzip)
     assert path != None
     return path
 
