@@ -613,11 +613,11 @@ def wait_for_server_ip_work(service_name, key_path, remote_username, environment
 def wait_for_server_ip(service_name, key_path, remote_username, environment, max_concurrent, mutex=threading.RLock(), mutexes={}, last_checks={}): #pylint: disable=dangerous-default-value
     # We rate limit these to ensure fairness across jobs regardless of job size
     with mutex:
-        if environment not in mutexes:
-            mutexes[environment] = threading.RLock()
-            last_checks[environment] = [None]
-        lc = last_checks[environment]
-        mx = mutexes[environment]
+        if service_name not in mutexes:
+            mutexes[service_name] = threading.RLock()
+            last_checks[service_name] = [None]
+        lc = last_checks[service_name]
+        mx = mutexes[service_name]
     with mx:
         if lc[0] != None:
             sleep_time = (60.0 / MAX_DISPATCHES_PER_MINUTE) - (time.time() - lc[0])
