@@ -571,7 +571,7 @@ def wait_for_server_ip_work(service_name, key_path, remote_username, environment
         ip_nproc_dict = {}
         dict_mutex = threading.RLock()
         def poll_server(ip):
-            command = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s "ps aux | grep %s | grep -v bash | grep -v grep" || echo "error"' % (key_path, remote_username, ip, service_name)
+            command = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s "ps aux | grep %s | grep -v bash" || echo "error"' % (key_path, remote_username, ip, service_name)
             output = execute_command_with_output(command).rstrip().split("\n")
             if output != ["error"]:
                 with dict_mutex:
