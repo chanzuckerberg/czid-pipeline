@@ -96,7 +96,7 @@ class Curate_accession2taxid(Base):
         execute_command("gzip %s; aws s3 cp --quiet %s.gz %s/" % (output_db_file, output_db_file, output_s3_path))
 
         # Record versions
-        upload_version_tracker(arguments['--mapping_files'].split(",") + [arguments['--nt_file'], arguments['--nr_file'],
+        upload_version_tracker(arguments['--mapping_files'].split(",") + [arguments['--nt_file'], arguments['--nr_file']],
                                'accession2taxid',
                                mapping_version_numbers + [nt_version_number, nr_version_number],
                                output_s3_path, self.version)
