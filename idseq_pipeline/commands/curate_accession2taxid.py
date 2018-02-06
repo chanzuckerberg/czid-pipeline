@@ -71,7 +71,6 @@ class Curate_accession2taxid(Base):
         # Retrieve the reference files
         write_to_log("Retrieving references")
         arguments = self.options
-        ncbi_reference_files = [arguments['--nt_file'], arguments['--nr_file'], arguments['--mapping_file']]
         nt_file_local, nt_version_number = download_reference_locally_with_version_any_source_type(arguments['--nt_file'], dest_dir)
         nr_file_local, nr_version_number = download_reference_locally_with_version_any_source_type(arguments['--nr_file'], dest_dir)
         mapping_files_local = []
@@ -92,12 +91,11 @@ class Curate_accession2taxid(Base):
         write_to_log("Writing berkeley db")
         output_db_file = os.path.join(DEST_DIR, 'curated_accession2taxid.db')
         generate_accession2taxid_db(output_mapping_file, output_db_file, False)
+        output_s3_path = arguments['--output_s3_folder'].rstrip('/')
         execute_command("gzip %s; aws s3 cp --quiet %s.gz %s/" % (output_db_file, output_db_file, output_s3_path))
 
-
-
-
-
-
-
-
+        # Record versions
+        upload_version_tracker([arguments.get(key) for key in ['--mapping_files', '--nt_file', '--nr_file']],
+                               'accession2taxid',
+                               [mapping_version_numbers, nt_version_number, nr_version_number],
+                               output_s3_path, self.version)

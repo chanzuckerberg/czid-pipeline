@@ -42,4 +42,4 @@ def make_lineages(version):
     execute_command(command)
 
     # upload version:
-    upload_version_tracker('lineage_and_deuterostome', version_number, OUTPUT_PATH_S3, version)
+    upload_version_tracker(INPUT, 'lineage_and_deuterostome', version_number, OUTPUT_PATH_S3, version)
