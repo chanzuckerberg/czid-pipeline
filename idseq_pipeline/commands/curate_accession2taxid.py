@@ -77,7 +77,7 @@ class Curate_accession2taxid(Base):
         mapping_files_local = []
         mapping_version_numbers = []
         for f in arguments['--mapping_files'].split(","):
-            mapping_file_local, mapping_version_number = download_reference_locally_with_version_any_source_type(f, dest_dir)
+            mapping_file_local, mapping_version_number = download_reference_locally_with_version_any_source_type(f, dest_dir, dest_dir)
             mapping_files_local.append(mapping_file_local)
             mapping_version_numbers.append(mapping_version_number) 
         print "Reference download finished"

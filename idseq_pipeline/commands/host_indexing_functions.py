@@ -114,7 +114,7 @@ def make_indexes(version, lazy_run = False):
     scratch_dir = os.path.join(host_dir, 'scratch')
     execute_command("mkdir -p %s %s %s %s" % (host_dir, fasta_dir, result_dir, scratch_dir))
 
-    input_fasta_local, version_number = download_reference_locally_with_version_any_source_type(INPUT_FASTA_S3, fasta_dir)
+    input_fasta_local, version_number = download_reference_locally_with_version_any_source_type(INPUT_FASTA_S3, fasta_dir, scratch_dir)
 
     # unzip if necessary
     if os.path.splitext(input_fasta_local)[1] == ".gz":

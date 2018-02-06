@@ -389,7 +389,7 @@ def download_reference_locally(ncbitool_path, input_fasta_ncbi_path, version_num
     execute_command(command)
     return os.path.join(destination_dir, os.path.basename(input_fasta_ncbi_path))
 
-def download_reference_locally_with_version_any_source_type(ref_file, dest_dir):
+def download_reference_locally_with_version_any_source_type(ref_file, dest_dir, ncbitool_dest_dir):
     # Get input reference and version number.
     # If download does not use ncbitool (e.g. direct s3 link), indicate that there is no versioning.
     input_fasta_name = os.path.basename(ref_file)
@@ -402,7 +402,7 @@ def download_reference_locally_with_version_any_source_type(ref_file, dest_dir):
         input_fasta_local = os.path.join(dest_dir, input_fasta_name)
         version_number = VERSION_NONE
     else:
-        ncbitool_path = install_ncbitool(scratch_dir)
+        ncbitool_path = install_ncbitool(ncbitool_dest_dir)
         version_number = get_reference_version_number(ncbitool_path, ref_file)
         input_fasta_local = download_reference_locally(ncbitool_path, ref_file, version_number, dest_dir)
     return input_fasta_local, version_number
