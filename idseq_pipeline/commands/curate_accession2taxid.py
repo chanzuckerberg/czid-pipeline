@@ -1,6 +1,5 @@
 """The curate_accession2taxid command."""
 from .base import Base
-from .common import *
 import sys
 import time
 import subprocess
@@ -64,6 +63,8 @@ def generate_accession2taxid_db(mapping_file, output_db_file, input_gzipped):
 
 class Curate_accession2taxid(Base):
     def run(self):
+        from .common import * #TO DO: clean up the imports across this package
+
         # Make work directory
         dest_dir = os.path.join(DEST_DIR, 'accession2taxid')
         execute_command("mkdir -p %s" % dest_dir)
