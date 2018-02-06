@@ -70,7 +70,7 @@ class Curate_accession2taxid(Base):
         execute_command("mkdir -p %s" % dest_dir)
 
         # Retrieve the reference files
-        write_to_log("Retrieving references")
+        print "Retrieving references"
         arguments = self.options
         nt_file_local, nt_version_number = download_reference_locally_with_version_any_source_type(arguments['--nt_file'], dest_dir)
         nr_file_local, nr_version_number = download_reference_locally_with_version_any_source_type(arguments['--nr_file'], dest_dir)
@@ -80,16 +80,16 @@ class Curate_accession2taxid(Base):
             mapping_file_local, mapping_version_number = download_reference_locally_with_version_any_source_type(f, dest_dir)
             mapping_files_local.append(mapping_file_local)
             mapping_version_numbers.append(mapping_version_number) 
-        write_to_log("Reference download finished")
+        print "Reference download finished"
 
         # Produce the output file
-        write_to_log("Curating accession2taxid")
+        print "Curating accession2taxid"
         output_mapping_file = os.path.join(DEST_DIR, 'curated_accession2taxid.txt')
         curate_taxon_dict(nt_file_local, nr_file_local, mapping_files_local, output_mapping_file)
-        write_to_log("Curation finished")
+        print "Curation finished"
 
         # Convert to a berkeley db
-        write_to_log("Writing berkeley db")
+        print "Writing berkeley db"
         output_db_file = os.path.join(DEST_DIR, 'curated_accession2taxid.db')
         generate_accession2taxid_db(output_mapping_file, output_db_file, False)
         output_s3_path = arguments['--output_s3_folder'].rstrip('/')
