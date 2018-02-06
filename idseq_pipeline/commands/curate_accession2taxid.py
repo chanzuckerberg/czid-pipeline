@@ -14,18 +14,18 @@ def curate_taxon_dict(nt_file, nr_file, mapping_files, output_mapping_file):
     """Curate accessiont2taxid mapping based on existence in NT/NR"""
     print "Read the nt/nr file"
     # Read the nt/nr file
-    dbids = {}
+    dbids = set()
     lines = 0
     for gzf in [nr_file, nt_file]:  
         with gzip.open(gzf, 'rb') as seqf:
             for line in seqf:
                 lines += 1
                 if lines % 100000 == 0:
-                    print "%f M lines. " %  (lines/1000000.0)
+                    print "%3.1f M lines. " %  (lines/1000000.0)
                 if line[0] == '>': # header line
                     s = re.match('^>([^ \.]*).*', line)
                     if s:
-                        dbids[s.group(1)] = 1
+                        dbids.add(s.group(1))
     print "Read the mapping file and select ..."
     # Read the accession2taxid mapping files
     outf = open(output_mapping_file, 'wb')
@@ -37,7 +37,7 @@ def curate_taxon_dict(nt_file, nr_file, mapping_files, output_mapping_file):
                 lines += 1
                 if lines % 100000 == 0:
                     print "%f M lines. %s, %s" %  (lines/1000000.0, fields[0], fields[2])
-                if dbids.get(fields[0]):
+                if fields[0] in dbids:
                     outf.write(line)
     outf.close()
 
@@ -91,9 +91,10 @@ class Curate_accession2taxid(Base):
         # Convert to a berkeley db
         print "Writing berkeley db"
         output_db_file = os.path.join(DEST_DIR, 'curated_accession2taxid.db')
+        execute_command("rm %s" % output_db_file)
         generate_accession2taxid_db(output_mapping_file, output_db_file, False)
         output_s3_path = arguments['--output_s3_folder'].rstrip('/')
-        execute_command("gzip %s; aws s3 cp --quiet %s.gz %s/" % (output_db_file, output_db_file, output_s3_path))
+        execute_command("gzip -c {output_db_file} | aws s3 cp --quiet - {output_s3_path}/{output_db_file}.gz".format(output_db_file=output_db_file, output_s3_path=output_s3_path))
 
         # Record versions
         upload_version_tracker(arguments['--mapping_files'].split(",") + [arguments['--nt_file'], arguments['--nr_file']],
