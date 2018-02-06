@@ -10,12 +10,17 @@ Usage:
   idseq_pipeline rapsearch_indexing
   idseq_pipeline blacklist
   idseq_pipeline lineages
+  idseq_pipeline curate_accession2taxid --mapping_file <mapping_file> --output_mapping_file <output_mapping_file> --nr_file <nr_file> --nt_file <nt_file>
   idseq_pipeline -h | --help
   idseq_pipeline --version
 
 Options:
-  -h --help                         Show this screen.
-  --version                         Show version.
+  -h --help                                     Show this screen.
+  --version                                     Show version.
+  --mapping_file <mapping_file>                 Accession2taxid file from NCBI [default: /pub/taxonomy/accession2taxid/pdb.accession2taxid.gz]
+  --output_mapping_file <output_mapping_file>   Curated accesstion2taxid output file
+  --nr_file <nr_file>                           NR fasta file [default: /blast/db/FASTA/nr.gz]
+  --nt_file <nt_file>                           NT fasta file [default: /blast/db/FASTA/nt.gz]
 
 Examples:
 
