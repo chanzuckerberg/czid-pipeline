@@ -1,5 +1,6 @@
 """The curate_accession2taxid command."""
 from .base import Base
+from .common import *
 import sys
 import time
 import subprocess
@@ -10,12 +11,13 @@ import argparse
 import gzip
 import re
 
-def curate_taxon_dict(results):
+def curate_taxon_dict(nt_file, nr_file, mapping_files, output_mapping_file):
+    """Curate accessiont2taxid mapping based on existence in NT/NR"""
     print "Read the nt/nr file"
     # Read the nt/nr file
     dbids = {}
     lines = 0
-    for gzf in [results['--nr_file'], results['--nt_file']]:  
+    for gzf in [nr_file, nt_file]:  
         with gzip.open(gzf, 'rb') as seqf:
             for line in seqf:
                 lines += 1
@@ -26,23 +28,76 @@ def curate_taxon_dict(results):
                     if s:
                         dbids[s.group(1)] = 1
     print "Read the mapping file and select ..."
-    # Read the accession2tax mappng file
-    outf = open(results['--output_mapping_file'], 'wb')
+    # Read the accession2taxid mapping files
+    outf = open(output_mapping_file, 'wb')
     lines = 0
-    with gzip.open(results['--mapping_file'], 'rb') as mapf:
-        for line in mapf:
-            fields = line.split("\t")
-            lines += 1
-            if lines % 100000 == 0:
-                print "%f M lines. %s, %s" %  (lines/1000000.0, fields[0], fields[2])
-            if dbids.get(fields[0]):
-                outf.write(line)
+    for mapping_file in mapping_files:
+        with gzip.open(mapping_file, 'rb') as mapf:
+            for line in mapf:
+                fields = line.split("\t")
+                lines += 1
+                if lines % 100000 == 0:
+                    print "%f M lines. %s, %s" %  (lines/1000000.0, fields[0], fields[2])
+                if dbids.get(fields[0]):
+                    outf.write(line)
     outf.close()
 
-class Curate_accession2taxid(Base):
-    """Curate dictionary based on existence in NT/NR and accessiont2taxon mapping"""
+def generate_accession2taxid_db(mapping_file, output_db_file, input_gzipped):
+    lines = 0
+    taxon_map = shelve.open(output_db_file)
+    if input_gzipped:
+        mapf = gzip.open(mapping_file, 'rb')
+    else:
+        mapf = open(mapping_file, 'rb')
+    for line in mapf:
+        fields = line.rstrip().split("\t")
+        if len(fields) == 4:
+            lines += 1
+            if lines % 100000 == 0:
+                print "%d lines. %s, %s" %  (lines, fields[0], fields[2])
+            accession_id = fields[0]
+            taxon_id = fields[2]
+            taxon_map[accession_id] = taxon_id
+    print "close the db file"
+    taxon_map.close()
+    mapf.close()
 
+class Curate_accession2taxid(Base):
     def run(self):
-        #to do: get the file from ncbitool
-        curate_taxon_dict(self.options)
-        #to do: generate_db()
+        # Make work directory
+        dest_dir = os.path.join(DEST_DIR, 'accession2taxid')
+        execute_command("mkdir -p %s" % dest_dir)
+
+        # Retrieve the reference files
+        write_to_log("Retrieving references")
+        arguments = self.options
+        ncbi_reference_files = [arguments['--nt_file'], arguments['--nr_file'], arguments['--mapping_file']]
+        nt_file_local, nt_version_number = download_reference_locally_with_version_any_source_type(arguments['--nt_file'], dest_dir)
+        nr_file_local, nr_version_number = download_reference_locally_with_version_any_source_type(arguments['--nr_file'], dest_dir)
+        mapping_files_local = []
+        mapping_version_numbers = []
+        for f in arguments['--mapping_files'].split(","):
+            mapping_file_local, mapping_version_number = download_reference_locally_with_version_any_source_type(f, dest_dir)
+            mapping_files_local.append(mapping_file_local)
+            mapping_version_numbers.append(mapping_version_number) 
+        write_to_log("Reference download finished")
+
+        # Produce the output file
+        write_to_log("Curating accession2taxid")
+        output_mapping_file = os.path.join(DEST_DIR, 'curated_accession2taxid.txt')
+        curate_taxon_dict(nt_file_local, nr_file_local, mapping_files_local, output_mapping_file)
+        write_to_log("Curation finished")
+
+        # Convert to a berkeley db
+        write_to_log("Writing berkeley db")
+        output_db_file = os.path.join(DEST_DIR, 'curated_accession2taxid.db')
+        generate_accession2taxid_db(output_mapping_file, output_db_file, False)
+        execute_command("gzip %s; aws s3 cp --quiet %s.gz %s/" % (output_db_file, output_db_file, output_s3_path))
+
+
+
+
+
+
+
+

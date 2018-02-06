@@ -10,15 +10,15 @@ Usage:
   idseq_pipeline rapsearch_indexing
   idseq_pipeline blacklist
   idseq_pipeline lineages
-  idseq_pipeline curate_accession2taxid --mapping_file <mapping_file> --output_mapping_file <output_mapping_file> --nr_file <nr_file> --nt_file <nt_file>
+  idseq_pipeline curate_accession2taxid --mapping_files <mapping_file1,mapping_file2,...> --nr_file <nr_file> --nt_file <nt_file> --output_s3_folder <output_s3_folder>
   idseq_pipeline -h | --help
   idseq_pipeline --version
 
 Options:
   -h --help                                     Show this screen.
   --version                                     Show version.
-  --mapping_file <mapping_file>                 Accession2taxid file from NCBI [default: /pub/taxonomy/accession2taxid/pdb.accession2taxid.gz]
-  --output_mapping_file <output_mapping_file>   Curated accesstion2taxid output file
+  --mapping_files <mapping_file1,mapping_file2,...>     Accession2taxid files from NCBI (comma-separated) [default: /pub/taxonomy/accession2taxid/nucl_est.accession2taxid.gz,/pub/taxonomy/accession2taxid/nucl_gb.accession2taxid.gz,/pub/taxonomy/accession2taxid/nucl_gss.accession2taxid.gz,/pub/taxonomy/accession2taxid/nucl_wgs.accession2taxid.gz,/pub/taxonomy/accession2taxid/pdb.accession2taxid.gz,/pub/taxonomy/accession2taxid/prot.accession2taxid.gz]
+  --output_s3_folder <output_s3_folder>         S3 destination for curated accesstion2taxid output file [default: s3://czbiohub-infectious-disease/references]
   --nr_file <nr_file>                           NR fasta file [default: /blast/db/FASTA/nr.gz]
   --nt_file <nt_file>                           NT fasta file [default: /blast/db/FASTA/nt.gz]
 
