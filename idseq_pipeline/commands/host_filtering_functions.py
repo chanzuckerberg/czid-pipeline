@@ -215,20 +215,25 @@ def run_star_part(output_dir, genome_dir, fastq_files):
         star_command_params += ['--readFilesCommand', 'zcat']
     execute_command_realtime_stdout(" ".join(star_command_params), os.path.join(output_dir, "Log.progress.out"))
 
+
+def fetch_genome(s3genome):
+    genome_name = os.path.basename(s3genome).rstrip(".gz").rstrip(".tar")
+    if genome_name not in ("STAR_genome", "bowtie2_genome"):
+        write_to_log("Oh hello interesting new genome {}".format(genome_name))
+    genome_dir = os.path.join(REF_DIR, genome_name)
+    if not os.path.exists(genome_dir):
+        execute_command("aws s3 cp --quiet {s3genome} - | tar xvfz - -C {refdir}".format(s3genome=s3genome, refdir=REF_DIR))
+        write_to_log("downloaded index")
+    assert os.path.isdir(genome_dir)
+    return genome_dir
+
+
 def run_star(fastq_files):
     star_outputs = [STAR_OUT1, STAR_OUT2]
     num_fastqs = len(fastq_files)
     def unmapped_files_in(some_dir):
         return ["%s/Unmapped.out.mate%d" % (some_dir, i+1) for i in range(num_fastqs)]
-    genome_name = os.path.basename(STAR_GENOME).rstrip(".gz").rstrip(".tar")
-    if genome_name != "STAR_genome":
-        with print_lock:
-            print "Oh hello interesting new genome {}".format(genome_name)
-    genome_dir = os.path.join(REF_DIR, genome_name)
-    if not os.path.exists(genome_dir):
-        execute_command("aws s3 cp --quiet {s3genome} - | tar xvfz - -C {refdir}".format(s3genome=STAR_GENOME, refdir=REF_DIR))
-        write_to_log("downloaded index")
-    assert os.path.isdir(genome_dir)
+    genome_dir = fetch_genome(STAR_GENOME)
     # Check if parts.txt file exists, if so use the new version of (partitioned indices). Otherwise, stay put
     parts_file = os.path.join(genome_dir, "parts.txt")
     if os.path.isfile(parts_file):
@@ -316,12 +321,10 @@ def run_lzw(input_fas):
 
 def run_bowtie2(input_fas):
     # check if genome downloaded already
-    genome_file = os.path.basename(BOWTIE2_GENOME)
-    if not os.path.isfile("%s/%s" % (REF_DIR, genome_file)):
-        execute_command("aws s3 cp --quiet %s %s/" % (BOWTIE2_GENOME, REF_DIR))
-        execute_command("cd %s; tar xvfz %s" % (REF_DIR, genome_file))
-        write_to_log("downloaded index")
-    local_genome_dir_ls = execute_command_with_output("ls %s/bowtie2_genome/*.bt2*" % REF_DIR)
+    genome_dir = fetch_genome(BOWTIE2_GENOME)
+    # the file structure looks like "bowtie2_genome/GRCh38.primary_assembly.genome.3.bt2"
+    # the code below will handle up to "bowtie2_genome/GRCh38.primary_assembly.genome.99.bt2" but not 100
+    local_genome_dir_ls = execute_command_with_output("ls {genome_dir}/*.bt2*".format(genome_dir=genome_dir))
     genome_basename = local_genome_dir_ls.split("\n")[0][:-6]
     if genome_basename[-1] == '.':
         genome_basename = genome_basename[:-1]
