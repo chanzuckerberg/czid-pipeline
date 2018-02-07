@@ -10,6 +10,7 @@ import argparse
 import gzip
 import re
 import threading
+import traceback
 
 class MyThread(threading.Thread):
     def __init__(self, target, args):
