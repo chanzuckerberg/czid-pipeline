@@ -130,7 +130,6 @@ class Curate_accession2taxid(Base):
         generate_accession2taxid_db(output_mapping_file, output_db_file, False)
         output_s3_path = arguments['--output_s3_folder'].rstrip('/')
         output_s3_file_gz = os.path.join(output_s3_path, os.path.basename(output_db_file) + ".gz")
-        execute_command("gzip -c {output_db_file} | aws s3 cp --quiet - {output_s3_file_gz}".format(output_db_file=output_db_file, output_s3_file_gz=output_s3_file_gz))
 
         # Record difference with old accession2taxid
         previous_mapping_s3 = arguments.get('--previous_mapping')
@@ -150,7 +149,8 @@ class Curate_accession2taxid(Base):
                 json.dump(diff_accessionids, f)
             execute_command("aws s3 cp --quiet %s %s/" % (diff_accessionids_file, output_s3_path))
 
-        # Record versions
+        # Upload result and record versions
+        execute_command("gzip -c {output_db_file} | aws s3 cp --quiet - {output_s3_file_gz}".format(output_db_file=output_db_file, output_s3_file_gz=output_s3_file_gz))
         upload_version_tracker(mapping_files_sources + [arguments['--nt_file'], arguments['--nr_file']],
                                'accession2taxid',
                                mapping_version_numbers + [nt_version_number, nr_version_number],
