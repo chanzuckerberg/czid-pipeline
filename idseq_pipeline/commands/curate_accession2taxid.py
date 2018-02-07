@@ -142,8 +142,8 @@ class Curate_accession2taxid(Base):
             previous_accessionids = set(previous_mapping.keys())
             new_accessionids = set(new_mapping.keys())
             diff_accessionids = { 'old_file': previous_mapping_s3, 'new_file': output_s3_file_gz }
-            diff_accessionids['added'] = new_accessionids - previous_accessionids
-            diff_accessionids['removed'] = previous_accessionids - new_accessionids
+            diff_accessionids['added'] = list(new_accessionids - previous_accessionids)
+            diff_accessionids['removed'] = list(previous_accessionids - new_accessionids)
             diff_accessionids_file = os.path.join(dest_dir, "accession_diff.txt")
             with open(diff_accessionids_file, 'wb') as f:
                 json.dump(diff_accessionids, f)
