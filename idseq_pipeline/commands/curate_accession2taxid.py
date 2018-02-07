@@ -56,7 +56,7 @@ def curate_taxon_dict(nt_file, nr_file, mapping_files, output_mapping_file):
                 fields = line.split("\t")
                 lines += 1
                 if lines % 100000 == 0:
-                    print "%f M lines. %s, %s" %  (lines/1000000.0, fields[0], fields[2])
+                    print "%3.1f M lines. %s, %s" %  (lines/1000000.0, fields[0], fields[2])
                 if fields[0] in dbids:
                     outf.write(line)
     outf.close()
@@ -134,6 +134,7 @@ class Curate_accession2taxid(Base):
         # Record difference with old accession2taxid
         previous_mapping_s3 = arguments.get('--previous_mapping')
         if previous_mapping_s3:
+            print "Computing diff"
             previous_mapping_local = os.path.join(dest_dir, "previous_mapping.db.gz")
             execute_command("aws s3 cp --quiet %s %s" % (previous_mapping_s3, previous_mapping_local))
             execute_command("gunzip %s" % previous_mapping_local)
@@ -150,6 +151,7 @@ class Curate_accession2taxid(Base):
             execute_command("aws s3 cp --quiet %s %s/" % (diff_accessionids_file, output_s3_path))
 
         # Upload result and record versions
+        print "Uploading result to S3"
         execute_command("gzip -c {output_db_file} | aws s3 cp --quiet - {output_s3_file_gz}".format(output_db_file=output_db_file, output_s3_file_gz=output_s3_file_gz))
         upload_version_tracker(mapping_files_sources + [arguments['--nt_file'], arguments['--nr_file']],
                                'accession2taxid',
