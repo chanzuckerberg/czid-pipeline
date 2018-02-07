@@ -97,7 +97,7 @@ class Curate_accession2taxid(Base):
         # Convert to a berkeley db
         print "Writing berkeley db"
         output_db_file = os.path.join(DEST_DIR, 'curated_accession2taxid.db')
-        execute_command("rm %s" % output_db_file)
+        execute_command("rm -f %s" % output_db_file)
         generate_accession2taxid_db(output_mapping_file, output_db_file, False)
         output_s3_path = arguments['--output_s3_folder'].rstrip('/')
         execute_command("gzip -c {output_db_file} | aws s3 cp --quiet - {output_s3_path}/{output_db_file}.gz".format(output_db_file=output_db_file, output_s3_path=output_s3_path))
