@@ -9,8 +9,24 @@ import shelve
 import argparse
 import gzip
 import re
-from multiprocessing.pool import ThreadPool
-from multiprocessing import cpu_count
+import threading
+
+class MyThread(threading.Thread):
+    def __init__(self, target, args):
+        self.args = args
+        self.target = target
+        self.exception = None
+        self.completed = False
+
+    def run(self):
+        try:
+            self.result = self.target(*self.args)
+            self.exception = False
+        except:
+            traceback.print_exc()
+            self.exception = True
+        finally:
+            self.completed = True
 
 def curate_taxon_dict(nt_file, nr_file, mapping_files, output_mapping_file):
     """Curate accessiont2taxid mapping based on existence in NT/NR"""
@@ -74,16 +90,27 @@ class Curate_accession2taxid(Base):
         # Retrieve the reference files
         print "Retrieving references"
         arguments = self.options
-        pool = ThreadPool(processes=cpu_count())
-        nt_file_local, nt_version_number = pool.apply_async(download_reference_locally_with_version_any_source_type,
-                                                            (arguments['--nt_file'], dest_dir, dest_dir)).get()
-        nr_file_local, nr_version_number = pool.apply_async(download_reference_locally_with_version_any_source_type,
-                                                            (arguments['--nr_file'], dest_dir, dest_dir)).get()
+        threads = {}
+        threads['nt'] = MyThread(target=download_reference_locally_with_version_any_source_type,
+            args=(arguments['--nt_file'], dest_dir, dest_dir))
+        threads['nt'].start()
+        threads['nr'] = pool.apply_async(download_reference_locally_with_version_any_source_type,
+            (arguments['--nr_file'], dest_dir, dest_dir))
+        threads['nr'].start()
         mapping_files_local = []
         mapping_version_numbers = []
-        for f in arguments['--mapping_files'].split(","):
-            mapping_file_local, mapping_version_number = pool.apply_async(download_reference_locally_with_version_any_source_type,
-                                                                          (f, dest_dir, dest_dir)).get()
+        mapping_files_sources = arguments['--mapping_files'].split(",")
+        mapping_file_results = {}
+        for f in mapping_files_sources:
+            threads[f] = MyThread(target=download_reference_locally_with_version_any_source_type,
+                args=(f, dest_dir, dest_dir))
+            threads[f].start()
+        for f in threads:
+            threads[f].join()
+        nt_file_local, nt_version_number = threads['nt'].result
+        nr_file_local, nr_version_number = threads['nr'].result
+        for f in mapping_files_sources:
+            mapping_file_local, mapping_version_number = threads[f].result
             mapping_files_local.append(mapping_file_local)
             mapping_version_numbers.append(mapping_version_number) 
         print "Reference download finished"
@@ -103,7 +130,7 @@ class Curate_accession2taxid(Base):
         execute_command("gzip -c {output_db_file} | aws s3 cp --quiet - {output_s3_path}/{output_db_file}.gz".format(output_db_file=output_db_file, output_s3_path=output_s3_path))
 
         # Record versions
-        upload_version_tracker(arguments['--mapping_files'].split(",") + [arguments['--nt_file'], arguments['--nr_file']],
+        upload_version_tracker(mapping_files_sources + [arguments['--nt_file'], arguments['--nr_file']],
                                'accession2taxid',
                                mapping_version_numbers + [nt_version_number, nr_version_number],
                                output_s3_path, self.version)
