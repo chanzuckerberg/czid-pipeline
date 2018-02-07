@@ -10,6 +10,7 @@ import argparse
 import gzip
 import re
 from multiprocessing.pool import ThreadPool
+from multiprocessing import cpu_count
 
 def curate_taxon_dict(nt_file, nr_file, mapping_files, output_mapping_file):
     """Curate accessiont2taxid mapping based on existence in NT/NR"""
@@ -73,7 +74,7 @@ class Curate_accession2taxid(Base):
         # Retrieve the reference files
         print "Retrieving references"
         arguments = self.options
-        pool = ThreadPool(processes=multiprocessing.cpu_count())
+        pool = ThreadPool(processes=cpu_count())
         nt_file_local, nt_version_number = pool.apply_async(download_reference_locally_with_version_any_source_type,
                                                             (arguments['--nt_file'], dest_dir, dest_dir)).get()
         nr_file_local, nr_version_number = pool.apply_async(download_reference_locally_with_version_any_source_type,
