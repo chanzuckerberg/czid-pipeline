@@ -13,6 +13,7 @@ import threading
 
 class MyThread(threading.Thread):
     def __init__(self, target, args):
+        super(MyThread, self).__init__()
         self.args = args
         self.target = target
         self.exception = None
