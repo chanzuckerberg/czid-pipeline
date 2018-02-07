@@ -9,6 +9,7 @@ import shelve
 import argparse
 import gzip
 import re
+from multiprocessing.pool import ThreadPool
 
 def curate_taxon_dict(nt_file, nr_file, mapping_files, output_mapping_file):
     """Curate accessiont2taxid mapping based on existence in NT/NR"""
@@ -72,12 +73,16 @@ class Curate_accession2taxid(Base):
         # Retrieve the reference files
         print "Retrieving references"
         arguments = self.options
-        nt_file_local, nt_version_number = download_reference_locally_with_version_any_source_type(arguments['--nt_file'], dest_dir, dest_dir)
-        nr_file_local, nr_version_number = download_reference_locally_with_version_any_source_type(arguments['--nr_file'], dest_dir, dest_dir)
+        pool = ThreadPool(processes=multiprocessing.cpu_count())
+        nt_file_local, nt_version_number = pool.apply_async(download_reference_locally_with_version_any_source_type,
+                                                            (arguments['--nt_file'], dest_dir, dest_dir)).get()
+        nr_file_local, nr_version_number = pool.apply_async(download_reference_locally_with_version_any_source_type,
+                                                            (arguments['--nr_file'], dest_dir, dest_dir)).get()
         mapping_files_local = []
         mapping_version_numbers = []
         for f in arguments['--mapping_files'].split(","):
-            mapping_file_local, mapping_version_number = download_reference_locally_with_version_any_source_type(f, dest_dir, dest_dir)
+            mapping_file_local, mapping_version_number = pool.apply_async(download_reference_locally_with_version_any_source_type,
+                                                                          (f, dest_dir, dest_dir)).get()
             mapping_files_local.append(mapping_file_local)
             mapping_version_numbers.append(mapping_version_number) 
         print "Reference download finished"
