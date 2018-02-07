@@ -133,21 +133,22 @@ class Curate_accession2taxid(Base):
         execute_command("gzip -c {output_db_file} | aws s3 cp --quiet - {output_s3_file_gz}".format(output_db_file=output_db_file, output_s3_file_gz=output_s3_file_gz))
 
         # Record difference with old accession2taxid
-        previous_mapping_s3 = arguments['--previous_mapping']
-        previous_mapping_local = os.path.join(dest_dir, "previous_mapping.db.gz")
-        execute_command("aws s3 cp --quiet %s %s/" % (previous_mapping_s3, previous_mapping_local))
-        execute_command("gunzip %s" % previous_mapping_local)
-        previous_mapping = shelve.open(os.path.splitext(previous_mapping_local)[0])
-        new_mapping = shelve.open(output_db_file)
-        previous_accessionids = set(previous_mapping.keys())
-        new_accessionids = set(new_mapping.keys())
-        diff_accessionids = { 'old_file': previous_mapping_s3, 'new_file': output_s3_file_gz }
-        diff_accessionids['added'] = new_accessionids - previous_accessionids
-        diff_accessionids['removed'] = previous_accessionids - new_accessionids
-        diff_accessionids_file = os.path.join(dest_dir, "accession_diff.txt")
-        with open(diff_accessionids_file, 'wb') as f:
-            json.dump(diff_accessionids, f)
-        execute_command("aws s3 cp --quiet %s %s/" % (diff_accessionids_file, output_s3_path))
+        previous_mapping_s3 = arguments.get('--previous_mapping')
+        if previous_mapping_s3:
+            previous_mapping_local = os.path.join(dest_dir, "previous_mapping.db.gz")
+            execute_command("aws s3 cp --quiet %s %s/" % (previous_mapping_s3, previous_mapping_local))
+            execute_command("gunzip %s" % previous_mapping_local)
+            previous_mapping = shelve.open(os.path.splitext(previous_mapping_local)[0])
+            new_mapping = shelve.open(output_db_file)
+            previous_accessionids = set(previous_mapping.keys())
+            new_accessionids = set(new_mapping.keys())
+            diff_accessionids = { 'old_file': previous_mapping_s3, 'new_file': output_s3_file_gz }
+            diff_accessionids['added'] = new_accessionids - previous_accessionids
+            diff_accessionids['removed'] = previous_accessionids - new_accessionids
+            diff_accessionids_file = os.path.join(dest_dir, "accession_diff.txt")
+            with open(diff_accessionids_file, 'wb') as f:
+                json.dump(diff_accessionids, f)
+            execute_command("aws s3 cp --quiet %s %s/" % (diff_accessionids_file, output_s3_path))
 
         # Record versions
         upload_version_tracker(mapping_files_sources + [arguments['--nt_file'], arguments['--nr_file']],
