@@ -95,7 +95,7 @@ class Curate_accession2taxid(Base):
         threads['nt'] = MyThread(target=download_reference_locally_with_version_any_source_type,
             args=(arguments['--nt_file'], dest_dir, dest_dir))
         threads['nt'].start()
-        threads['nr'] = pool.apply_async(download_reference_locally_with_version_any_source_type,
+        threads['nr'] = MyThread(download_reference_locally_with_version_any_source_type,
             (arguments['--nr_file'], dest_dir, dest_dir))
         threads['nr'].start()
         mapping_files_local = []
