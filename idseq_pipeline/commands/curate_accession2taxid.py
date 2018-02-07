@@ -129,7 +129,7 @@ class Curate_accession2taxid(Base):
         execute_command("rm -f %s" % output_db_file)
         generate_accession2taxid_db(output_mapping_file, output_db_file, False)
         output_s3_path = arguments['--output_s3_folder'].rstrip('/')
-        output_s3_file_gz = os.path.join(output_s3_path, output_db_file + ".gz")
+        output_s3_file_gz = os.path.join(output_s3_path, os.path.basename(output_db_file) + ".gz")
         execute_command("gzip -c {output_db_file} | aws s3 cp --quiet - {output_s3_file_gz}".format(output_db_file=output_db_file, output_s3_file_gz=output_s3_file_gz))
 
         # Record difference with old accession2taxid
