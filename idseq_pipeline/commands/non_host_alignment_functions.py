@@ -784,9 +784,8 @@ def run_gsnapl_remotely_modified_params(input_files, lazy_run):
         t = threading.Thread(
             target=run_chunk_wrapper,
             args=[chunk_output_files_modified, n, mutex, run_gsnapl_chunk,
-                  [1000, 'josh-gsnapl-out-modified', False,
-                   part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, remote_username,
-                   chunk_input_files, key_path, lazy_run]])
+                  [part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, remote_username,
+                   chunk_input_files, key_path, False, 1000, 'josh-gsnapl-out-modified', False]])
         t.start()
         chunk_threads.append(t)
     for ct in chunk_threads:
