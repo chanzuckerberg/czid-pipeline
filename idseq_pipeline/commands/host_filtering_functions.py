@@ -2,7 +2,7 @@ import os
 import multiprocessing
 import json
 import re
-from .common import *
+from .common import * #pylint: disable=wildcard-import
 
 # output files
 STAR_OUT1 = 'unmapped.star.1.fq'
@@ -29,12 +29,12 @@ FILE_TYPE = os.environ.get('FILE_TYPE')
 OUTPUT_BUCKET = os.environ.get('OUTPUT_BUCKET')
 STAR_GENOME = os.environ.get('STAR_GENOME', 's3://czbiohub-infectious-disease/references/human/STAR_genome.tar.gz')
 BOWTIE2_GENOME = os.environ.get('BOWTIE2_GENOME', 's3://czbiohub-infectious-disease/references/human/bowtie2_genome.tar.gz')
-STAR_BOWTIE_VERSION_FILE_S3 = os.environ.get('STAR_BOWTIE_VERSION_FILE_S3','s3://czbiohub-infectious-disease/references/{host}/{host}.version.txt'.format(host=os.path.basename(os.path.dirname(STAR_GENOME))))
+STAR_BOWTIE_VERSION_FILE_S3 = os.environ.get('STAR_BOWTIE_VERSION_FILE_S3', 's3://czbiohub-infectious-disease/references/{host}/{host}.version.txt'.format(host=os.path.basename(os.path.dirname(STAR_GENOME))))
 DB_SAMPLE_ID = os.environ['DB_SAMPLE_ID']
 AWS_BATCH_JOB_ID = os.environ.get('AWS_BATCH_JOB_ID', 'local')
 SAMPLE_S3_INPUT_PATH = INPUT_BUCKET.rstrip('/')
 SAMPLE_S3_OUTPUT_PATH = OUTPUT_BUCKET.rstrip('/')
-sample_name = SAMPLE_S3_INPUT_PATH[5:].rstrip('/').replace('/','-')
+sample_name = SAMPLE_S3_INPUT_PATH[5:].rstrip('/').replace('/', '-')
 SAMPLE_DIR = DEST_DIR + '/' + sample_name
 FASTQ_DIR = SAMPLE_DIR + '/fastqs'
 RESULT_DIR = SAMPLE_DIR + '/results'
@@ -45,34 +45,34 @@ DEFAULT_LOGPARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH,
 # versioning
 
 # target outputs by task
-TARGET_OUTPUTS_SINGLE = { "run_star": [os.path.join(RESULT_DIR, STAR_OUT1)],
-                          "run_priceseqfilter": [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1)],
-                          "run_fq2fa": [os.path.join(RESULT_DIR, FQ2FA_OUT1)],
-                          "run_cdhitdup": [os.path.join(RESULT_DIR, CDHITDUP_OUT1)],
-                          "run_lzw": [os.path.join(RESULT_DIR, LZW_OUT1)],
-                          "run_bowtie2": [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1),
-                                          os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3)] }
-TARGET_OUTPUTS_PAIRED = { "run_star": [os.path.join(RESULT_DIR, STAR_OUT1),
-                                       os.path.join(RESULT_DIR, STAR_OUT2)],
-                          "run_priceseqfilter": [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1),
-                                                 os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2)],
-                          "run_fq2fa": [os.path.join(RESULT_DIR, FQ2FA_OUT1),
-                                        os.path.join(RESULT_DIR, FQ2FA_OUT2)],
-                          "run_cdhitdup": [os.path.join(RESULT_DIR, CDHITDUP_OUT1),
-                                           os.path.join(RESULT_DIR, CDHITDUP_OUT2)],
-                          "run_lzw": [os.path.join(RESULT_DIR, LZW_OUT1),
-                                      os.path.join(RESULT_DIR, LZW_OUT2)],
-                          "run_bowtie2": [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1),
-                                          os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2),
-                                          os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3)] }
+TARGET_OUTPUTS_SINGLE = {"run_star": [os.path.join(RESULT_DIR, STAR_OUT1)],
+                         "run_priceseqfilter": [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1)],
+                         "run_fq2fa": [os.path.join(RESULT_DIR, FQ2FA_OUT1)],
+                         "run_cdhitdup": [os.path.join(RESULT_DIR, CDHITDUP_OUT1)],
+                         "run_lzw": [os.path.join(RESULT_DIR, LZW_OUT1)],
+                         "run_bowtie2": [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1),
+                                         os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3)]}
+TARGET_OUTPUTS_PAIRED = {"run_star": [os.path.join(RESULT_DIR, STAR_OUT1),
+                                      os.path.join(RESULT_DIR, STAR_OUT2)],
+                         "run_priceseqfilter": [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1),
+                                                os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2)],
+                         "run_fq2fa": [os.path.join(RESULT_DIR, FQ2FA_OUT1),
+                                       os.path.join(RESULT_DIR, FQ2FA_OUT2)],
+                         "run_cdhitdup": [os.path.join(RESULT_DIR, CDHITDUP_OUT1),
+                                          os.path.join(RESULT_DIR, CDHITDUP_OUT2)],
+                         "run_lzw": [os.path.join(RESULT_DIR, LZW_OUT1),
+                                     os.path.join(RESULT_DIR, LZW_OUT2)],
+                         "run_bowtie2": [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1),
+                                         os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2),
+                                         os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3)]}
 
 TARGET_OUTPUTS = None
 
 # software packages
-STAR="STAR"
-PRICESEQ_FILTER="PriceSeqFilter"
-CDHITDUP="cd-hit-dup"
-BOWTIE2="bowtie2"
+STAR = "STAR"
+PRICESEQ_FILTER = "PriceSeqFilter"
+CDHITDUP = "cd-hit-dup"
+BOWTIE2 = "bowtie2"
 
 # pipeline configuration
 LZW_FRACTION_CUTOFF = 0.45
@@ -135,9 +135,9 @@ def generate_lzw_filtered_paired(fasta_file_1, fasta_file_2, output_prefix, cuto
     count = 0
     filtered = 0
     while True:
-        line_r1_header   = read_1.readline()
+        line_r1_header = read_1.readline()
         line_r1_sequence = read_1.readline()
-        line_r2_header   = read_2.readline()
+        line_r2_header = read_2.readline()
         line_r2_sequence = read_2.readline()
         if line_r1_header and line_r1_sequence and line_r2_header and line_r2_sequence:
             fraction_1 = lzw_fraction(line_r1_sequence.rstrip())
@@ -242,7 +242,7 @@ def run_star(fastq_files):
         unmapped = fastq_files
         for part_idx in range(num_parts):
             tmp_result_dir = "%s/star-part-%d" % (SCRATCH_DIR, part_idx)
-            genome_part =  "%s/part-%d" % (genome_dir, part_idx)
+            genome_part = "%s/part-%d" % (genome_dir, part_idx)
             run_star_part(tmp_result_dir, genome_part, unmapped)
             unmapped = unmapped_files_in(tmp_result_dir)
     else:
@@ -260,14 +260,14 @@ def run_priceseqfilter(input_fqs):
     # PriceSeqFilter determines input type based on extension.
     # It will throw an exception if output extension doesn't match input.
     correct_file_extension = os.path.splitext(FILE_TYPE)[0]
-    input_files = ["%s.%s" % (f, correct_file_extension) for f in input_fqs]
+    input_files = ["%s.%s" % (fq, correct_file_extension) for fq in input_fqs]
     output_files = ["%s_priceseqfilter_output.%s" % (f, correct_file_extension) for f in input_files]
-    for idx in range(len(input_fqs)):
-        execute_command("cp %s %s" % (input_fqs[idx], input_files[idx]))
+    for fq, f in zip(input_fqs, input_files):
+        execute_command("ln %s %s" % (fq, f))
     priceseq_params = [PRICESEQ_FILTER,
-                       '-a','12',
-                       '-rnf','90',
-                       '-log','c']
+                       '-a', '12',
+                       '-rnf', '90',
+                       '-log', 'c']
     if len(input_fqs) == 2:
         priceseq_params.extend(['-fp', input_files[0], input_files[1],
                                 '-op', output_files[0], output_files[1]])
@@ -275,7 +275,7 @@ def run_priceseqfilter(input_fqs):
         priceseq_params.extend(['-f', input_files[0],
                                 '-o', output_files[0]])
     if "fastq" in FILE_TYPE:
-        priceseq_params.extend(['-rqf','85','0.98'])
+        priceseq_params.extend(['-rqf', '85', '0.98'])
     execute_command_realtime_stdout(" ".join(priceseq_params))
     write_to_log("finished job")
     execute_command("mv %s %s" % (output_files[0], os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1)))
@@ -295,9 +295,9 @@ def run_fq2fa(input_fqs):
 
 def run_cdhitdup(input_fas):
     cdhitdup_params = [CDHITDUP,
-                       '-i',  input_fas[0],
-                       '-o',  RESULT_DIR + '/' + CDHITDUP_OUT1,
-                       '-e',  '0.05', '-u', '70']
+                       '-i', input_fas[0],
+                       '-o', RESULT_DIR + '/' + CDHITDUP_OUT1,
+                       '-e', '0.05', '-u', '70']
     if len(input_fas) == 2:
         cdhitdup_params.extend(['-i2', input_fas[1],
                                 '-o2', RESULT_DIR + '/' + CDHITDUP_OUT2])
@@ -329,12 +329,12 @@ def run_bowtie2(input_fas):
     if genome_basename[-1] == '.':
         genome_basename = genome_basename[:-1]
     bowtie2_params = [BOWTIE2,
-                     '-q',
-                     '-p', str(multiprocessing.cpu_count()),
-                     '-x', genome_basename,
-                     '-f',
-                     '--very-sensitive-local',
-                     '-S', RESULT_DIR + '/' + BOWTIE2_OUT]
+                      '-q',
+                      '-p', str(multiprocessing.cpu_count()),
+                      '-x', genome_basename,
+                      '-f',
+                      '--very-sensitive-local',
+                      '-S', RESULT_DIR + '/' + BOWTIE2_OUT]
     if len(input_fas) == 2:
         bowtie2_params.extend(['-1', input_fas[0], '-2', input_fas[1]])
     else:
@@ -360,18 +360,20 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run):
     TARGET_OUTPUTS = TARGET_OUTPUTS_PAIRED if number_of_input_files == 2 else TARGET_OUTPUTS_SINGLE
 
     # run STAR
-    logparams = return_merged_dict(DEFAULT_LOGPARAMS,
+    logparams = return_merged_dict(
+        DEFAULT_LOGPARAMS,
         {"title": "STAR", "count_reads": True,
-        "before_file_name": fastq_files[0], "before_file_type": initial_file_type_for_log,
-        "after_file_name": os.path.join(RESULT_DIR, STAR_OUT1), "after_file_type": initial_file_type_for_log,
-        "version_file_s3": STAR_BOWTIE_VERSION_FILE_S3, "output_version_file": os.path.join(RESULT_DIR, VERSION_OUT)})
+         "before_file_name": fastq_files[0], "before_file_type": initial_file_type_for_log,
+         "after_file_name": os.path.join(RESULT_DIR, STAR_OUT1), "after_file_type": initial_file_type_for_log,
+         "version_file_s3": STAR_BOWTIE_VERSION_FILE_S3, "output_version_file": os.path.join(RESULT_DIR, VERSION_OUT)})
     run_and_log(logparams, TARGET_OUTPUTS["run_star"], lazy_run, run_star, fastq_files)
 
     # run priceseqfilter
-    logparams = return_merged_dict(DEFAULT_LOGPARAMS,
+    logparams = return_merged_dict(
+        DEFAULT_LOGPARAMS,
         {"title": "PriceSeqFilter", "count_reads": True,
-        "before_file_name": os.path.join(RESULT_DIR, STAR_OUT1), "before_file_type": initial_file_type_for_log,
-        "after_file_name": os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1), "after_file_type": initial_file_type_for_log})
+         "before_file_name": os.path.join(RESULT_DIR, STAR_OUT1), "before_file_type": initial_file_type_for_log,
+         "after_file_name": os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1), "after_file_type": initial_file_type_for_log})
     if number_of_input_files == 2:
         input_files = [os.path.join(RESULT_DIR, STAR_OUT1), os.path.join(RESULT_DIR, STAR_OUT2)]
     else:
@@ -380,7 +382,8 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run):
 
     # run fastq to fasta
     if "fastq" in FILE_TYPE:
-        logparams = return_merged_dict(DEFAULT_LOGPARAMS,
+        logparams = return_merged_dict(
+            DEFAULT_LOGPARAMS,
             {"title": "FASTQ to FASTA", "count_reads": False})
         if number_of_input_files == 2:
             input_files = [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1), os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2)]
@@ -396,17 +399,19 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run):
             next_inputs = [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1)]
 
     # run cdhitdup
-    logparams = return_merged_dict(DEFAULT_LOGPARAMS,
+    logparams = return_merged_dict(
+        DEFAULT_LOGPARAMS,
         {"title": "CD-HIT-DUP", "count_reads": True,
-        "before_file_name": next_inputs[0], "before_file_type": "fasta_paired",
-        "after_file_name": os.path.join(RESULT_DIR, CDHITDUP_OUT1), "after_file_type": "fasta_paired"})
+         "before_file_name": next_inputs[0], "before_file_type": "fasta_paired",
+         "after_file_name": os.path.join(RESULT_DIR, CDHITDUP_OUT1), "after_file_type": "fasta_paired"})
     run_and_log(logparams, TARGET_OUTPUTS["run_cdhitdup"], lazy_run, run_cdhitdup, next_inputs)
 
     # run lzw filter
-    logparams = return_merged_dict(DEFAULT_LOGPARAMS,
+    logparams = return_merged_dict(
+        DEFAULT_LOGPARAMS,
         {"title": "LZW filter", "count_reads": True,
-        "before_file_name": os.path.join(RESULT_DIR, CDHITDUP_OUT1), "before_file_type": "fasta_paired",
-        "after_file_name": os.path.join(RESULT_DIR, LZW_OUT1), "after_file_type": "fasta_paired"})
+         "before_file_name": os.path.join(RESULT_DIR, CDHITDUP_OUT1), "before_file_type": "fasta_paired",
+         "after_file_name": os.path.join(RESULT_DIR, LZW_OUT1), "after_file_type": "fasta_paired"})
     if number_of_input_files == 2:
         input_files = [os.path.join(RESULT_DIR, CDHITDUP_OUT1), os.path.join(RESULT_DIR, CDHITDUP_OUT2)]
     else:
@@ -414,17 +419,18 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run):
     run_and_log(logparams, TARGET_OUTPUTS["run_lzw"], lazy_run, run_lzw, input_files)
 
     # run bowtie
-    logparams = return_merged_dict(DEFAULT_LOGPARAMS,
+    logparams = return_merged_dict(
+        DEFAULT_LOGPARAMS,
         {"title": "bowtie2", "count_reads": True,
-        "before_file_name": os.path.join(RESULT_DIR, LZW_OUT1), "before_file_type": "fasta_paired",
-        "after_file_name": os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1), "after_file_type": "fasta_paired"})
+         "before_file_name": os.path.join(RESULT_DIR, LZW_OUT1), "before_file_type": "fasta_paired",
+         "after_file_name": os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1), "after_file_type": "fasta_paired"})
     if number_of_input_files == 2:
         input_files = [os.path.join(RESULT_DIR, LZW_OUT1), os.path.join(RESULT_DIR, LZW_OUT2)]
     else:
         input_files = [os.path.join(RESULT_DIR, LZW_OUT1)]
     run_and_log(logparams, TARGET_OUTPUTS["run_bowtie2"], lazy_run, run_bowtie2, input_files)
 
-def run_stage1(lazy_run = True):
+def run_stage1(lazy_run=True):
     execute_command("mkdir -p %s %s %s %s" % (SAMPLE_DIR, FASTQ_DIR, RESULT_DIR, SCRATCH_DIR))
     execute_command("mkdir -p %s " % REF_DIR)
 
@@ -433,7 +439,7 @@ def run_stage1(lazy_run = True):
     configure_logger(log_file)
 
     # Download fastqs
-    command = "aws s3 ls %s/ | grep '\.%s$'" % (SAMPLE_S3_INPUT_PATH, FILE_TYPE)
+    command = "aws s3 ls %s/ | grep '\\.%s$'" % (SAMPLE_S3_INPUT_PATH, FILE_TYPE)
     output = execute_command_with_output(command).rstrip().split("\n")
     for line in output:
         m = re.match(".*?([^ ]*." + re.escape(FILE_TYPE) + ")", line)
