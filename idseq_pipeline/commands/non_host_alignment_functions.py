@@ -63,6 +63,7 @@ COMBINED_JSON_OUT = 'idseq_web_sample.json'
 LOGS_OUT_BASENAME = 'log'
 STATS_OUT = 'stats.json'
 VERSION_OUT = 'versions.json'
+GSNAPL_OUT_MODIFIED = 'josh-gsnapl-out-modified.m8'
 
 # arguments from environment variables
 SUBSAMPLE = os.environ.get('SUBSAMPLE') # number of read pairs to subsample to, before gsnap/rapsearch
@@ -96,6 +97,7 @@ RAPSEARCH_VERSION_FILE_S3 = 's3://czbiohub-infectious-disease/references/nr_raps
 
 # target outputs by task
 TARGET_OUTPUTS = {"run_gsnapl_remotely": [os.path.join(RESULT_DIR, GSNAPL_DEDUP_OUT)],
+                  "run_gsnapl_remotely_modified_params": [os.path.join(RESULT_DIR, GSNAPL_OUT_MODIFIED)],
                   "run_annotate_m8_with_taxids__1": [os.path.join(RESULT_DIR, ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT)],
                   "run_generate_taxid_annotated_fasta_from_m8__1": [os.path.join(RESULT_DIR, GENERATE_TAXID_ANNOTATED_FASTA_FROM_M8_OUT)],
                   "run_filter_deuterostomes_from_m8__1": [os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NT_M8_OUT)],
@@ -760,8 +762,8 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
     write_to_log("finished alignment for chunk %s" % chunk_id)
     return os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename)
 
-def run_gsnapl_remotely_modified_params(input_files, output_basename, lazy_run):
-    output_file = os.path.join(SAMPLE_S3_OUTPUT_PATH, output_basename)
+def run_gsnapl_remotely_modified_params(input_files, lazy_run):
+    output_file = os.path.join(SAMPLE_S3_OUTPUT_PATH, GSNAPL_OUT_MODIFIED)
     key_path = fetch_key(ENVIRONMENT)
     remote_username = "ubuntu"
     remote_home_dir = "/home/%s" % remote_username
@@ -793,8 +795,8 @@ def run_gsnapl_remotely_modified_params(input_files, output_basename, lazy_run):
     assert None not in chunk_output_files_modified
     # merge output chunks:
     with iostream:
-        concatenate_files(chunk_output_files_modified, os.path.join(RESULT_DIR, output_basename))
-        execute_command("aws s3 cp --quiet %s/%s %s" % (RESULT_DIR, output_basename, output_file))
+        concatenate_files(chunk_output_files_modified, os.path.join(RESULT_DIR, GSNAPL_OUT_MODIFIED))
+        execute_command("aws s3 cp --quiet %s/%s %s" % (RESULT_DIR, GSNAPL_OUT_MODIFIED, output_file))
 
 
 def run_gsnapl_remotely(input_files, lazy_run):
@@ -1108,6 +1110,22 @@ def run_stage2(lazy_run=True):
             lazy_run,
             SAMPLE_S3_OUTPUT_PATH,
             run_gsnapl_remotely,
+            gsnapl_input_files,
+            lazy_run)
+
+        # run modified gsnap for Josh
+        logparams = return_merged_dict(
+            DEFAULT_LOGPARAMS,
+            {"title": "modified GSNAPL", "count_reads": True,
+             "before_file_name": before_file_name_for_log, "before_file_type": before_file_type_for_log,
+             "after_file_name": os.path.join(RESULT_DIR, GSNAPL_OUT_MODIFIED), "after_file_type": "m8",
+             "version_file_s3": GSNAP_VERSION_FILE_S3, "output_version_file": os.path.join(RESULT_DIR, VERSION_OUT)})
+        run_and_log_s3(
+            logparams,
+            TARGET_OUTPUTS["run_gsnapl_remotely_modified_params"],
+            lazy_run,
+            SAMPLE_S3_OUTPUT_PATH,
+            run_gsnapl_remotely_modified_params,
             gsnapl_input_files,
             lazy_run)
 
