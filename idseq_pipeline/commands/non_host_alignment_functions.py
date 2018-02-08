@@ -709,9 +709,9 @@ def interpret_min_column_number_string(min_column_number_string, correct_number_
 
 
 def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, remote_username,
-                     input_files, key_path, lazy_run):
+                     input_files, key_path, lazy_run, npaths=1, outfile_basename_prefix='gsnapl-out', dedup=True):
     chunk_id = input_files[0].split(part_suffix)[-1]
-    outfile_basename = 'gsnapl-out' + part_suffix + chunk_id
+    outfile_basename = outfile_basename_prefix + part_suffix + chunk_id
     dedup_outfile_basename = 'dedup-' + outfile_basename
     local_outfile = CHUNKS_RESULT_DIR + "/" + outfile_basename
     remote_outfile = os.path.join(remote_work_dir, outfile_basename)
@@ -721,7 +721,7 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
                  (SAMPLE_S3_OUTPUT_CHUNKS_PATH, input_fa, remote_work_dir)
     commands += " ".join([remote_home_dir+'/bin/gsnapl',
                           '-A', 'm8', '--batch=0', '--use-shared-memory=0',
-                          '--gmap-mode=none', '--npaths=1', '--ordered',
+                          '--gmap-mode=none', '--npaths=%d' % npaths, '--ordered',
                           '-t', '32',
                           '--maxsearch=5', '--max-mismatches=40',
                           '-D', remote_index_dir, '-d', 'nt_k16']
@@ -749,7 +749,10 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
             execute_command(scp(key_path, remote_username, gsnapl_instance_ip, remote_outfile, local_outfile))
         # Deduplicate m8 input. Sometimes GSNAPL outputs multiple consecutive lines for same original read and same accession id. Count functions expect only 1 (top hit).
         execute_command("echo '' >> %s;" % local_outfile) # add a blank line at the end of the file so S3 copy doesn't fail if output is empty
-        deduplicate_m8(os.path.join(CHUNKS_RESULT_DIR, outfile_basename), os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename))
+        if dedup:
+            deduplicate_m8(os.path.join(CHUNKS_RESULT_DIR, outfile_basename), os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename))
+        else:
+            dedup_outfile_basename = outfile_basename
         with iostream:
             execute_command("aws s3 cp --quiet %s/%s %s/" % (CHUNKS_RESULT_DIR, dedup_outfile_basename, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
     with iostream:
