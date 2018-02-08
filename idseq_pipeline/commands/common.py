@@ -18,7 +18,6 @@ DEST_DIR = ROOT_DIR + '/idseq/data' # generated data go here
 REF_DIR = ROOT_DIR + '/idseq/ref' # referene genome / ref databases go here
 
 STATS = []
-LOGGER = None
 OUTPUT_VERSIONS = []
 
 print_lock = threading.RLock()
@@ -122,15 +121,21 @@ def scp(key_path, remote_username, instance_ip, remote_path, local_path):
 
 
 class TimeFilter(logging.Filter):
+
+    def __init__(self, *args, **kwargs):
+        super(TimeFilter, self).__init__(*args, **kwargs)
+        self.last = None
+        self.lock = threading.RLock()
+
     def filter(self, record):
-        try:
+        with self.lock:
             last = self.last
-        except AttributeError:
-            last = record.relativeCreated
-        delta = datetime.datetime.fromtimestamp(record.relativeCreated/1000.0) - datetime.datetime.fromtimestamp(last/1000.0)
-        record.time_since_last = '{0:.2f}'.format(delta.seconds + delta.microseconds/1000000.0)
-        self.last = record.relativeCreated
-        return True
+            if last == None:
+                last = record.relativeCreated
+            delta = datetime.datetime.fromtimestamp(record.relativeCreated/1000.0) - datetime.datetime.fromtimestamp(last/1000.0)
+            record.time_since_last = '{0:.2f}'.format(delta.seconds + delta.microseconds/1000000.0)
+            self.last = record.relativeCreated
+            return True
 
 def percent_str(percent):
     try:
@@ -168,7 +173,6 @@ def return_merged_dict(dict1, dict2):
 
 
 def configure_logger(log_file):
-    global LOGGER
     LOGGER = logging.getLogger()
     LOGGER.setLevel(logging.INFO)
     handler = logging.FileHandler(log_file)
@@ -192,6 +196,7 @@ def load_existing_stats(stats_file):
 
 
 def get_total_reads_from_stats():
+    global STATS
     for item in STATS:
         if "total_reads" in item:
             return item["total_reads"]
@@ -206,6 +211,7 @@ def get_total_reads_from_stats():
 
 
 def get_remaining_reads_from_stats():
+    global STATS
     return (item for item in STATS if item.get("task") == "run_gsnapl_remotely").next().get("reads_before")
 
 
@@ -273,11 +279,10 @@ def run_and_log_s3(logparams, target_outputs, lazy_run, s3_result_dir, func_name
 
 def run_and_log_work(logparams, target_outputs, lazy_run, func_name, lazy_fetch, *args):
     global OUTPUT_VERSIONS
-    global LOGGER
     global run_and_log_mutex
 
     LOGGER = logging.getLogger()
-    LOGGER.info("========== %s ==========" % logparams.get("title"))
+    LOGGER.info("========== %s ==========", logparams.get("title"))
 
     # copy log file -- start
     LOGGER.handlers[0].flush()
@@ -334,6 +339,7 @@ def run_and_log_work(logparams, target_outputs, lazy_run, func_name, lazy_fetch,
 
 
 def write_to_log(message, lock=threading.RLock()):
+    LOGGER = logging.getLogger()
     with lock:
         LOGGER.info(message)
 
