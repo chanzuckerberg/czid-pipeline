@@ -760,6 +760,41 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
     write_to_log("finished alignment for chunk %s" % chunk_id)
     return os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename)
 
+def run_gsnapl_remotely_modified_params(input_files, output_basename, lazy_run):
+    output_file = os.path.join(SAMPLE_S3_OUTPUT_PATH, output_basename)
+    key_path = fetch_key(ENVIRONMENT)
+    remote_username = "ubuntu"
+    remote_home_dir = "/home/%s" % remote_username
+    remote_work_dir = "%s/batch-pipeline-workdir/%s" % (remote_home_dir, SAMPLE_NAME)
+    remote_index_dir = "%s/share" % remote_home_dir
+    # split file:
+    chunk_nlines = 2*GSNAPL_CHUNK_SIZE
+    part_suffix, input_chunks = chunk_input(input_files, chunk_nlines, GSNAPL_CHUNK_SIZE)
+    # process chunks:
+    chunk_output_files_modified = [None] * len(input_chunks)
+    chunk_threads = []
+    mutex = threading.RLock()
+    iii = list(enumerate(input_chunks))
+    random.shuffle(iii)
+    for n, chunk_input_files in iii:
+        chunks_in_flight.acquire()
+        check_for_errors(mutex, chunk_output_files_modified, input_chunks, "gsnap")
+        t = threading.Thread(
+            target=run_chunk_wrapper,
+            args=[chunk_output_files_modified, n, mutex, run_gsnapl_chunk,
+                  [1000, 'josh-modified-gsnapl-out', False,
+                   part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, remote_username,
+                   chunk_input_files, key_path, lazy_run]])
+        t.start()
+        chunk_threads.append(t)
+    for ct in chunk_threads:
+        ct.join()
+        check_for_errors(mutex, chunk_output_files_modified, input_chunks, "gsnap")
+    assert None not in chunk_output_files_modified
+    # merge output chunks:
+    with iostream:
+        concatenate_files(chunk_output_files_modified, os.path.join(RESULT_DIR, output_basename))
+        execute_command("aws s3 cp --quiet %s/%s %s" % (RESULT_DIR, output_basename, output_file))
 
 
 def run_gsnapl_remotely(input_files, lazy_run):
