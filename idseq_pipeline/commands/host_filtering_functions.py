@@ -460,7 +460,9 @@ def run_stage1(lazy_run=True):
         print execute_command_with_output(command)
 
     # Record total number of input reads
-    initial_file_type_for_log = "fastq_paired" if "fastq" in FILE_TYPE else "fasta_paired"
+    initial_file_type_for_log = "fastq" if "fastq" in FILE_TYPE else "fasta"
+    if len(fastq_files) == 2:
+        initial_file_type_for_log += "_paired"
     STATS.append({'total_reads': count_reads(fastq_files[0], initial_file_type_for_log)})
     stats_path = os.path.join(RESULT_DIR, STATS_OUT)
     with open(stats_path, 'wb') as f:
