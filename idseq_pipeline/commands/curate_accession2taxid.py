@@ -12,24 +12,6 @@ import re
 import threading
 import traceback
 
-class MyThread(threading.Thread):
-    def __init__(self, target, args):
-        super(MyThread, self).__init__()
-        self.args = args
-        self.target = target
-        self.exception = None
-        self.completed = False
-
-    def run(self):
-        try:
-            self.result = self.target(*self.args)
-            self.exception = False
-        except:
-            traceback.print_exc()
-            self.exception = True
-        finally:
-            self.completed = True
-
 def curate_taxon_dict(nt_file, nr_file, mapping_files, output_mapping_file):
     """Curate accessiont2taxid mapping based on existence in NT/NR"""
     print "Read the nt/nr file"
@@ -104,11 +86,13 @@ class Curate_accession2taxid(Base):
         mapping_files_sources = arguments['--mapping_files'].split(",")
         mapping_file_results = {}
         for f in mapping_files_sources:
+            assert f not in threads
             threads[f] = MyThread(target=download_reference_locally_with_version_any_source_type,
                 args=(f, dest_dir, dest_dir))
             threads[f].start()
         for f in threads:
             threads[f].join()
+            assert not threads[f].exception
         nt_file_local, nt_version_number = threads['nt'].result
         nr_file_local, nr_version_number = threads['nr'].result
         for f in mapping_files_sources:

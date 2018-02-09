@@ -28,6 +28,23 @@ print_lock = threading.RLock()
 MAX_CONCURRENT_COPY_OPERATIONS = 8
 iostream = threading.Semaphore(MAX_CONCURRENT_COPY_OPERATIONS)
 
+class MyThread(threading.Thread):
+    def __init__(self, target, args):
+        super(MyThread, self).__init__()
+        self.args = args
+        self.target = target
+        self.exception = None
+        self.completed = False
+
+    def run(self):
+        try:
+            self.result = self.target(*self.args)
+            self.exception = False
+        except:
+            traceback.print_exc()
+            self.exception = True
+        finally:
+            self.completed = True
 
 class Updater(object):
 
