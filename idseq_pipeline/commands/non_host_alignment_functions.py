@@ -65,7 +65,7 @@ STATS_OUT = 'stats.json'
 VERSION_OUT = 'versions.json'
 
 # arguments from environment variables
-SKIP_DEUTERO_FILTER = os.environ.get('SKIP_DEUTERO_FILTER')
+SKIP_DEUTERO_FILTER = int(os.environ.get('SKIP_DEUTERO_FILTER', 0))
 SUBSAMPLE = os.environ.get('SUBSAMPLE') # number of read pairs to subsample to, before gsnap/rapsearch
 FASTQ_BUCKET = os.environ.get('FASTQ_BUCKET')
 INPUT_BUCKET = os.environ.get('INPUT_BUCKET')
@@ -1098,7 +1098,7 @@ def run_stage2(lazy_run=True):
             os.path.join(RESULT_DIR, GENERATE_TAXID_ANNOTATED_FASTA_FROM_M8_OUT),
             'NT')
 
-        if SKIP_DEUTERO_FILTER and int(SKIP_DEUTERO_FILTER) == 1:
+        if SKIP_DEUTERO_FILTER:
             next_input = ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT
         else:
             logparams = return_merged_dict(
@@ -1162,7 +1162,7 @@ def run_stage2(lazy_run=True):
             os.path.join(RESULT_DIR, RAPSEARCH2_OUT),
             os.path.join(RESULT_DIR, ANNOTATE_RAPSEARCH2_M8_WITH_TAXIDS_OUT))
 
-        if SKIP_DEUTERO_FILTER and int(SKIP_DEUTERO_FILTER) == 1:
+        if SKIP_DEUTERO_FILTER:
             next_input = ANNOTATE_RAPSEARCH2_M8_WITH_TAXIDS_OUT
         else:
             logparams = return_merged_dict(
