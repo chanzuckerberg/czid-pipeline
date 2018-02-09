@@ -65,6 +65,7 @@ STATS_OUT = 'stats.json'
 VERSION_OUT = 'versions.json'
 
 # arguments from environment variables
+SKIP_DEUTERO_FILTER = int(os.environ.get('SKIP_DEUTERO_FILTER', 0))
 SUBSAMPLE = os.environ.get('SUBSAMPLE') # number of read pairs to subsample to, before gsnap/rapsearch
 FASTQ_BUCKET = os.environ.get('FASTQ_BUCKET')
 INPUT_BUCKET = os.environ.get('INPUT_BUCKET')
@@ -1097,16 +1098,20 @@ def run_stage2(lazy_run=True):
             os.path.join(RESULT_DIR, GENERATE_TAXID_ANNOTATED_FASTA_FROM_M8_OUT),
             'NT')
 
-        logparams = return_merged_dict(
-            DEFAULT_LOGPARAMS,
-            {"title": "filter deuterostomes from m8__1", "count_reads": True,
-             "before_file_name": os.path.join(RESULT_DIR, ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT), "before_file_type": "m8",
-             "after_file_name": os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NT_M8_OUT), "after_file_type": "m8"})
-        run_and_log_eager(
-            logparams, TARGET_OUTPUTS["run_filter_deuterostomes_from_m8__1"],
-            run_filter_deuterostomes_from_m8,
-            os.path.join(RESULT_DIR, ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT),
-            os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NT_M8_OUT))
+        if SKIP_DEUTERO_FILTER:
+            next_input = ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT
+        else:
+            logparams = return_merged_dict(
+                DEFAULT_LOGPARAMS,
+                {"title": "filter deuterostomes from m8__1", "count_reads": True,
+                 "before_file_name": os.path.join(RESULT_DIR, ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT), "before_file_type": "m8",
+                 "after_file_name": os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NT_M8_OUT), "after_file_type": "m8"})
+            run_and_log_eager(
+                logparams, TARGET_OUTPUTS["run_filter_deuterostomes_from_m8__1"],
+                run_filter_deuterostomes_from_m8,
+                os.path.join(RESULT_DIR, ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT),
+                os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NT_M8_OUT))
+            next_input = FILTER_DEUTEROSTOMES_FROM_NT_M8_OUT
 
         logparams = return_merged_dict(
             DEFAULT_LOGPARAMS,
@@ -1114,7 +1119,7 @@ def run_stage2(lazy_run=True):
         run_and_log_eager(
             logparams, TARGET_OUTPUTS["run_generate_taxid_outputs_from_m8__1"],
             run_generate_taxid_outputs_from_m8,
-            os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NT_M8_OUT),
+            os.path.join(RESULT_DIR, next_input),
             os.path.join(RESULT_DIR, NT_M8_TO_TAXID_COUNTS_FILE_OUT),
             os.path.join(RESULT_DIR, NT_TAXID_COUNTS_TO_JSON_OUT),
             os.path.join(RESULT_DIR, NT_TAXID_COUNTS_TO_SPECIES_RPM_OUT),
@@ -1157,17 +1162,21 @@ def run_stage2(lazy_run=True):
             os.path.join(RESULT_DIR, RAPSEARCH2_OUT),
             os.path.join(RESULT_DIR, ANNOTATE_RAPSEARCH2_M8_WITH_TAXIDS_OUT))
 
-        logparams = return_merged_dict(
-            DEFAULT_LOGPARAMS,
-            {"title": "filter deuterostomes from m8", "count_reads": True,
-             "before_file_name": os.path.join(RESULT_DIR, ANNOTATE_RAPSEARCH2_M8_WITH_TAXIDS_OUT), "before_file_type": "m8",
-             "after_file_name": os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NR_M8_OUT), "after_file_type": "m8"})
-        run_and_log_eager(
-            logparams,
-            TARGET_OUTPUTS["run_filter_deuterostomes_from_m8__2"],
-            run_filter_deuterostomes_from_m8,
-            os.path.join(RESULT_DIR, ANNOTATE_RAPSEARCH2_M8_WITH_TAXIDS_OUT),
-            os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NR_M8_OUT))
+        if SKIP_DEUTERO_FILTER:
+            next_input = ANNOTATE_RAPSEARCH2_M8_WITH_TAXIDS_OUT
+        else:
+            logparams = return_merged_dict(
+                DEFAULT_LOGPARAMS,
+                {"title": "filter deuterostomes from m8", "count_reads": True,
+                 "before_file_name": os.path.join(RESULT_DIR, ANNOTATE_RAPSEARCH2_M8_WITH_TAXIDS_OUT), "before_file_type": "m8",
+                 "after_file_name": os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NR_M8_OUT), "after_file_type": "m8"})
+            run_and_log_eager(
+                logparams,
+                TARGET_OUTPUTS["run_filter_deuterostomes_from_m8__2"],
+                run_filter_deuterostomes_from_m8,
+                os.path.join(RESULT_DIR, ANNOTATE_RAPSEARCH2_M8_WITH_TAXIDS_OUT),
+                os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NR_M8_OUT))
+            next_input = FILTER_DEUTEROSTOMES_FROM_NR_M8_OUT
 
         logparams = return_merged_dict(
             DEFAULT_LOGPARAMS,
@@ -1176,7 +1185,7 @@ def run_stage2(lazy_run=True):
             logparams,
             TARGET_OUTPUTS["run_generate_taxid_outputs_from_m8__2"],
             run_generate_taxid_outputs_from_m8,
-            os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NR_M8_OUT),
+            os.path.join(RESULT_DIR, next_input),
             os.path.join(RESULT_DIR, NR_M8_TO_TAXID_COUNTS_FILE_OUT),
             os.path.join(RESULT_DIR, NR_TAXID_COUNTS_TO_JSON_OUT),
             os.path.join(RESULT_DIR, NR_TAXID_COUNTS_TO_SPECIES_RPM_OUT),
