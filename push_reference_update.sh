@@ -1,27 +1,50 @@
 #!/bin/bash
 
+## Output path. Deploying to production consists in setting DESTINATION=s3://czbiohub-infectious-disease/references.
+DESTINATION=s3://czbiohub-infectious-disease/references_test
+
 ## Install idseq-pipeline
+echo 'Installing idseq-pipeline...'
 pip install git+https://github.com/chanzuckerberg/idseq-pipeline.git
 
 ## Archive path
 DATE=`date '+%Y-%m-%d_%H-%M-%S'`
 ARCHIVE_FOLDER=s3://czbiohub-infectious-disease/references/archive/$DATE
+echo 'Old indexes will be archived to ${ARCHIVE_FOLDER}'
 
 ## Make GSNAP index
-# (a) archive old index
+echo 'Archiving GSNAP index...'
 aws s3 cp s3://czbiohub-infectious-disease/references/nt_k16.tar ${ARCHIVE_FOLDER}/
 aws s3 cp s3://czbiohub-infectious-disease/references/nt_k16.version.txt ${ARCHIVE_FOLDER}/
-# (b) make and upload new index
-INPUT_FASTA_S3=/blast/db/FASTA/nt.gz SERVER_IP=34.211.67.166 KEY_S3_PATH=s3://czbiohub-infectious-disease/idseq-production.pem OUTPUT_PATH_S3=s3://czbiohub-infectious-disease/references OUTPUT_NAME=nt_k16 idseq_pipeline gsnap_indexing
+
+echo 'Making new GSNAP index...'
+INPUT_FASTA_S3=/blast/db/FASTA/nt.gz SERVER_IP=34.211.67.166 KEY_S3_PATH=s3://czbiohub-infectious-disease/idseq-production.pem OUTPUT_PATH_S3=$DESTINATION OUTPUT_NAME=nt_k16 idseq_pipeline gsnap_indexing
 
 ## Make RAPSearch2 index
-# (a) archive old index
+echo 'Archiving RAPSearch2 index...'
 aws s3 cp s3://czbiohub-infectious-disease/references/nr_rapsearch/nr_rapsearch ${ARCHIVE_FOLDER}/
 aws s3 cp s3://czbiohub-infectious-disease/references/nr_rapsearch/nr_rapsearch.info ${ARCHIVE_FOLDER}/
-# (b) make and upload new index
-INPUT_FASTA_S3=/blast/db/FASTA/nr.gz SERVER_IP=54.191.193.210 KEY_S3_PATH=s3://czbiohub-infectious-disease/idseq-alpha.pem OUTPUT_PATH_S3=s3://czbiohub-infectious-disease/references OUTPUT_NAME=nr_rapsearch idseq_pipeline rapsearch_indexing
+aws s3 cp s3://czbiohub-infectious-disease/references/nr_rapsearch.version.txt ${ARCHIVE_FOLDER}/
 
-  OUTPUT_PATH_S3=s3://czbiohub-infectious-disease/references idseq_pipeline lineages
+echo 'Making new RAPSearch2 index...'
+INPUT_FASTA_S3=/blast/db/FASTA/nr.gz SERVER_IP=54.191.193.210 KEY_S3_PATH=s3://czbiohub-infectious-disease/idseq-alpha.pem OUTPUT_PATH_S3=$DESTINATION OUTPUT_NAME=nr_rapsearch idseq_pipeline rapsearch_indexing
 
-  idseq_pipeline curate_accession2taxid --mapping_files <mapping_file1,mapping_file2,etc> --nr_file <nr_file> --nt_file <nt_file> --output_s3_folder <output_s3_folder> [--previous_mapping <previous_mapping>]
+## Make taxonomy lineage files
+echo 'Archiving taxonomy lineage files...'
+aws s3 cp s3://czbiohub-infectious-disease/references/names.csv.gz ${ARCHIVE_FOLDER}/
+aws s3 cp s3://czbiohub-infectious-disease/references/taxid-lineages.db ${ARCHIVE_FOLDER}/
+aws s3 cp s3://czbiohub-infectious-disease/references/taxid-lineages.csv.gz ${ARCHIVE_FOLDER}/
+aws s3 cp s3://czbiohub-infectious-disease/references/deuterostome_taxids.txt ${ARCHIVE_FOLDER}/
+aws s3 cp s3://czbiohub-infectious-disease/references/lineage_and_deuterostome.version.txt ${ARCHIVE_FOLDER}/
 
+echo 'Making new taxonomy lineage files...'
+OUTPUT_PATH_S3=$DESTINATION idseq_pipeline lineages
+
+## Make accession2taxid mapping and record diff with old accession list
+echo 'Archiving accession2taxid mapping...'
+aws s3 cp s3://czbiohub-infectious-disease/references/accession2taxid.db.gz ${ARCHIVE_FOLDER}/
+aws s3 cp s3://czbiohub-infectious-disease/references/accession2taxid.version.txt ${ARCHIVE_FOLDER}/
+
+echo 'Making new accession2taxid mapping...'
+MAPPING_FILES=/pub/taxonomy/accession2taxid/nucl_est.accession2taxid.gz,/pub/taxonomy/accession2taxid/nucl_gb.accession2taxid.gz,/pub/taxonomy/accession2taxid/nucl_gss.accession2taxid.gz,/pub/taxonomy/accession2taxid/nucl_wgs.accession2taxid.gz,/pub/taxonomy/accession2taxid/pdb.accession2taxid.gz,/pub/taxonomy/accession2taxid/prot.accession2taxid.gz
+idseq_pipeline curate_accession2taxid --mapping_files ${MAPPING_FILES} --nr_file /blast/db/FASTA/nr.gz --nt_file /blast/db/FASTA/nt.gz --output_s3_folder $DESTINATION --previous_mapping s3://czbiohub-infectious-disease/references/accession2taxid.db.gz
