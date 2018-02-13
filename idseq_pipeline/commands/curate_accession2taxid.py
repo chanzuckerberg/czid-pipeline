@@ -109,7 +109,7 @@ class Curate_accession2taxid(Base):
 
         # Convert to a berkeley db
         print "Writing berkeley db"
-        output_db_file = os.path.join(dest_dir, 'curated_accession2taxid.db')
+        output_db_file = os.path.join(dest_dir, 'accession2taxid.db')
         execute_command("rm -f %s" % output_db_file)
         generate_accession2taxid_db(output_mapping_file, output_db_file, False)
         output_s3_path = arguments['--output_s3_folder'].rstrip('/')

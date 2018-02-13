@@ -52,10 +52,11 @@ def make_index(version):
 
     # make index
     indexing_command = "sudo %s/gmap_build -d %s -k 16 %s" % (GSNAPL_PATH, OUTPUT_NAME, input_fasta_unzipped)
+    indexing_command += "; cd %s; tar -cvf %s.tar %s" % (GMAPDB_PATH, OUTPUT_NAME, OUTPUT_NAME)
     execute_command(remote_command(indexing_command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
     # upload index
-    upload_command = "aws s3 cp --quiet %s/%s %s/%s/ --recursive" % (GMAPDB_PATH, OUTPUT_NAME, OUTPUT_PATH_S3, OUTPUT_NAME)
+    upload_command = "aws s3 cp --quiet %s/%s.tar %s/%s/" % (GMAPDB_PATH, OUTPUT_NAME, OUTPUT_PATH_S3)
     execute_command(remote_command(upload_command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
     # upload version tracker file
