@@ -49,15 +49,11 @@ RAPSEARCH2_OUT = 'rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2
 FILTER_DEUTEROSTOMES_FROM_NT_M8_OUT = 'filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
 NT_M8_TO_TAXID_COUNTS_FILE_OUT = 'counts.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.csv'
 NT_TAXID_COUNTS_TO_JSON_OUT = 'counts.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.json'
-NT_TAXID_COUNTS_TO_SPECIES_RPM_OUT = 'species.rpm.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.csv'
-NT_TAXID_COUNTS_TO_GENUS_RPM_OUT = 'genus.rpm.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.csv'
 ANNOTATE_RAPSEARCH2_M8_WITH_TAXIDS_OUT = 'taxids.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
 GENERATE_TAXID_ANNOTATED_FASTA_FROM_RAPSEARCH2_M8_OUT = 'taxids.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.fasta'
 FILTER_DEUTEROSTOMES_FROM_NR_M8_OUT = 'filter.deuterostomes.taxids.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
 NR_M8_TO_TAXID_COUNTS_FILE_OUT = 'counts.filter.deuterostomes.taxids.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.csv'
 NR_TAXID_COUNTS_TO_JSON_OUT = 'counts.filter.deuterostomes.taxids.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.json'
-NR_TAXID_COUNTS_TO_SPECIES_RPM_OUT = 'species.rpm.filter.deuterostomes.taxids.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.csv'
-NR_TAXID_COUNTS_TO_GENUS_RPM_OUT = 'genus.rpm.filter.deuterostomes.taxids.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.csv'
 UNIDENTIFIED_FASTA_OUT = 'unidentified.fasta'
 COMBINED_JSON_OUT = 'idseq_web_sample.json'
 LOGS_OUT_BASENAME = 'log'
@@ -118,7 +114,6 @@ RAPSEARCH_CHUNK_SIZE = 10000
 # references
 # from common import ACCESSION2TAXID
 DEUTEROSTOME_TAXIDS = 's3://czbiohub-infectious-disease/references/deuterostome_taxids.txt'
-TAXID_TO_INFO = 's3://czbiohub-infectious-disease/references/taxon_info.db'
 # from common import LINEAGE_SHELF
 
 # definitions for integration with web app
@@ -344,49 +339,13 @@ def check_pair_concordance(read_to_taxid):
             family_taxid_concordance_map[family_taxid_1] = family_taxid_concordance_map.get(family_taxid_1, 0) + 2
     return species_taxid_concordance_map, genus_taxid_concordance_map, family_taxid_concordance_map
 
-
-def generate_rpm_from_taxid_counts(taxidCountsInputPath, taxid2infoPath, speciesOutputPath, genusOutputPath):
-    total_reads = get_total_reads_from_stats()
-    taxid2info_map = shelve.open(taxid2infoPath)
-    species_rpm_map = {}
-    genus_rpm_map = {}
-    species_name_map = {}
-    genus_name_map = {}
-    with open(taxidCountsInputPath) as f:
-        for line in f:
-            tok = line.rstrip().split(",")
-            taxid = tok[0]
-            count = float(tok[1])
-            species_taxid, genus_taxid, scientific_name = taxid2info_map.get(taxid, ("NA", "NA", "NA"))
-            species_rpm_map[species_taxid] = float(species_rpm_map.get(species_taxid, 0)) + count/total_reads*1000000.0
-            genus_rpm_map[genus_taxid] = float(genus_rpm_map.get(genus_taxid, 0)) + count/total_reads*1000000.0
-            species_name_map[species_taxid] = scientific_name
-            genus_name_map[genus_taxid] = scientific_name.split()[0]
-    species_outf = open(speciesOutputPath, 'w')
-    species_taxids = species_rpm_map.keys()
-    for species_taxid in sorted(species_taxids, key=species_rpm_map.get, reverse=True):
-        species_name = species_name_map.get(species_taxid, "NA")
-        rpm = species_rpm_map.get(species_taxid)
-        species_outf.write("%s,%s,%s\n" % (species_taxid, species_name, rpm))
-    species_outf.close()
-    genus_outf = open(genusOutputPath, 'w')
-    genus_taxids = genus_rpm_map.keys()
-    for genus_taxid in sorted(genus_taxids, key=genus_rpm_map.get, reverse=True):
-        genus_name = genus_name_map.get(genus_taxid, "NA")
-        rpm = genus_rpm_map.get(genus_taxid)
-        genus_outf.write("%s,%s,%s\n" % (genus_taxid, genus_name, rpm))
-    genus_outf.close()
-
-
-def generate_json_from_taxid_counts(taxidCountsInputPath, taxid2infoPath, jsonOutputPath, countType, lineage_map,
+def generate_json_from_taxid_counts(taxidCountsInputPath, jsonOutputPath, countType, lineage_map,
                                     species_total_concordant, genus_total_concordant, family_total_concordant):
-    taxid2info_map = shelve.open(taxid2infoPath)
     total_reads = get_total_reads_from_stats()
     taxon_counts_attributes = []
     remaining_reads = get_remaining_reads_from_stats()
 
     species_to_count = {}
-    species_to_name = {}
     species_to_percent_identity = {}
     species_to_alignment_length = {}
     species_to_e_value = {}
@@ -401,10 +360,8 @@ def generate_json_from_taxid_counts(taxidCountsInputPath, taxid2infoPath, jsonOu
             percent_identity = float(tok[2])
             alignment_length = float(tok[3])
             e_value = float(tok[4])
-            _species_taxid, _genus_taxid, scientific_name = taxid2info_map.get(taxid, ("-1", "-2", "NA"))
             species_taxid, genus_taxid, family_taxid = lineage_map.get(taxid, ("-100", "-200", "-300"))
             species_to_count[species_taxid] = species_to_count.get(species_taxid, 0) + count
-            species_to_name[species_taxid] = scientific_name
             species_to_percent_identity[species_taxid] = species_to_percent_identity.get(species_taxid, 0) + count * percent_identity
             species_to_alignment_length[species_taxid] = species_to_alignment_length.get(species_taxid, 0) + count * alignment_length
             species_to_e_value[species_taxid] = species_to_e_value.get(species_taxid, 0) + count * e_value
@@ -412,7 +369,7 @@ def generate_json_from_taxid_counts(taxidCountsInputPath, taxid2infoPath, jsonOu
             species_to_genus_level_concordance[species_taxid] = genus_total_concordant.get(genus_taxid, 0)
             species_to_family_level_concordance[species_taxid] = family_total_concordant.get(family_taxid, 0)
 
-    for taxid, species_name in species_to_count.iteritems():
+    for taxid in species_to_count:
         count = species_to_count[taxid]
         avg_percent_identity = species_to_percent_identity[taxid] / count
         avg_alignment_length = species_to_alignment_length[taxid] / count
@@ -423,7 +380,6 @@ def generate_json_from_taxid_counts(taxidCountsInputPath, taxid2infoPath, jsonOu
                                         "percent_identity": avg_percent_identity,
                                         "alignment_length": avg_alignment_length,
                                         "e_value": avg_e_value,
-                                        "name": species_name,
                                         "count_type": countType,
                                         "percent_concordant": (100.0 * species_to_species_level_concordance[taxid]) / count,
                                         # Not very elegant, but until such time as we propagate alignment information at the level of
@@ -945,27 +901,20 @@ def run_rapsearch2_remotely(input_fasta, lazy_run):
 
 
 def run_generate_taxid_outputs_from_m8(annotated_m8, taxon_counts_csv_file, taxon_counts_json_file,
-                                       taxon_species_rpm_file, taxon_genus_rpm_file, count_type, e_value_type):
+                                       count_type, e_value_type):
 
-    taxoninfo_path = fetch_reference(TAXID_TO_INFO)
     lineage_path = fetch_reference(LINEAGE_SHELF)
     lineage_map = shelve.open(lineage_path)
 
     species_concordant, genus_concordant, family_concordant = generate_tax_counts_from_m8(annotated_m8, e_value_type,
                                                                                           taxon_counts_csv_file, lineage_map)
     write_to_log("generated taxon counts from m8")
-    generate_json_from_taxid_counts(taxon_counts_csv_file, taxoninfo_path, taxon_counts_json_file, count_type,
+    generate_json_from_taxid_counts(taxon_counts_csv_file, taxon_counts_json_file, count_type,
                                     lineage_map, species_concordant, genus_concordant, family_concordant)
     write_to_log("generated JSON file from taxon counts")
-    generate_rpm_from_taxid_counts(taxon_counts_csv_file, taxoninfo_path,
-                                   taxon_species_rpm_file, taxon_genus_rpm_file)
-    write_to_log("calculated RPM from taxon counts")
     # move the output back to S3
     execute_command("aws s3 cp --quiet %s %s/" % (taxon_counts_csv_file, SAMPLE_S3_OUTPUT_PATH))
     execute_command("aws s3 cp --quiet %s %s/" % (taxon_counts_json_file, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp --quiet %s %s/" % (taxon_species_rpm_file, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp --quiet %s %s/" % (taxon_genus_rpm_file, SAMPLE_S3_OUTPUT_PATH))
-
 
 def run_combine_json_outputs(input_json_1, input_json_2, output_json):
     combine_pipeline_output_json(input_json_1, input_json_2, output_json)
@@ -1122,8 +1071,6 @@ def run_stage2(lazy_run=True):
             os.path.join(RESULT_DIR, next_input),
             os.path.join(RESULT_DIR, NT_M8_TO_TAXID_COUNTS_FILE_OUT),
             os.path.join(RESULT_DIR, NT_TAXID_COUNTS_TO_JSON_OUT),
-            os.path.join(RESULT_DIR, NT_TAXID_COUNTS_TO_SPECIES_RPM_OUT),
-            os.path.join(RESULT_DIR, NT_TAXID_COUNTS_TO_GENUS_RPM_OUT),
             'NT',
             'raw')
 
@@ -1188,8 +1135,6 @@ def run_stage2(lazy_run=True):
             os.path.join(RESULT_DIR, next_input),
             os.path.join(RESULT_DIR, NR_M8_TO_TAXID_COUNTS_FILE_OUT),
             os.path.join(RESULT_DIR, NR_TAXID_COUNTS_TO_JSON_OUT),
-            os.path.join(RESULT_DIR, NR_TAXID_COUNTS_TO_SPECIES_RPM_OUT),
-            os.path.join(RESULT_DIR, NR_TAXID_COUNTS_TO_GENUS_RPM_OUT),
             'NR',
             'log10')
 
