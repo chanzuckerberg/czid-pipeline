@@ -5,4 +5,5 @@ from .host_indexing import *
 from .gsnap_indexing import *
 from .rapsearch_indexing import *
 from .lineages import *
+from .curate_accession2taxid import *
 from .blacklist import *

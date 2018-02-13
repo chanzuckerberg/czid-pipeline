@@ -11,6 +11,7 @@ import os
 NCBITOOL_S3_PATH = "s3://czbiohub-infectious-disease/ncbitool" # S3 location of ncbitool executable
 ACCESSION2TAXID = 's3://czbiohub-infectious-disease/references/accession2taxid.db.gz'
 LINEAGE_SHELF = 's3://czbiohub-infectious-disease/references/taxid-lineages.db'
+VERSION_NONE = -1
 
 # data directories
 ROOT_DIR = '/mnt'
@@ -26,6 +27,23 @@ print_lock = threading.RLock()
 MAX_CONCURRENT_COPY_OPERATIONS = 8
 iostream = threading.Semaphore(MAX_CONCURRENT_COPY_OPERATIONS)
 
+class MyThread(threading.Thread):
+    def __init__(self, target, args):
+        super(MyThread, self).__init__()
+        self.args = args
+        self.target = target
+        self.exception = None
+        self.completed = False
+
+    def run(self):
+        try:
+            self.result = self.target(*self.args)
+            self.exception = False
+        except:
+            traceback.print_exc()
+            self.exception = True
+        finally:
+            self.completed = True
 
 class Updater(object):
 
@@ -395,6 +413,24 @@ def download_reference_locally(ncbitool_path, input_fasta_ncbi_path, version_num
     command = "cd %s; %s file --download --version-num %s %s" % (destination_dir, ncbitool_path, version_number, input_fasta_ncbi_path)
     execute_command(command)
     return os.path.join(destination_dir, os.path.basename(input_fasta_ncbi_path))
+
+def download_reference_locally_with_version_any_source_type(ref_file, dest_dir, ncbitool_dest_dir):
+    # Get input reference and version number.
+    # If download does not use ncbitool (e.g. direct s3 link), indicate that there is no versioning.
+    input_fasta_name = os.path.basename(ref_file)
+    if ref_file.startswith("s3://"):
+        execute_command("aws s3 cp --quiet %s %s/" % (ref_file, dest_dir))
+        input_fasta_local = os.path.join(dest_dir, input_fasta_name)
+        version_number = VERSION_NONE
+    elif ref_file.startswith("ftp://"):
+        execute_command("cd %s; wget %s" % (dest_dir, ref_file))
+        input_fasta_local = os.path.join(dest_dir, input_fasta_name)
+        version_number = VERSION_NONE
+    else:
+        ncbitool_path = install_ncbitool(ncbitool_dest_dir)
+        version_number = get_reference_version_number(ncbitool_path, ref_file)
+        input_fasta_local = download_reference_locally(ncbitool_path, ref_file, version_number, dest_dir)
+    return input_fasta_local, version_number
 
 def download_reference_on_remote(ncbitool_path, input_fasta_ncbi_path, version_number, destination_dir,
                                  key_path, remote_username, server_ip):

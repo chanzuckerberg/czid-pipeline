@@ -10,12 +10,18 @@ Usage:
   idseq_pipeline rapsearch_indexing
   idseq_pipeline blacklist
   idseq_pipeline lineages
+  idseq_pipeline curate_accession2taxid --mapping_files <mapping_file1,mapping_file2,etc> --nr_file <nr_file> --nt_file <nt_file> --output_s3_folder <output_s3_folder> [--previous_mapping <previous_mapping>]
   idseq_pipeline -h | --help
   idseq_pipeline --version
 
 Options:
-  -h --help                         Show this screen.
-  --version                         Show version.
+  -h --help                                             Show this screen.
+  --version                                             Show version.
+  --mapping_files <mapping_file1,mapping_file2,etc>     Accession2taxid files from NCBI, comma-separated [default: /pub/taxonomy/accession2taxid/nucl_est.accession2taxid.gz,/pub/taxonomy/accession2taxid/nucl_gb.accession2taxid.gz,/pub/taxonomy/accession2taxid/nucl_gss.accession2taxid.gz,/pub/taxonomy/accession2taxid/nucl_wgs.accession2taxid.gz,/pub/taxonomy/accession2taxid/pdb.accession2taxid.gz,/pub/taxonomy/accession2taxid/prot.accession2taxid.gz]
+  --nr_file <nr_file>                                   NR fasta file [default: /blast/db/FASTA/nr.gz]
+  --nt_file <nt_file>                                   NT fasta file [default: /blast/db/FASTA/nt.gz]
+  --output_s3_folder <output_s3_folder>                 S3 destination for curated accesstion2taxid output file [default: s3://czbiohub-infectious-disease/references]
+  --previous_mapping <previous_mapping>                 S3 path to the previous version of accesstion2taxid.db.gz, to be compared to the new version
 
 Examples:
 
