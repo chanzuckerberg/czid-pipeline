@@ -56,7 +56,7 @@ def make_index(version):
     execute_command(remote_command(indexing_command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
     # upload index
-    upload_command = "aws s3 cp --quiet %s/%s.tar %s/%s/" % (GMAPDB_PATH, OUTPUT_NAME, OUTPUT_PATH_S3)
+    upload_command = "aws s3 cp --quiet %s/%s.tar %s/" % (GMAPDB_PATH, OUTPUT_NAME, OUTPUT_PATH_S3)
     execute_command(remote_command(upload_command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
     # upload version tracker file
