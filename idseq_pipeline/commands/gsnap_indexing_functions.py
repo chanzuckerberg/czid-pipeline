@@ -52,7 +52,7 @@ def make_index(version):
 
     # make index
     indexing_command = "sudo %s/gmap_build -d %s -k 16 %s" % (GSNAPL_PATH, OUTPUT_NAME, input_fasta_unzipped)
-    indexing_command += "; cd %s; tar -cvf %s.tar %s" % (GMAPDB_PATH, OUTPUT_NAME, OUTPUT_NAME)
+    indexing_command += "; sudo cd %s; sudo tar -cvf %s.tar %s" % (GMAPDB_PATH, OUTPUT_NAME, OUTPUT_NAME)
     execute_command(remote_command(indexing_command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
     # upload index
