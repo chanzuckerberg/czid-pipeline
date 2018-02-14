@@ -121,7 +121,7 @@ class Curate_accession2taxid(Base):
             print "Computing diff"
             previous_mapping_local = os.path.join(dest_dir, "previous_mapping.db.gz")
             execute_command("aws s3 cp --quiet %s %s" % (previous_mapping_s3, previous_mapping_local))
-            execute_command("gunzip %s" % previous_mapping_local)
+            execute_command("gunzip -f %s" % previous_mapping_local)
             previous_mapping = shelve.open(os.path.splitext(previous_mapping_local)[0])
             new_mapping = shelve.open(output_db_file)
             added_accessionids = []
