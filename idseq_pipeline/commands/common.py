@@ -445,14 +445,14 @@ def download_reference_on_remote_with_version_any_source_type(ref_file, dest_dir
     # If download does not use ncbitool (e.g. direct s3 link), indicate that there is no versioning.
     input_fasta_name = os.path.basename(ref_file)
     if ref_file.startswith("s3://"):
-        execute_command(remote_command("aws s3 cp --quiet %s %s/" % (ref_file, dest_dir),
-            key_path, remote_username, server_ip))
         input_fasta_remote = os.path.join(dest_dir, input_fasta_name)
+        execute_command(remote_command("if [ ! -f %s ]; then aws s3 cp --quiet %s %s/; fi" % (input_fasta_remote, ref_file, dest_dir),
+            key_path, remote_username, server_ip))
         version_number = VERSION_NONE
     elif ref_file.startswith("ftp://"):
-        execute_command(remote_command("cd %s; sudo wget %s" % (dest_dir, ref_file),
-            key_path, remote_username, server_ip))
         input_fasta_remote = os.path.join(dest_dir, input_fasta_name)
+        execute_command(remote_command("if [ ! -f %s ]; then cd %s; sudo wget %s; fi" % (input_fasta_remote, dest_dir, ref_file),
+            key_path, remote_username, server_ip))
         version_number = VERSION_NONE
     else:
         local_ncbitool, remote_ncbitool = install_ncbitool(local_ncbitool_dest_dir, remote_ncbitool_dest_dir,
