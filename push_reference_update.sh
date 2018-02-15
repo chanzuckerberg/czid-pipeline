@@ -14,13 +14,13 @@ URL_PREFIX=ftp://ftp.ncbi.nlm.nih.gov
 ##### COMMANDS #####
 
 ## Install idseq-pipeline
-echo 'Installing idseq-pipeline...'
-pip install git+https://github.com/chanzuckerberg/idseq-pipeline.git
+# echo 'Installing idseq-pipeline...'
+# pip install git+https://github.com/chanzuckerberg/idseq-pipeline.git
 
 ## Archive path
 DATE=`date '+%Y-%m-%d_%H-%M-%S'`
 ARCHIVE_FOLDER=s3://czbiohub-infectious-disease/references/archive/$DATE
-echo 'Old indexes will be archived to ${ARCHIVE_FOLDER}'
+echo Old indexes will be archived to ${ARCHIVE_FOLDER}
 
 ## Make GSNAP index
 echo 'Archiving GSNAP index...'
