@@ -468,7 +468,7 @@ def upload_version_tracker(source_file, output_name, reference_version_number, o
                     "source_file": source_file,
                     "source_version": reference_version_number,
                     "indexing_version": indexing_version,
-                    "generation_date": now.isoformat()}
+                    "generation_date": datetime.datetime.now().isoformat()}
     with open(version_tracker_file, 'wb') as f:
         json.dump(version_json, f)
     execute_command("aws s3 cp --quiet %s %s/" % (version_tracker_file, output_path_s3))
