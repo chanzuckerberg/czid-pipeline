@@ -450,7 +450,7 @@ def download_reference_on_remote_with_version_any_source_type(ref_file, dest_dir
         input_fasta_remote = os.path.join(dest_dir, input_fasta_name)
         version_number = VERSION_NONE
     elif ref_file.startswith("ftp://"):
-        execute_command(remote_command("cd %s; wget %s" % (dest_dir, ref_file),
+        execute_command(remote_command("cd %s; sudo wget %s" % (dest_dir, ref_file),
             key_path, remote_username, server_ip))
         input_fasta_remote = os.path.join(dest_dir, input_fasta_name)
         version_number = VERSION_NONE
