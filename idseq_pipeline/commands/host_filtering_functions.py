@@ -1,6 +1,5 @@
 import os
 import multiprocessing
-import json
 import re
 from .common import * #pylint: disable=wildcard-import
 
@@ -39,8 +38,7 @@ SAMPLE_DIR = DEST_DIR + '/' + sample_name
 FASTQ_DIR = SAMPLE_DIR + '/fastqs'
 RESULT_DIR = SAMPLE_DIR + '/results'
 SCRATCH_DIR = SAMPLE_DIR + '/scratch'
-DEFAULT_LOGPARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH,
-                     "stats_file": os.path.join(RESULT_DIR, STATS_OUT)}
+DEFAULT_LOGPARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH}
 
 # versioning
 
@@ -65,8 +63,6 @@ TARGET_OUTPUTS_PAIRED = {"run_star": [os.path.join(RESULT_DIR, STAR_OUT1),
                          "run_bowtie2": [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1),
                                          os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2),
                                          os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3)]}
-
-TARGET_OUTPUTS = None
 
 # software packages
 STAR = "STAR"
@@ -354,44 +350,46 @@ def run_bowtie2(input_fas):
         execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
     execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3, SAMPLE_S3_OUTPUT_PATH))
 
-def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run):
+def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats):
     number_of_input_files = len(fastq_files)
-    global TARGET_OUTPUTS
-    TARGET_OUTPUTS = TARGET_OUTPUTS_PAIRED if number_of_input_files == 2 else TARGET_OUTPUTS_SINGLE
+    target_outputs = TARGET_OUTPUTS_PAIRED if number_of_input_files == 2 else TARGET_OUTPUTS_SINGLE
 
     # run STAR
     logparams = return_merged_dict(
         DEFAULT_LOGPARAMS,
-        {"title": "STAR", "count_reads": True,
-         "before_file_name": fastq_files[0], "before_file_type": initial_file_type_for_log,
-         "after_file_name": os.path.join(RESULT_DIR, STAR_OUT1), "after_file_type": initial_file_type_for_log,
-         "version_file_s3": STAR_BOWTIE_VERSION_FILE_S3, "output_version_file": os.path.join(RESULT_DIR, VERSION_OUT)})
-    run_and_log(logparams, TARGET_OUTPUTS["run_star"], lazy_run, run_star, fastq_files)
+        {"title": "STAR",
+         "version_file_s3": STAR_BOWTIE_VERSION_FILE_S3,
+         "output_version_file": os.path.join(RESULT_DIR, VERSION_OUT)})
+    run_and_log_s3(logparams, target_outputs["run_star"], lazy_run, run_star, fastq_files)
+    stats.count_reads("run_star",
+                      before_filename=fastq_files[0],
+                      before_filetype=initial_file_type_for_log,
+                      after_filename=os.path.join(RESULT_DIR, STAR_OUT1),
+                      after_filetype=initial_file_type_for_log)
 
     # run priceseqfilter
-    logparams = return_merged_dict(
-        DEFAULT_LOGPARAMS,
-        {"title": "PriceSeqFilter", "count_reads": True,
-         "before_file_name": os.path.join(RESULT_DIR, STAR_OUT1), "before_file_type": initial_file_type_for_log,
-         "after_file_name": os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1), "after_file_type": initial_file_type_for_log})
+    logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "PriceSeqFilter"})
     if number_of_input_files == 2:
         input_files = [os.path.join(RESULT_DIR, STAR_OUT1), os.path.join(RESULT_DIR, STAR_OUT2)]
     else:
         input_files = [os.path.join(RESULT_DIR, STAR_OUT1)]
-    run_and_log(logparams, TARGET_OUTPUTS["run_priceseqfilter"], lazy_run, run_priceseqfilter, input_files)
+    run_and_log_s3(logparams, target_outputs["run_priceseqfilter"], lazy_run, run_priceseqfilter, input_files)
+    stats.count_reads("run_priceseqfilter",
+                      before_filename=os.path.join(RESULT_DIR, STAR_OUT1),
+                      before_filetype=initial_file_type_for_log,
+                      after_filename=os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1),
+                      after_filetype=initial_file_type_for_log)
 
     # run fastq to fasta
     if "fastq" in FILE_TYPE:
-        logparams = return_merged_dict(
-            DEFAULT_LOGPARAMS,
-            {"title": "FASTQ to FASTA", "count_reads": False})
+        logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "FASTQ to FASTA"})
         if number_of_input_files == 2:
             input_files = [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1), os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2)]
             next_inputs = [os.path.join(RESULT_DIR, FQ2FA_OUT1), os.path.join(RESULT_DIR, FQ2FA_OUT2)]
         else:
             input_files = [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1)]
             next_inputs = [os.path.join(RESULT_DIR, FQ2FA_OUT1)]
-        run_and_log(logparams, TARGET_OUTPUTS["run_fq2fa"], lazy_run, run_fq2fa, input_files)
+        run_and_log_s3(logparams, target_outputs["run_fq2fa"], lazy_run, run_fq2fa, input_files)
     else:
         if number_of_input_files == 2:
             next_inputs = [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1), os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2)]
@@ -399,36 +397,40 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run):
             next_inputs = [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1)]
 
     # run cdhitdup
-    logparams = return_merged_dict(
-        DEFAULT_LOGPARAMS,
-        {"title": "CD-HIT-DUP", "count_reads": True,
-         "before_file_name": next_inputs[0], "before_file_type": "fasta_paired",
-         "after_file_name": os.path.join(RESULT_DIR, CDHITDUP_OUT1), "after_file_type": "fasta_paired"})
-    run_and_log(logparams, TARGET_OUTPUTS["run_cdhitdup"], lazy_run, run_cdhitdup, next_inputs)
+    logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "CD-HIT-DUP"})
+    run_and_log_s3(logparams, target_outputs["run_cdhitdup"], lazy_run, run_cdhitdup, next_inputs)
+    stats.count_reads("run_cdhitdup",
+                      before_filename=next_inputs[0],
+                      before_filetype="fasta_paired",
+                      after_filename=os.path.join(RESULT_DIR, CDHITDUP_OUT1),
+                      after_filetype="fasta_paired")
+
 
     # run lzw filter
-    logparams = return_merged_dict(
-        DEFAULT_LOGPARAMS,
-        {"title": "LZW filter", "count_reads": True,
-         "before_file_name": os.path.join(RESULT_DIR, CDHITDUP_OUT1), "before_file_type": "fasta_paired",
-         "after_file_name": os.path.join(RESULT_DIR, LZW_OUT1), "after_file_type": "fasta_paired"})
+    logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "LZW filter"})
     if number_of_input_files == 2:
         input_files = [os.path.join(RESULT_DIR, CDHITDUP_OUT1), os.path.join(RESULT_DIR, CDHITDUP_OUT2)]
     else:
         input_files = [os.path.join(RESULT_DIR, CDHITDUP_OUT1)]
-    run_and_log(logparams, TARGET_OUTPUTS["run_lzw"], lazy_run, run_lzw, input_files)
+    run_and_log_s3(logparams, target_outputs["run_lzw"], lazy_run, run_lzw, input_files)
+    stats.count_reads("run_lzw",
+                      before_filename=os.path.join(RESULT_DIR, CDHITDUP_OUT1),
+                      before_filetype="fasta_paired",
+                      after_filename=os.path.join(RESULT_DIR, LZW_OUT1),
+                      after_filetype="fasta_paired")
 
     # run bowtie
-    logparams = return_merged_dict(
-        DEFAULT_LOGPARAMS,
-        {"title": "bowtie2", "count_reads": True,
-         "before_file_name": os.path.join(RESULT_DIR, LZW_OUT1), "before_file_type": "fasta_paired",
-         "after_file_name": os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1), "after_file_type": "fasta_paired"})
+    logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "bowtie2"})
     if number_of_input_files == 2:
         input_files = [os.path.join(RESULT_DIR, LZW_OUT1), os.path.join(RESULT_DIR, LZW_OUT2)]
     else:
         input_files = [os.path.join(RESULT_DIR, LZW_OUT1)]
-    run_and_log(logparams, TARGET_OUTPUTS["run_bowtie2"], lazy_run, run_bowtie2, input_files)
+    run_and_log_s3(logparams, target_outputs["run_bowtie2"], lazy_run, run_bowtie2, input_files)
+    stats.count_reads("run_bowtie2",
+                      before_filename=os.path.join(RESULT_DIR, LZW_OUT1),
+                      before_filetype="fasta_paired",
+                      after_filename=os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1),
+                      after_filetype="fasta_paired")
 
 def run_stage1(lazy_run=True):
     execute_command("mkdir -p %s %s %s %s" % (SAMPLE_DIR, FASTQ_DIR, RESULT_DIR, SCRATCH_DIR))
@@ -454,26 +456,21 @@ def run_stage1(lazy_run=True):
         write_to_log("Number of input files was neither 1 nor 2. Aborting computation.")
         return # only support either 1 file or 2 (paired) files
 
-    # Download existing data and see what has been done
-    if lazy_run:
-        command = "aws s3 cp --quiet %s %s --recursive" % (SAMPLE_S3_OUTPUT_PATH, RESULT_DIR)
-        print execute_command_with_output(command)
-
     # Record total number of input reads
     initial_file_type_for_log = "fastq" if "fastq" in FILE_TYPE else "fasta"
     if len(fastq_files) == 2:
         initial_file_type_for_log += "_paired"
-    STATS.append({'total_reads': count_reads(fastq_files[0], initial_file_type_for_log)})
-    stats_path = os.path.join(RESULT_DIR, STATS_OUT)
-    with open(stats_path, 'wb') as f:
-        json.dump(STATS, f)
-    execute_command("aws s3 cp --quiet %s %s/;" % (stats_path, SAMPLE_S3_OUTPUT_PATH))
+    stats = StatsFile(STATS_OUT, RESULT_DIR, None, SAMPLE_S3_OUTPUT_PATH)
+    stats.data.append({'total_reads': count_reads(fastq_files[0], initial_file_type_for_log)})
 
     # run host filtering
-    run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run)
+    run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats)
     # copy the merged fasta file back to results folder to change time stamp
     execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1, SAMPLE_S3_OUTPUT_PATH))
     if len(fastq_files) == 2:
         execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
     execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3, SAMPLE_S3_OUTPUT_PATH))
+
+    stats.save_to_s3()
     write_to_log("Host filtering complete")
+    upload_log_file(SAMPLE_S3_OUTPUT_PATH)
