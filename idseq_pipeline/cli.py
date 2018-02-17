@@ -11,6 +11,8 @@ Usage:
   idseq_pipeline blacklist
   idseq_pipeline lineages
   idseq_pipeline curate_accession2taxid --mapping_files <mapping_file1,mapping_file2,etc> --nr_file <nr_file> --nt_file <nt_file> --output_s3_folder <output_s3_folder> [--previous_mapping <previous_mapping>]
+  idseq_pipeline curate_accessionid2seq --input_s3_path <nt_or_nr_file> --output_s3_path <output_db>
+  idseq_pipeline accessionid2seq --s3_db_path <ccession2seq_db> --input_annotated_fasta_path <fasta> --ouput_path <output_json_path>
   idseq_pipeline -h | --help
   idseq_pipeline --version
 
