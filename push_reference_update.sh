@@ -50,7 +50,7 @@ aws s3 cp s3://czbiohub-infectious-disease/references/deuterostome_taxids.txt ${
 aws s3 cp s3://czbiohub-infectious-disease/references/lineage_and_deuterostome.version.txt ${ARCHIVE_FOLDER}/
 
 echo 'Making new taxonomy lineage files...'
-OUTPUT_PATH_S3=$DESTINATION idseq_pipeline lineages
+OUTPUT_PATH_S3=$DESTINATION INPUT=${URL_PREFIX}/pub/taxonomy/taxdump.tar.gz idseq_pipeline lineages
 
 ## Make accession2taxid mapping and record diff with old accession list
 echo 'Archiving accession2taxid mapping...'
