@@ -88,8 +88,8 @@ random.seed(hash(SAMPLE_NAME))
 ## For now, index updates are infrequent and we can get their versions from S3.
 ## If updates ever become frequent, we may want to check instead which version is actually on the
 ## machine taking the job, possibly out of sync with the newest version in S3.
-GSNAP_VERSION_FILE_S3 = 's3://czbiohub-infectious-disease/references/nt_k16.version.txt'
-RAPSEARCH_VERSION_FILE_S3 = 's3://czbiohub-infectious-disease/references/nr_rapsearch.version.txt'
+GSNAP_VERSION_FILE_S3 = 's3://czbiohub-infectious-disease/references/test/nt_k16.version.txt'
+RAPSEARCH_VERSION_FILE_S3 = 's3://czbiohub-infectious-disease/references/test/nr_rapsearch.version.txt'
 
 # target outputs by task
 TARGET_OUTPUTS = {"run_gsnapl_remotely": [os.path.join(RESULT_DIR, GSNAPL_DEDUP_OUT)],
@@ -113,7 +113,7 @@ RAPSEARCH_CHUNK_SIZE = 10000
 
 # references
 # from common import ACCESSION2TAXID
-DEUTEROSTOME_TAXIDS = 's3://czbiohub-infectious-disease/references/deuterostome_taxids.txt'
+DEUTEROSTOME_TAXIDS = 's3://czbiohub-infectious-disease/references/test/deuterostome_taxids.txt'
 # from common import LINEAGE_SHELF
 
 # definitions for integration with web app
@@ -868,7 +868,7 @@ def run_rapsearch2_remotely(input_fasta, lazy_run):
     remote_username = "ec2-user"
     remote_home_dir = "/home/%s" % remote_username
     remote_work_dir = "%s/data/batch-pipeline-workdir/%s" % (remote_home_dir, SAMPLE_NAME)
-    remote_index_dir = "%s/references/nr_rapsearch" % remote_home_dir
+    remote_index_dir = "%s/references/test/nr_rapsearch" % remote_home_dir
     # split file:
     chunk_nlines = 2*RAPSEARCH_CHUNK_SIZE
     part_suffix, input_chunks = chunk_input([input_fasta], chunk_nlines, RAPSEARCH_CHUNK_SIZE)

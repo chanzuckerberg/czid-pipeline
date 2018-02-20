@@ -61,7 +61,7 @@ TARGET_OUTPUTS = {"run_generate_taxid_fasta_from_accid": [os.path.join(RESULT_DI
 
 # references
 # from common import ACCESSION2TAXID
-LINEAGE_SHELF = 's3://czbiohub-infectious-disease/references/taxid-lineages.db'
+LINEAGE_SHELF = 's3://czbiohub-infectious-disease/references/test/taxid-lineages.db'
 
 # processing functions
 def accession2taxid(read_id, accession2taxid_dict, hit_type, lineage_map):

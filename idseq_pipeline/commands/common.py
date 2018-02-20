@@ -9,8 +9,8 @@ import gzip
 import os
 
 NCBITOOL_S3_PATH = "s3://czbiohub-infectious-disease/ncbitool" # S3 location of ncbitool executable
-ACCESSION2TAXID = 's3://czbiohub-infectious-disease/references/accession2taxid.db.gz'
-LINEAGE_SHELF = 's3://czbiohub-infectious-disease/references/taxid-lineages.db'
+ACCESSION2TAXID = 's3://czbiohub-infectious-disease/references/test/accession2taxid.db.gz'
+LINEAGE_SHELF = 's3://czbiohub-infectious-disease/references/test/taxid-lineages.db'
 VERSION_NONE = -1
 
 # data directories
