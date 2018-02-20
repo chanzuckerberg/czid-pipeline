@@ -40,7 +40,7 @@ Examples:
 
   INPUT_FASTA_S3=/blast/db/FASTA/nr.gz SERVER_IP=54.191.193.210 KEY_S3_PATH=s3://czbiohub-infectious-disease/idseq-alpha.pem OUTPUT_PATH_S3=s3://czbiohub-infectious-disease/references OUTPUT_NAME=nr_rapsearch idseq_pipeline rapsearch_indexing
 
-  OUTPUT_PATH_S3=s3://czbiohub-infectious-disease/references idseq_pipeline lineages
+  OUTPUT_PATH_S3=s3://czbiohub-infectious-disease/references INPUT=/pub/taxonomy/taxdump.tar.gz idseq_pipeline lineages
 
   INPUT_FASTA_S3='s3://czbiohub-ncbi-store/blast/db/FASTA/vector.gz' ACCESSION2TAXID_DB_S3_PATH='s3://czbiohub-infectious-disease/references/accession2taxid.db.gz' idseq_pipeline blacklist
 

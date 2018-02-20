@@ -438,12 +438,37 @@ def download_reference_on_remote(ncbitool_path, input_fasta_ncbi_path, version_n
     execute_command(remote_command(command, key_path, remote_username, server_ip))
     return os.path.join(destination_dir, os.path.basename(input_fasta_ncbi_path))
 
+def download_reference_on_remote_with_version_any_source_type(ref_file, dest_dir,
+    local_ncbitool_dest_dir, remote_ncbitool_dest_dir,
+    key_path, remote_username, server_ip, sudo=False):
+    # Get input reference and version number.
+    # If download does not use ncbitool (e.g. direct s3 link), indicate that there is no versioning.
+    input_fasta_name = os.path.basename(ref_file)
+    if ref_file.startswith("s3://"):
+        input_fasta_remote = os.path.join(dest_dir, input_fasta_name)
+        execute_command(remote_command("aws s3 cp --quiet %s %s/" % (input_fasta_remote, ref_file, dest_dir),
+            key_path, remote_username, server_ip))
+        version_number = VERSION_NONE
+    elif ref_file.startswith("ftp://"):
+        input_fasta_remote = os.path.join(dest_dir, input_fasta_name)
+        execute_command(remote_command("cd %s; sudo wget %s" % (input_fasta_remote, dest_dir, ref_file),
+            key_path, remote_username, server_ip))
+        version_number = VERSION_NONE
+    else:
+        local_ncbitool, remote_ncbitool = install_ncbitool(local_ncbitool_dest_dir, remote_ncbitool_dest_dir,
+            key_path, remote_username, server_ip, sudo)
+        version_number = get_reference_version_number(local_ncbitool, ref_file)
+        input_fasta_remote = download_reference_on_remote(remote_ncbitool, ref_file, version_number, dest_dir,
+            key_path, remote_username, server_ip)
+    return input_fasta_remote, version_number
+
 def upload_version_tracker(source_file, output_name, reference_version_number, output_path_s3, indexing_version):
     version_tracker_file = "%s.version.txt" % output_name
     version_json = {"name": output_name,
                     "source_file": source_file,
                     "source_version": reference_version_number,
-                    "indexing_version": indexing_version}
+                    "indexing_version": indexing_version,
+                    "generation_date": datetime.datetime.now().isoformat()}
     with open(version_tracker_file, 'wb') as f:
         json.dump(version_json, f)
     execute_command("aws s3 cp --quiet %s %s/" % (version_tracker_file, output_path_s3))
