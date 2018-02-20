@@ -4,7 +4,9 @@
 ##### PARAMETERS TO EDIT #####
 
 ## Output path. Deploying to production consists in setting DESTINATION=s3://czbiohub-infectious-disease/references.
-DESTINATION=s3://czbiohub-infectious-disease/references_test
+# To test, you can choose a subfolder of that folder. Choosing a separate folder would require editing the role policy
+# of the gsnap/rapsearch machines that perform the indexing to ensure S3 write access.
+DESTINATION=s3://czbiohub-infectious-disease/references/test
 
 ## To pull NCBI references through ncbitool, which archives and records versions, set URL_PREFIX=''.
 ## To pull the latest files from NCBI without using ncbitool (no version information), set URL_PREFIX=ftp://ftp.ncbi.nlm.nih.gov.
