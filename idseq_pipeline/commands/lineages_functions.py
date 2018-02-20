@@ -15,7 +15,7 @@ def make_lineages(version):
     execute_command("cd %s; rm -rf ncbitax2lin; git clone https://github.com/chanzuckerberg/ncbitax2lin.git" % scratch_dir)
 
     # Get input reference and version number
-    input_fasta_local, version_number = download_reference_locally_with_version_any_source_type(INPUT, work_dir, work_dir)
+    _input_fasta_local, version_number = download_reference_locally_with_version_any_source_type(INPUT, work_dir, work_dir)
     command = "cd %s; rm -rfv taxdump; mkdir -p taxdump/taxdump; " % work_dir
     command += "tar zxf %s -C ./taxdump/taxdump" % os.path.basename(INPUT) # this structure is needed for ncbitax2lin 'make'
     execute_command(command)
