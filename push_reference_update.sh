@@ -1,12 +1,13 @@
 #!/bin/bash
 
+DATE=`date '+%Y-%m-%d'`
 
 ##### PARAMETERS TO EDIT #####
 
 ## Output path. Deploying to production consists in setting DESTINATION=s3://czbiohub-infectious-disease/references.
 # To test, you can choose a subfolder of that folder. Choosing a separate folder would require editing the role policy
 # of the gsnap/rapsearch machines that perform the indexing to ensure S3 write access.
-DESTINATION=s3://czbiohub-infectious-disease/references/test
+DESTINATION=s3://idseq-database/${DATE}/references
 
 ## To pull NCBI references through ncbitool, which archives and records versions, set URL_PREFIX=''.
 ## To pull the latest files from NCBI without using ncbitool (no version information), set URL_PREFIX=ftp://ftp.ncbi.nlm.nih.gov.
@@ -20,8 +21,7 @@ URL_PREFIX=ftp://ftp.ncbi.nlm.nih.gov
 # pip install git+https://github.com/chanzuckerberg/idseq-pipeline.git
 
 ## Archive path
-DATE=`date '+%Y-%m-%d_%H-%M-%S'`
-ARCHIVE_FOLDER=s3://czbiohub-infectious-disease/references/archive/$DATE
+ARCHIVE_FOLDER=s3://idseq-database/${DATE}/archive
 echo Old indexes will be archived to ${ARCHIVE_FOLDER}
 
 ## Make GSNAP index
