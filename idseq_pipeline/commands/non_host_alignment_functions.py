@@ -868,7 +868,7 @@ def run_rapsearch2_remotely(input_fasta, lazy_run):
     remote_username = "ec2-user"
     remote_home_dir = "/home/%s" % remote_username
     remote_work_dir = "%s/data/batch-pipeline-workdir/%s" % (remote_home_dir, SAMPLE_NAME)
-    remote_index_dir = "%s/references/test/nr_rapsearch" % remote_home_dir
+    remote_index_dir = "%s/references/nr_rapsearch" % remote_home_dir
     # split file:
     chunk_nlines = 2*RAPSEARCH_CHUNK_SIZE
     part_suffix, input_chunks = chunk_input([input_fasta], chunk_nlines, RAPSEARCH_CHUNK_SIZE)
