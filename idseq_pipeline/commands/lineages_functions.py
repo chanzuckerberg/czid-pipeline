@@ -4,8 +4,8 @@ from .common import *
 # output location
 OUTPUT_PATH_S3 = os.environ.get('OUTPUT_PATH_S3').rstrip('/')
 
-# input reference: path relative to ftp://ftp.ncbi.nlm.nih.gov, but we retrieve it using ncbitool
-INPUT = "/pub/taxonomy/taxdump.tar.gz"
+# input reference
+INPUT = os.environ.get('INPUT', '/pub/taxonomy/taxdump.tar.gz')
 
 def make_lineages(version):
     # Install ncbitax2lin
@@ -15,9 +15,7 @@ def make_lineages(version):
     execute_command("cd %s; rm -rf ncbitax2lin; git clone https://github.com/chanzuckerberg/ncbitax2lin.git" % scratch_dir)
 
     # Get input reference and version number
-    ncbitool_path = install_ncbitool(work_dir)
-    version_number = get_reference_version_number(ncbitool_path, INPUT)
-    input_fasta_local = download_reference_locally(ncbitool_path, INPUT, version_number, work_dir)
+    input_fasta_local, version_number = download_reference_locally_with_version_any_source_type(INPUT, work_dir, work_dir)
     command = "cd %s; rm -rfv taxdump; mkdir -p taxdump/taxdump; " % work_dir
     command += "tar zxf %s -C ./taxdump/taxdump" % os.path.basename(INPUT) # this structure is needed for ncbitax2lin 'make'
     execute_command(command)
