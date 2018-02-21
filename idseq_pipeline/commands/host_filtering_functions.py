@@ -360,7 +360,7 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats):
         {"title": "STAR",
          "version_file_s3": STAR_BOWTIE_VERSION_FILE_S3,
          "output_version_file": os.path.join(RESULT_DIR, VERSION_OUT)})
-    run_and_log_s3(logparams, target_outputs["run_star"], lazy_run, run_star, fastq_files)
+    run_and_log_s3(logparams, target_outputs["run_star"], lazy_run, SAMPLE_S3_OUTPUT_PATH, run_star, fastq_files)
     stats.count_reads("run_star",
                       before_filename=fastq_files[0],
                       before_filetype=initial_file_type_for_log,
@@ -373,7 +373,7 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats):
         input_files = [os.path.join(RESULT_DIR, STAR_OUT1), os.path.join(RESULT_DIR, STAR_OUT2)]
     else:
         input_files = [os.path.join(RESULT_DIR, STAR_OUT1)]
-    run_and_log_s3(logparams, target_outputs["run_priceseqfilter"], lazy_run, run_priceseqfilter, input_files)
+    run_and_log_s3(logparams, target_outputs["run_priceseqfilter"], lazy_run, SAMPLE_S3_OUTPUT_PATH, run_priceseqfilter, input_files)
     stats.count_reads("run_priceseqfilter",
                       before_filename=os.path.join(RESULT_DIR, STAR_OUT1),
                       before_filetype=initial_file_type_for_log,
@@ -389,7 +389,7 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats):
         else:
             input_files = [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1)]
             next_inputs = [os.path.join(RESULT_DIR, FQ2FA_OUT1)]
-        run_and_log_s3(logparams, target_outputs["run_fq2fa"], lazy_run, run_fq2fa, input_files)
+        run_and_log_s3(logparams, target_outputs["run_fq2fa"], lazy_run, SAMPLE_S3_OUTPUT_PATH, run_fq2fa, input_files)
     else:
         if number_of_input_files == 2:
             next_inputs = [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1), os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2)]
@@ -398,7 +398,7 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats):
 
     # run cdhitdup
     logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "CD-HIT-DUP"})
-    run_and_log_s3(logparams, target_outputs["run_cdhitdup"], lazy_run, run_cdhitdup, next_inputs)
+    run_and_log_s3(logparams, target_outputs["run_cdhitdup"], lazy_run, SAMPLE_S3_OUTPUT_PATH, run_cdhitdup, next_inputs)
     stats.count_reads("run_cdhitdup",
                       before_filename=next_inputs[0],
                       before_filetype="fasta_paired",
@@ -412,7 +412,7 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats):
         input_files = [os.path.join(RESULT_DIR, CDHITDUP_OUT1), os.path.join(RESULT_DIR, CDHITDUP_OUT2)]
     else:
         input_files = [os.path.join(RESULT_DIR, CDHITDUP_OUT1)]
-    run_and_log_s3(logparams, target_outputs["run_lzw"], lazy_run, run_lzw, input_files)
+    run_and_log_s3(logparams, target_outputs["run_lzw"], lazy_run, SAMPLE_S3_OUTPUT_PATH, run_lzw, input_files)
     stats.count_reads("run_lzw",
                       before_filename=os.path.join(RESULT_DIR, CDHITDUP_OUT1),
                       before_filetype="fasta_paired",
@@ -425,7 +425,7 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats):
         input_files = [os.path.join(RESULT_DIR, LZW_OUT1), os.path.join(RESULT_DIR, LZW_OUT2)]
     else:
         input_files = [os.path.join(RESULT_DIR, LZW_OUT1)]
-    run_and_log_s3(logparams, target_outputs["run_bowtie2"], lazy_run, run_bowtie2, input_files)
+    run_and_log_s3(logparams, target_outputs["run_bowtie2"], lazy_run, SAMPLE_S3_OUTPUT_PATH, run_bowtie2, input_files)
     stats.count_reads("run_bowtie2",
                       before_filename=os.path.join(RESULT_DIR, LZW_OUT1),
                       before_filetype="fasta_paired",
