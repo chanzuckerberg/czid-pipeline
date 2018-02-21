@@ -18,7 +18,7 @@ def curate_taxon_dict(nt_file, nr_file, mapping_files, output_mapping_file):
     # Read the nt/nr file
     dbids = set()
     lines = 0
-    for gzf in [nr_file, nt_file]:  
+    for gzf in [nr_file, nt_file]:
         with gzip.open(gzf, 'rb') as seqf:
             for line in seqf:
                 lines += 1
@@ -98,7 +98,7 @@ class Curate_accession2taxid(Base):
         for f in mapping_files_sources:
             mapping_file_local, mapping_version_number = threads[f].result
             mapping_files_local.append(mapping_file_local)
-            mapping_version_numbers.append(mapping_version_number) 
+            mapping_version_numbers.append(mapping_version_number)
         print "Reference download finished"
 
         # Produce the output file
