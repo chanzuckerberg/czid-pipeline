@@ -61,7 +61,6 @@ TARGET_OUTPUTS = {"run_generate_taxid_fasta_from_accid": [os.path.join(RESULT_DI
 
 # references
 # from common import ACCESSION2TAXID
-LINEAGE_SHELF = 's3://czbiohub-infectious-disease/references/taxid-lineages.db'
 
 # processing functions
 def accession2taxid(read_id, accession2taxid_dict, hit_type, lineage_map):
@@ -169,7 +168,10 @@ def run_combine_json(input_json_list, output_json):
     logging.getLogger().info("finished job")
     execute_command("aws s3 cp --quiet %s %s/" % (output_json, SAMPLE_S3_OUTPUT_PATH))
 
-def run_stage3(lazy_run=True):
+def run_stage3(lazy_run=False):
+
+    assert lazy_run == False, "we seem to be hardwiring that..."
+
     # make data directories
     execute_command("mkdir -p %s %s %s %s" % (SAMPLE_DIR, RESULT_DIR, REF_DIR, TEMP_DIR))
 
@@ -180,11 +182,6 @@ def run_stage3(lazy_run=True):
     # download input
     execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, ACCESSION_ANNOTATED_FASTA, INPUT_DIR))
     input_file = os.path.join(INPUT_DIR, ACCESSION_ANNOTATED_FASTA)
-
-    if lazy_run:
-       # Download existing data and see what has been done
-        command = "aws s3 cp --quiet %s %s --recursive" % (SAMPLE_S3_OUTPUT_PATH, RESULT_DIR)
-        print execute_command(command)
 
     # generate taxid fasta
     logparams = return_merged_dict(

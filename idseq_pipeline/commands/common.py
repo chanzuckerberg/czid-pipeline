@@ -7,6 +7,7 @@ import logging
 import json
 import gzip
 import os
+import traceback
 
 NCBITOOL_S3_PATH = "s3://czbiohub-infectious-disease/ncbitool" # S3 location of ncbitool executable
 ACCESSION2TAXID = 's3://czbiohub-infectious-disease/references/accession2taxid.db.gz'
@@ -18,7 +19,6 @@ ROOT_DIR = '/mnt'
 DEST_DIR = ROOT_DIR + '/idseq/data' # generated data go here
 REF_DIR = ROOT_DIR + '/idseq/ref' # referene genome / ref databases go here
 
-STATS = []
 OUTPUT_VERSIONS = []
 
 print_lock = threading.RLock()
@@ -27,6 +27,64 @@ print_lock = threading.RLock()
 MAX_CONCURRENT_COPY_OPERATIONS = 8
 iostream = threading.Semaphore(MAX_CONCURRENT_COPY_OPERATIONS)
 
+
+class StatsFile(object):
+
+    def __init__(self, stats_filename, local_results_dir, s3_input_dir, s3_output_dir):
+        self.local_results_dir = local_results_dir
+        self.stats_filename = stats_filename
+        self.s3_input_dir = s3_input_dir
+        self.s3_output_dir = s3_output_dir
+        self.stats_path = os.path.join(self.local_results_dir, self.stats_filename)
+        self.data = []
+        self.mutex = threading.RLock()
+
+    def load_from_s3(self):
+        stats_s3_path = os.path.join(self.s3_input_dir, self.stats_filename)
+        if check_s3_file_presence(stats_s3_path):
+            execute_command("aws s3 cp --quiet %s %s/" % (stats_s3_path, self.local_results_dir))
+        self._load()
+
+    def _load(self):
+        if os.path.isfile(self.stats_path):
+            with open(self.stats_path) as f:
+                self.data = json.load(f)
+
+    def _save(self):
+        with open(self.stats_path, 'wb') as f:
+            json.dump(self.data, f)
+
+    def save_to_s3(self):
+        with self.mutex:
+            self._save()
+            execute_command("aws s3 cp --quiet %s %s/" % (self.stats_path, self.s3_output_dir))
+
+    def get_total_reads(self):
+        for item in self.data:
+            if "total_reads" in item:
+                return item["total_reads"]
+        # check run star if total reads not available
+        for item in self.data:
+            if item.get("task") == 'run_star':
+                return item["reads_before"]
+        # if no entry for run_star, host-filtering was skipped: use "remaining_reads" instead
+        return self.get_remaining_reads()
+        # previous fall-back value didn't fit into integer type of SQL dfatabase:
+        # return 0.1
+
+    def get_remaining_reads(self):
+        return (item for item in self.data if item.get("task") == "run_gsnapl_remotely").next().get("reads_before")
+
+    def count_reads(self, func_name, before_filename, before_filetype, after_filename, after_filetype):
+        records_before = count_reads(before_filename, before_filetype)
+        records_after = count_reads(after_filename, after_filetype)
+        new_data = [datum for datum in self.data if datum.get('task') != func_name]
+        if len(new_data) != len(self.data):
+            write_to_log("Overwriting counts for {}".format(func_name), warning=True)
+            self.data = new_data
+        self.data.append({'task': func_name, 'reads_before': records_before, 'reads_after': records_after})
+
+
 class MyThread(threading.Thread):
     def __init__(self, target, args):
         super(MyThread, self).__init__()
@@ -34,6 +92,7 @@ class MyThread(threading.Thread):
         self.target = target
         self.exception = None
         self.completed = False
+        self.result = None
 
     def run(self):
         try:
@@ -44,6 +103,7 @@ class MyThread(threading.Thread):
             self.exception = True
         finally:
             self.completed = True
+
 
 class Updater(object):
 
@@ -123,14 +183,22 @@ def execute_command(command, progress_file=None):
 
 
 def remote_command(base_command, key_path, remote_username, instance_ip):
-    return 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s "%s"' % (key_path, remote_username, instance_ip, base_command)
+    return 'ssh -o "StrictHostKeyChecking no" -o "ConnectTimeout 15" -i %s %s@%s "%s"' % (key_path, remote_username, instance_ip, base_command)
+
+
+def check_s3_file_presence(s3_path):
+    command = "aws s3 ls %s | wc -l" % s3_path
+    try:
+        return int(execute_command_with_output(command).rstrip())
+    except:
+        return 0
 
 
 def scp(key_path, remote_username, instance_ip, remote_path, local_path):
     assert " " not in key_path
     assert " " not in remote_path
     assert " " not in local_path
-    return 'scp -o "StrictHostKeyChecking no" -i {key_path} {username}@{ip}:{remote_path} {local_path}'.format(
+    return 'scp -o "StrictHostKeyChecking no" -o "ConnectTimeout 15" -i {key_path} {username}@{ip}:{remote_path} {local_path}'.format(
         key_path=key_path,
         username=remote_username,
         ip=instance_ip,
@@ -208,33 +276,6 @@ def configure_logger(log_file):
     LOGGER.addHandler(handler)
 
 
-def load_existing_stats(stats_file):
-    global STATS
-    if os.path.isfile(stats_file):
-        with open(stats_file) as f:
-            STATS = json.load(f)
-
-
-def get_total_reads_from_stats():
-    global STATS
-    for item in STATS:
-        if "total_reads" in item:
-            return item["total_reads"]
-    # check run star if total reads not available
-    for item in STATS:
-        if item.get("task") == 'run_star':
-            return item["reads_before"]
-    # if no entry for run_star, host-filtering was skipped: use "remaining_reads" instead
-    return get_remaining_reads_from_stats()
-    # previous fall-back value didn't fit into integer type of SQL dfatabase:
-    # return 0.1
-
-
-def get_remaining_reads_from_stats():
-    global STATS
-    return (item for item in STATS if item.get("task") == "run_gsnapl_remotely").next().get("reads_before")
-
-
 def fetch_from_s3(source, destination, auto_unzip, mutex=threading.RLock(), locks={}):  #pylint: disable=dangerous-default-value
     with mutex:
         if os.path.exists(destination):
@@ -304,10 +345,6 @@ def run_and_log_work(logparams, target_outputs, lazy_run, func_name, lazy_fetch,
     LOGGER = logging.getLogger()
     LOGGER.info("========== %s ==========", logparams.get("title"))
 
-    # copy log file -- start
-    LOGGER.handlers[0].flush()
-    execute_command("aws s3 cp --quiet %s %s/;" % (LOGGER.handlers[0].baseFilename, logparams["sample_s3_output_path"]))
-
     # record version of any reference index used
     version_file_s3 = logparams.get("version_file_s3")
     if version_file_s3:
@@ -336,32 +373,21 @@ def run_and_log_work(logparams, target_outputs, lazy_run, func_name, lazy_fetch,
     else:
         LOGGER.info("uploaded output")
 
-    # copy log file -- after work is done
-    execute_command("aws s3 cp --quiet %s %s/;" % (LOGGER.handlers[0].baseFilename, logparams["sample_s3_output_path"]))
 
-    # count records
-    required_params = ["before_file_name", "before_file_type", "after_file_name", "after_file_type"]
-    if logparams.get("count_reads") and all(param in logparams for param in required_params):
-        records_before = count_reads(logparams["before_file_name"], logparams["before_file_type"])
-        records_after = count_reads(logparams["after_file_name"], logparams["after_file_type"])
-        STATS.append({'task': func_name.__name__, 'reads_before': records_before, 'reads_after': records_after})
-
-    # copy log file -- end
-    LOGGER.handlers[0].flush()
-    execute_command("aws s3 cp --quiet %s %s/;" % (LOGGER.handlers[0].baseFilename, logparams["sample_s3_output_path"]))
-
-    # write stats
-    stats_path = logparams.get("stats_file")
-    if stats_path:
-        with open(stats_path, 'wb') as f:
-            json.dump(STATS, f)
-        execute_command("aws s3 cp --quiet %s %s/;" % (stats_path, logparams["sample_s3_output_path"]))
+def upload_log_file(sample_s3_output_path, lock=threading.RLock()):
+    with lock:
+        logh = logging.getLogger().handlers[0]
+        logh.flush()
+        execute_command("aws s3 cp --quiet %s %s/;" % (logh.baseFilename, sample_s3_output_path))
 
 
-def write_to_log(message, lock=threading.RLock()):
+def write_to_log(message, warning=False, lock=threading.RLock()):
     LOGGER = logging.getLogger()
     with lock:
-        LOGGER.info(message)
+        if warning:
+            LOGGER.warn(message)
+        else:
+            LOGGER.info(message)
 
 def unbuffer_stdout():
     # Unbuffer stdout and redirect stderr into stdout. This helps observe logged events in realtime.
@@ -438,27 +464,30 @@ def download_reference_on_remote(ncbitool_path, input_fasta_ncbi_path, version_n
     execute_command(remote_command(command, key_path, remote_username, server_ip))
     return os.path.join(destination_dir, os.path.basename(input_fasta_ncbi_path))
 
-def download_reference_on_remote_with_version_any_source_type(ref_file, dest_dir,
-    local_ncbitool_dest_dir, remote_ncbitool_dest_dir,
-    key_path, remote_username, server_ip, sudo=False):
+def download_reference_on_remote_with_version_any_source_type(
+        ref_file, dest_dir,
+        local_ncbitool_dest_dir, remote_ncbitool_dest_dir,
+        key_path, remote_username, server_ip, sudo=False):
     # Get input reference and version number.
     # If download does not use ncbitool (e.g. direct s3 link), indicate that there is no versioning.
     input_fasta_name = os.path.basename(ref_file)
     if ref_file.startswith("s3://"):
         input_fasta_remote = os.path.join(dest_dir, input_fasta_name)
-        execute_command(remote_command("aws s3 cp --quiet %s %s/" % (input_fasta_remote, ref_file, dest_dir),
-            key_path, remote_username, server_ip))
+        execute_command(remote_command("aws s3 cp --quiet %s %s/" % (ref_file, dest_dir),
+                                       key_path, remote_username, server_ip))
         version_number = VERSION_NONE
     elif ref_file.startswith("ftp://"):
         input_fasta_remote = os.path.join(dest_dir, input_fasta_name)
-        execute_command(remote_command("cd %s; sudo wget %s" % (input_fasta_remote, dest_dir, ref_file),
-            key_path, remote_username, server_ip))
+        execute_command(remote_command("cd %s; sudo wget %s" % (dest_dir, ref_file),
+                                       key_path, remote_username, server_ip))
         version_number = VERSION_NONE
     else:
-        local_ncbitool, remote_ncbitool = install_ncbitool(local_ncbitool_dest_dir, remote_ncbitool_dest_dir,
+        local_ncbitool, remote_ncbitool = install_ncbitool(
+            local_ncbitool_dest_dir, remote_ncbitool_dest_dir,
             key_path, remote_username, server_ip, sudo)
         version_number = get_reference_version_number(local_ncbitool, ref_file)
-        input_fasta_remote = download_reference_on_remote(remote_ncbitool, ref_file, version_number, dest_dir,
+        input_fasta_remote = download_reference_on_remote(
+            remote_ncbitool, ref_file, version_number, dest_dir,
             key_path, remote_username, server_ip)
     return input_fasta_remote, version_number
 
