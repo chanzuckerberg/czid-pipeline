@@ -45,3 +45,26 @@ def curate_seq_dict(nt_file, output_db_file):
 class Curate_accessionid2seq(Base):
     def run(self):
         from .common import * #TO DO: clean up the imports across this package
+
+        # Make work directory
+        dest_dir = os.path.join(DEST_DIR, 'accession2seq')
+        execute_command("mkdir -p %s" % dest_dir)
+        arguments = self.options
+
+        s3_input_file = arguments.get('--input_s3_path')
+        s3_output_file = arguments.get('--output_s3_path')
+        local_input_file = os.path.join(dest_dir, os.path.basename(s3_input_file))
+        local_output_file = os.path.join(dest_dir, os.path.basename(s3_output_file))
+
+        # Copy the data over from s3
+        execute_command("s3mi cp %s %s" % (s3_input_file, local_input_file))
+
+        curate_seq_dict(local_input_file, local_output_file)
+
+        # copy the data back
+        execute_command("aws s3 cp %s %s" % (local_output_file, s3_output_file))
+
+        # cleanup
+        execute_command("rm -rf %s %s" % (local_input_file, local_output_file))
+
+

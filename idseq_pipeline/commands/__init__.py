@@ -6,6 +6,6 @@ from .gsnap_indexing import *
 from .rapsearch_indexing import *
 from .lineages import *
 from .curate_accession2taxid import *
-from .curate_accessionid2seq.py import *
-from .accessionid2seq.py import *
+from .curate_accessionid2seq import *
+from .accessionid2seq import *
 from .blacklist import *
