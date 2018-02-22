@@ -13,6 +13,7 @@ import re
 import json
 import threading
 import traceback
+import os
 
 
 # Test with the following function call
@@ -21,7 +22,9 @@ import traceback
 def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
                                 annotated_m8, annotated_fasta,
                                 output_json_dir):
-    # Go through annotated_fasta with a db_type (NT/NR match). Infer the family/genus/species info
+    """Generate alignment details from the reference sequence, m8 and annotated fasta """
+    # Go through annotated_fasta with a db_type (NT/NR match).  Infer the family/genus/species info
+
     if db_type != 'NT' and db_type != 'NR':
         return
 
@@ -91,7 +94,58 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
             for (species_id, species_dict) in genus_dict.iteritems():
                 with open("%s/%s.species.%d.align_viz.json" %(output_json_dir, db_type.lower(), int(species_id)), 'wb') as outjf:
                     json.dump(species_dict, outjf)
+    return "Read2Seq Size: %d, M8 lines %d" % (len(read2seq),line_count)
 
 class Accessionid2seq(Base):
     def run(self):
-        print("Placeholder")
+        from .common import * #TO DO: clean up the imports across this package
+
+        # Make work directory
+        dest_dir = os.path.join(DEST_DIR, "accession2seq/tmp-%d" % os.getpid())
+        execute_command("mkdir -p %s" % dest_dir)
+        arguments = self.options
+        s3_db_path = arguments.get('--s3_db_path')
+        s3_db_loc_path = arguments.get('--s3_db_loc_path')
+        db_type = arguments.get('--db_type')
+        input_fasta_s3_path = arguments.get('--input_fasta_s3_path')
+        input_m8_s3_path = arguments.get('--input_m8_s3_path')
+        output_json_s3_path = arguments.get('--output_json_s3_path')
+        output_json_s3_path = arguments.get('--output_json_s3_path').rstrip('/')
+
+        local_db_path = arguments.get('--local_db_path')
+
+
+        local_db_loc_path =  os.path.join(dest_dir, os.path.basename(s3_db_loc_path))
+        local_fasta_path =  os.path.join(dest_dir, os.path.basename(input_fasta_s3_path))
+        local_m8_path = os.path.join(dest_dir, os.path.basename(input_m8_s3_path))
+        local_json_path = os.path.join(dest_dir, "align_viz")
+
+        # Copy the data over from s3
+        if not local_db_path:
+            local_db_path =  os.path.join(dest_dir, os.path.basename(s3_db_path))
+            if s3_db_path[-3:] == '.gz':
+                local_db_path = local_db_path[:-3]
+                execute_command("aws s3 cp %s - | gunzip > %s" %(s3_db_path, local_db_path))
+            else:
+                execute_command("aws s3 cp %s %s" %(s3_db_path, local_db_path))
+        execute_command("aws s3 cp %s %s" %(s3_db_loc_path, local_db_loc_path))
+        execute_command("aws s3 cp %s %s" %(input_fasta_s3_path, local_fasta_path))
+        execute_command("aws s3 cp %s %s" %(input_m8_s3_path, local_m8_path))
+        summary= generate_alignment_viz_json(local_db_path, local_db_loc_path, db_type,
+                                             local_m8_path, local_fasta_path, local_json_path)
+        summary_file_name = "%s.summary" % local_json_path
+        with open(summary_file_name, 'w') as summaryf:
+            summaryf.write(summary)
+        # copy the data over
+        execute_command("aws s3 cp %s %s --recursive" % (local_json_path, output_json_s3_path))
+        execute_command("aws s3 cp %s %s/" % (summary_file_name, os.path.dirname(output_json_s3_path)))
+
+        # Clean up
+        execute_command("rm -rf %s" % dest_dir)
+
+
+
+
+
+
+
