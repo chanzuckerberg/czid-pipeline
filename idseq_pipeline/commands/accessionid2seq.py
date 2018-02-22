@@ -78,7 +78,7 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
                         accession_dict['ref_seq'] = 'NOT FOUND'
 
                 result_dict[family_id][genus_id][species_id][accession_id] = accession_dict
-    print("%d lines in the m8 file" % line_count")
+    print("%d lines in the m8 file" % line_count)
 
     # output json by species, genus, family
     execute_command("mkdir -p %s " % output_json_dir)
