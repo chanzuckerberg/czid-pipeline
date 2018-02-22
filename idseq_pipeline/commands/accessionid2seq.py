@@ -50,8 +50,10 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
     nt_loc_dic = shelve.open(nt_loc_db)
     nt = open(nt_file)
     result_dict = {}
+    line_count = 0
     with open(annotated_m8, 'r') as m8f:
         for line in m8f:
+            line_count += 1
             line_columns = line.rstrip().split("\t")
             read_id = extract_m8_readid(line_columns[0])
             accession_id = line_columns[1]
@@ -76,6 +78,7 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
                         accession_dict['ref_seq'] = 'NOT FOUND'
 
                 result_dict[family_id][genus_id][species_id][accession_id] = accession_dict
+    print("%d lines in the m8 file" % line_count")
 
     # output json by species, genus, family
     execute_command("mkdir -p %s " % output_json_dir)

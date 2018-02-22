@@ -40,22 +40,20 @@ def make_index(version):
     execute_command(remote_command("sudo mkdir -p %s" % WORK_DIR, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
     local_ncbitool, remote_ncbitool = install_ncbitool(LOCAL_WORK_DIR, WORK_DIR, KEY_PATH, REMOTE_USERNAME, SERVER_IP, True)
 
-    # get latest version number of desired reference file
-    version_number = get_reference_version_number(local_ncbitool, INPUT_FASTA_S3)
-
     # download reference and unzip
-    input_fasta_zipped = download_reference_on_remote(remote_ncbitool, INPUT_FASTA_S3, version_number, WORK_DIR,
-                                                      KEY_PATH, REMOTE_USERNAME, SERVER_IP)
+    input_fasta_zipped, version_number = download_reference_on_remote_with_version_any_source_type(INPUT_FASTA_S3, WORK_DIR,
+        LOCAL_WORK_DIR, WORK_DIR, KEY_PATH, REMOTE_USERNAME, SERVER_IP, True)
     input_fasta_unzipped = input_fasta_zipped[:-3]
     command = "sudo gunzip -f %s" % input_fasta_zipped
     execute_command(remote_command(command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
     # make index
     indexing_command = "sudo %s/gmap_build -d %s -k 16 %s" % (GSNAPL_PATH, OUTPUT_NAME, input_fasta_unzipped)
+    indexing_command += "; cd %s; sudo tar -cvf %s.tar %s" % (GMAPDB_PATH, OUTPUT_NAME, OUTPUT_NAME)
     execute_command(remote_command(indexing_command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
     # upload index
-    upload_command = "aws s3 cp --quiet %s/%s %s/%s/ --recursive" % (GMAPDB_PATH, OUTPUT_NAME, OUTPUT_PATH_S3, OUTPUT_NAME)
+    upload_command = "aws s3 cp --quiet %s/%s.tar %s/" % (GMAPDB_PATH, OUTPUT_NAME, OUTPUT_PATH_S3)
     execute_command(remote_command(upload_command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
     # upload version tracker file

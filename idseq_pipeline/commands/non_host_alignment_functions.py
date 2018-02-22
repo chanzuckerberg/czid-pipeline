@@ -20,17 +20,17 @@ chunks_in_flight = threading.Semaphore(MAX_CHUNKS_IN_FLIGHT)
 # Dispatch at most this many chunks per minute, to ensure fairness
 # amongst jobs regardless of job size (not the best way to do it,
 # just for now).
-MAX_DISPATCHES_PER_MINUTE = 5
+MAX_DISPATCHES_PER_MINUTE = 10
 
 # poll this many random servers per wait_for_instance_ip
 MAX_INSTANCES_TO_POLL = 5
 
 # If no instance is available, we should refresh our list of instances, to pick up new instances
 # added by autoscaling.  Wait at least this long between refreshes to stay within AWS account limits.
-MIN_INTERVAL_BETWEEN_DESCRIBE_INSTANCES = 300
+MIN_INTERVAL_BETWEEN_DESCRIBE_INSTANCES = 240
 
 # Refresh at least every 30 minutes
-MAX_INTERVAL_BETWEEN_DESCRIBE_INSTANCES = 1800
+MAX_INTERVAL_BETWEEN_DESCRIBE_INSTANCES = 1200
 
 # data directories
 ROOT_DIR = '/mnt'
@@ -78,8 +78,7 @@ SAMPLE_DIR = DEST_DIR + '/' + SAMPLE_NAME
 FASTQ_DIR = SAMPLE_DIR + '/fastqs'
 RESULT_DIR = SAMPLE_DIR + '/results'
 CHUNKS_RESULT_DIR = os.path.join(RESULT_DIR, "chunks")
-DEFAULT_LOGPARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH,
-                     "stats_file": os.path.join(RESULT_DIR, STATS_OUT)}
+DEFAULT_LOGPARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH}
 
 # For reproducibility of random operations
 random.seed(hash(SAMPLE_NAME))
@@ -134,7 +133,7 @@ def subsample_single_fasta(input_file, records_to_keep, type_, output_file):
     record_number = 0
     assert isinstance(records_to_keep, set), "Essential for this to complete in our lifetimes."
     kept_read_ids = set()
-    write_to_log(sorted(records_to_keep))
+    # write_to_log(sorted(records_to_keep))
     with open(input_file, 'rb') as input_f:
         with open(output_file, 'wb') as output_f:
             sequence_name = input_f.readline()
@@ -328,10 +327,10 @@ def check_pair_concordance(read_to_taxid):
     return species_taxid_concordance_map, genus_taxid_concordance_map, family_taxid_concordance_map
 
 def generate_json_from_taxid_counts(taxidCountsInputPath, jsonOutputPath, countType, lineage_map,
-                                    species_total_concordant, genus_total_concordant, family_total_concordant):
-    total_reads = get_total_reads_from_stats()
+                                    species_total_concordant, genus_total_concordant, family_total_concordant, stats):
+    total_reads = stats.get_total_reads()
     taxon_counts_attributes = []
-    remaining_reads = get_remaining_reads_from_stats()
+    remaining_reads = stats.get_remaining_reads()
 
     species_to_count = {}
     species_to_percent_identity = {}
@@ -387,9 +386,9 @@ def generate_json_from_taxid_counts(taxidCountsInputPath, jsonOutputPath, countT
         json.dump(output_dict, outf)
 
 
-def combine_pipeline_output_json(inputPath1, inputPath2, outputPath):
-    total_reads = get_total_reads_from_stats()
-    remaining_reads = get_remaining_reads_from_stats()
+def combine_pipeline_output_json(inputPath1, inputPath2, outputPath, stats):
+    total_reads = stats.get_total_reads()
+    remaining_reads = stats.get_remaining_reads()
     with open(inputPath1) as inf1:
         input1 = json.load(inf1).get("pipeline_output")
     with open(inputPath2) as inf2:
@@ -516,7 +515,7 @@ def wait_for_server_ip_work(service_name, key_path, remote_username, environment
         ip_nproc_dict = {}
         dict_mutex = threading.RLock()
         def poll_server(ip):
-            command = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s "ps aux | grep %s | grep -v bash" || echo "error"' % (key_path, remote_username, ip, service_name)
+            command = 'ssh -o "StrictHostKeyChecking no" -o "ConnectTimeout 5" -i %s %s@%s "ps aux | grep %s | grep -v bash" || echo "error"' % (key_path, remote_username, ip, service_name)
             output = execute_command_with_output(command).rstrip().split("\n")
             if output != ["error"]:
                 with dict_mutex:
@@ -549,7 +548,7 @@ def wait_for_server_ip_work(service_name, key_path, remote_username, environment
             return min_nproc_ip
         else:
             had_to_wait[0] = True
-            wait_seconds = random.randint(30, 60)
+            wait_seconds = random.randint(15, 60)
             print "%s servers busy. Wait for %d seconds" % \
                   (service_name, wait_seconds)
             time.sleep(wait_seconds)
@@ -573,14 +572,6 @@ def wait_for_server_ip(service_name, key_path, remote_username, environment, max
         # if we had to wait here, that counts toward the rate limit delay
         result = wait_for_server_ip_work(service_name, key_path, remote_username, environment, max_concurrent)
         return result
-
-
-def check_s3_file_presence(s3_path):
-    command = "aws s3 ls %s | wc -l" % s3_path
-    try:
-        return int(execute_command_with_output(command).rstrip())
-    except:
-        return 0
 
 
 # job functions
@@ -889,7 +880,7 @@ def run_rapsearch2_remotely(input_fasta, lazy_run):
 
 
 def run_generate_taxid_outputs_from_m8(annotated_m8, taxon_counts_csv_file, taxon_counts_json_file,
-                                       count_type, e_value_type):
+                                       count_type, e_value_type, stats):
 
     lineage_path = fetch_reference(LINEAGE_SHELF)
     lineage_map = shelve.open(lineage_path)
@@ -898,14 +889,14 @@ def run_generate_taxid_outputs_from_m8(annotated_m8, taxon_counts_csv_file, taxo
                                                                                           taxon_counts_csv_file, lineage_map)
     write_to_log("generated taxon counts from m8")
     generate_json_from_taxid_counts(taxon_counts_csv_file, taxon_counts_json_file, count_type,
-                                    lineage_map, species_concordant, genus_concordant, family_concordant)
+                                    lineage_map, species_concordant, genus_concordant, family_concordant, stats)
     write_to_log("generated JSON file from taxon counts")
     # move the output back to S3
     execute_command("aws s3 cp --quiet %s %s/" % (taxon_counts_csv_file, SAMPLE_S3_OUTPUT_PATH))
     execute_command("aws s3 cp --quiet %s %s/" % (taxon_counts_json_file, SAMPLE_S3_OUTPUT_PATH))
 
-def run_combine_json_outputs(input_json_1, input_json_2, output_json):
-    combine_pipeline_output_json(input_json_1, input_json_2, output_json)
+def run_combine_json_outputs(input_json_1, input_json_2, output_json, stats):
+    combine_pipeline_output_json(input_json_1, input_json_2, output_json, stats)
     write_to_log("finished job")
     # move it the output back to S3
     execute_command("aws s3 cp --quiet %s %s/" % (output_json, SAMPLE_S3_OUTPUT_PATH))
@@ -941,6 +932,9 @@ def run_stage2(lazy_run=True):
         _gsnapl_input_files = [EXTRACT_UNMAPPED_FROM_SAM_OUT1, EXTRACT_UNMAPPED_FROM_SAM_OUT2]
         before_file_name_for_log = os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1)
         before_file_type_for_log = "fasta_paired"
+        # Import existing job stats
+        stats = StatsFile(STATS_OUT, RESULT_DIR, SAMPLE_S3_INPUT_PATH, SAMPLE_S3_OUTPUT_PATH)
+        stats.load_from_s3()
     else:
         # in case where previous stage was skipped, go back to original input
         command = "aws s3 ls %s/ | grep '\\.%s$'" % (SAMPLE_S3_FASTQ_PATH, FILE_TYPE)
@@ -960,6 +954,8 @@ def run_stage2(lazy_run=True):
         _merged_fasta = os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3)
         generate_merged_fasta(cleaned_files, _merged_fasta)
         execute_command("aws s3 cp --quiet %s %s/" % (_merged_fasta, SAMPLE_S3_OUTPUT_PATH))
+        # Create new stats
+        stats = StatsFile(STATS_OUT, RESULT_DIR, None, SAMPLE_S3_OUTPUT_PATH)
 
     # Make sure there are no tabs in sequence names, since tabs are used as a delimiter in m8 files
     files_to_collapse_basenames = _gsnapl_input_files + [EXTRACT_UNMAPPED_FROM_SAM_OUT3]
@@ -972,13 +968,6 @@ def run_stage2(lazy_run=True):
         execute_command("aws s3 cp --quiet %s %s/" % (filename, SAMPLE_S3_OUTPUT_PATH))
     gsnapl_input_files = [os.path.basename(f) for f in collapsed_files[:-1]]
     merged_fasta = collapsed_files[-1]
-
-    # Import existing job stats
-    stats_s3_path = os.path.join(SAMPLE_S3_INPUT_PATH, STATS_OUT)
-    if check_s3_file_presence(stats_s3_path):
-        execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, STATS_OUT, RESULT_DIR))
-        stats_file = os.path.join(RESULT_DIR, STATS_OUT)
-        load_existing_stats(stats_file)
 
     # subsample if specified
     if SUBSAMPLE:
@@ -998,10 +987,9 @@ def run_stage2(lazy_run=True):
         # run gsnap remotely
         logparams = return_merged_dict(
             DEFAULT_LOGPARAMS,
-            {"title": "GSNAPL", "count_reads": True,
-             "before_file_name": before_file_name_for_log, "before_file_type": before_file_type_for_log,
-             "after_file_name": os.path.join(RESULT_DIR, GSNAPL_DEDUP_OUT), "after_file_type": "m8",
-             "version_file_s3": GSNAP_VERSION_FILE_S3, "output_version_file": os.path.join(RESULT_DIR, VERSION_OUT)})
+            {"title": "GSNAPL",
+             "version_file_s3": GSNAP_VERSION_FILE_S3,
+             "output_version_file": os.path.join(RESULT_DIR, VERSION_OUT)})
         run_and_log_s3(
             logparams,
             TARGET_OUTPUTS["run_gsnapl_remotely"],
@@ -1010,11 +998,16 @@ def run_stage2(lazy_run=True):
             run_gsnapl_remotely,
             gsnapl_input_files,
             lazy_run)
+        stats.count_reads("run_gsnapl_remotely",
+                          before_filename=before_file_name_for_log,
+                          before_filetype=before_file_type_for_log,
+                          after_filename=os.path.join(RESULT_DIR, GSNAPL_DEDUP_OUT),
+                          after_filetype="m8")
 
         # run_annotate_gsnapl_m8_with_taxids
         logparams = return_merged_dict(
             DEFAULT_LOGPARAMS,
-            {"title": "annotate gsnapl m8 with taxids", "count_reads": False})
+            {"title": "annotate gsnapl m8 with taxids"})
         run_and_log_eager(
             logparams,
             TARGET_OUTPUTS["run_annotate_m8_with_taxids__1"],
@@ -1023,9 +1016,7 @@ def run_stage2(lazy_run=True):
             os.path.join(RESULT_DIR, ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT))
 
         # run_generate_taxid_annotated_fasta_from_m8
-        logparams = return_merged_dict(
-            DEFAULT_LOGPARAMS,
-            {"title": "generate taxid annotated fasta from m8", "count_reads": False})
+        logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "generate taxid annotated fasta from m8"})
         run_and_log_eager(
             logparams,
             TARGET_OUTPUTS["run_generate_taxid_annotated_fasta_from_m8__1"],
@@ -1038,21 +1029,23 @@ def run_stage2(lazy_run=True):
         if SKIP_DEUTERO_FILTER:
             next_input = ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT
         else:
-            logparams = return_merged_dict(
-                DEFAULT_LOGPARAMS,
-                {"title": "filter deuterostomes from m8__1", "count_reads": True,
-                 "before_file_name": os.path.join(RESULT_DIR, ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT), "before_file_type": "m8",
-                 "after_file_name": os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NT_M8_OUT), "after_file_type": "m8"})
+            logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "filter deuterostomes from m8__1"})
             run_and_log_eager(
                 logparams, TARGET_OUTPUTS["run_filter_deuterostomes_from_m8__1"],
                 run_filter_deuterostomes_from_m8,
                 os.path.join(RESULT_DIR, ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT),
                 os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NT_M8_OUT))
+            stats.count_reads("run_filter_deuterostomes_from_m8__1",
+                              before_filename=os.path.join(RESULT_DIR, ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT),
+                              before_filetype="m8",
+                              after_filename=os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NT_M8_OUT),
+                              after_filetype="m8")
             next_input = FILTER_DEUTEROSTOMES_FROM_NT_M8_OUT
+
 
         logparams = return_merged_dict(
             DEFAULT_LOGPARAMS,
-            {"title": "generate taxid outputs from m8", "count_reads": False})
+            {"title": "generate taxid outputs from m8"})
         run_and_log_eager(
             logparams, TARGET_OUTPUTS["run_generate_taxid_outputs_from_m8__1"],
             run_generate_taxid_outputs_from_m8,
@@ -1060,7 +1053,8 @@ def run_stage2(lazy_run=True):
             os.path.join(RESULT_DIR, NT_M8_TO_TAXID_COUNTS_FILE_OUT),
             os.path.join(RESULT_DIR, NT_TAXID_COUNTS_TO_JSON_OUT),
             'NT',
-            'raw')
+            'raw',
+            stats)
 
         with thread_success_lock:
             thread_success["gsnap"] = True
@@ -1068,10 +1062,7 @@ def run_stage2(lazy_run=True):
     def run_rapsearch2():
         logparams = return_merged_dict(
             DEFAULT_LOGPARAMS,
-            {"title": "RAPSearch2", "count_reads": True,
-             "before_file_name": os.path.join(RESULT_DIR, merged_fasta),
-             "before_file_type": "fasta",
-             "after_file_name": os.path.join(RESULT_DIR, RAPSEARCH2_OUT), "after_file_type": "m8",
+            {"title": "RAPSearch2",
              "version_file_s3": RAPSEARCH_VERSION_FILE_S3, "output_version_file": os.path.join(RESULT_DIR, VERSION_OUT)})
         run_and_log_s3(
             logparams,
@@ -1081,6 +1072,11 @@ def run_stage2(lazy_run=True):
             run_rapsearch2_remotely,
             merged_fasta,
             lazy_run)
+        stats.count_reads("run_rapsearch2_remotely",
+                          before_filename=os.path.join(RESULT_DIR, merged_fasta),
+                          before_filetype="fasta",
+                          after_filename=os.path.join(RESULT_DIR, RAPSEARCH2_OUT),
+                          after_filetype="m8")
 
         with thread_success_lock:
             thread_success["rapsearch2"] = True
@@ -1089,7 +1085,7 @@ def run_stage2(lazy_run=True):
         # run_annotate_m8_with_taxids
         logparams = return_merged_dict(
             DEFAULT_LOGPARAMS,
-            {"title": "annotate m8 with taxids", "count_reads": False})
+            {"title": "annotate m8 with taxids"})
         run_and_log_eager(
             logparams,
             TARGET_OUTPUTS["run_annotate_m8_with_taxids__2"],
@@ -1100,22 +1096,23 @@ def run_stage2(lazy_run=True):
         if SKIP_DEUTERO_FILTER:
             next_input = ANNOTATE_RAPSEARCH2_M8_WITH_TAXIDS_OUT
         else:
-            logparams = return_merged_dict(
-                DEFAULT_LOGPARAMS,
-                {"title": "filter deuterostomes from m8", "count_reads": True,
-                 "before_file_name": os.path.join(RESULT_DIR, ANNOTATE_RAPSEARCH2_M8_WITH_TAXIDS_OUT), "before_file_type": "m8",
-                 "after_file_name": os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NR_M8_OUT), "after_file_type": "m8"})
+            logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "filter deuterostomes from m8"})
             run_and_log_eager(
                 logparams,
                 TARGET_OUTPUTS["run_filter_deuterostomes_from_m8__2"],
                 run_filter_deuterostomes_from_m8,
                 os.path.join(RESULT_DIR, ANNOTATE_RAPSEARCH2_M8_WITH_TAXIDS_OUT),
                 os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NR_M8_OUT))
+            stats.count_reads("run_filter_deuterostomes_from_m8__2",
+                              before_filename=os.path.join(RESULT_DIR, ANNOTATE_RAPSEARCH2_M8_WITH_TAXIDS_OUT),
+                              before_filetype="fasta",
+                              after_filename=os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NR_M8_OUT),
+                              after_filetype="m8")
             next_input = FILTER_DEUTEROSTOMES_FROM_NR_M8_OUT
 
         logparams = return_merged_dict(
             DEFAULT_LOGPARAMS,
-            {"title": "generate taxid outputs from m8", "count_reads": False})
+            {"title": "generate taxid outputs from m8"})
         run_and_log_eager(
             logparams,
             TARGET_OUTPUTS["run_generate_taxid_outputs_from_m8__2"],
@@ -1124,18 +1121,20 @@ def run_stage2(lazy_run=True):
             os.path.join(RESULT_DIR, NR_M8_TO_TAXID_COUNTS_FILE_OUT),
             os.path.join(RESULT_DIR, NR_TAXID_COUNTS_TO_JSON_OUT),
             'NR',
-            'log10')
+            'log10',
+            stats)
 
         logparams = return_merged_dict(
             DEFAULT_LOGPARAMS,
-            {"title": "combine JSON outputs", "count_reads": False})
+            {"title": "combine JSON outputs"})
         run_and_log_eager(
             logparams,
             TARGET_OUTPUTS["run_combine_json_outputs"],
             run_combine_json_outputs,
             RESULT_DIR + '/' + NT_TAXID_COUNTS_TO_JSON_OUT,
             RESULT_DIR + '/' + NR_TAXID_COUNTS_TO_JSON_OUT,
-            RESULT_DIR + '/' + COMBINED_JSON_OUT)
+            RESULT_DIR + '/' + COMBINED_JSON_OUT,
+            stats)
 
         with thread_success_lock:
             thread_success["additional_steps"] = True
@@ -1144,7 +1143,7 @@ def run_stage2(lazy_run=True):
         # run_generate_taxid_annotated_fasta_from_m8
         logparams = return_merged_dict(
             DEFAULT_LOGPARAMS,
-            {"title": "generate taxid annotated fasta from m8", "count_reads": False})
+            {"title": "generate taxid annotated fasta from m8"})
         run_and_log_eager(
             logparams,
             TARGET_OUTPUTS["run_generate_taxid_annotated_fasta_from_m8__2"],
@@ -1156,16 +1155,19 @@ def run_stage2(lazy_run=True):
 
         logparams = return_merged_dict(
             DEFAULT_LOGPARAMS,
-            {"title": "generate FASTA of unidentified reads", "count_reads": True,
-             "before_file_name": os.path.join(RESULT_DIR, GENERATE_TAXID_ANNOTATED_FASTA_FROM_RAPSEARCH2_M8_OUT),
-             "before_file_type": "fasta",
-             "after_file_name": os.path.join(RESULT_DIR, UNIDENTIFIED_FASTA_OUT), "after_file_type": "fasta"})
+            {"title": "generate FASTA of unidentified reads"})
         run_and_log_eager(
             logparams,
             TARGET_OUTPUTS["run_generate_unidentified_fasta"],
             run_generate_unidentified_fasta,
             RESULT_DIR + '/' + GENERATE_TAXID_ANNOTATED_FASTA_FROM_RAPSEARCH2_M8_OUT,
             RESULT_DIR + '/' + UNIDENTIFIED_FASTA_OUT)
+        stats.count_reads("run_generate_unidentified_fasta",
+                          before_filename=os.path.join(RESULT_DIR, GENERATE_TAXID_ANNOTATED_FASTA_FROM_RAPSEARCH2_M8_OUT),
+                          before_filetype="fasta",
+                          after_filename=os.path.join(RESULT_DIR, UNIDENTIFIED_FASTA_OUT),
+                          after_filetype="fasta")
+
 
         with thread_success_lock:
             thread_success["annotation"] = True
@@ -1192,3 +1194,7 @@ def run_stage2(lazy_run=True):
     assert thread_succeded("additional_steps")
     t_annotation.join()
     assert thread_succeded("annotation")
+
+    # copy log file -- after work is done
+    stats.save_to_s3()
+    upload_log_file(SAMPLE_S3_OUTPUT_PATH)

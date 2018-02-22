@@ -10,4 +10,4 @@ class Postprocess(Base):
         unbuffer_stdout()
         upload_commit_sha(self.version)
 
-        run_stage3(True)
+        run_stage3(lazy_run=False)
