@@ -12,6 +12,7 @@ DEST_DIR = ROOT_DIR + '/idseq/indexes' # generated indexes go here
 # arguments from environment variables
 INPUT_FASTA_S3 = os.environ.get('INPUT_FASTA_S3')
 OUTPUT_PATH_S3 = os.environ.get('OUTPUT_PATH_S3').rstrip('/')
+HOST_NAME = os.environ.get('HOST_NAME')
 
 # executables
 STAR = "STAR"
@@ -135,4 +136,4 @@ def make_indexes(version, lazy_run = False):
 
     # upload version tracker file
     if not lazy_run:
-        upload_version_tracker(INPUT_FASTA_S3, 'human', version_number, OUTPUT_PATH_S3, version)
+        upload_version_tracker(INPUT_FASTA_S3, HOST_NAME, version_number, OUTPUT_PATH_S3, version)
