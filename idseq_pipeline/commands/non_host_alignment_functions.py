@@ -267,7 +267,6 @@ def generate_tax_counts_from_m8(m8_file, e_value_type, output_file, lineage_map)
 
     with open(m8_file, 'rb') as m8f:
         for line in m8f:
-
             # Get taxid:
             line_columns = line.split("\t")
             # If file is corrupt, log it:
@@ -277,18 +276,7 @@ def generate_tax_counts_from_m8(m8_file, e_value_type, output_file, lineage_map)
             taxid = (read_id_column.split("taxid"))[1].split(":")[0]
             species_taxid, genus_taxid, family_taxid = lineage_map.get(taxid, ("-100", "-200", "-300"))
 
-            # Get raw read ID without our annotations:
-            # If m8 is from gsnap (case 1), 1 field has been prepended (taxid field).
-            # If m8 is from rapsearch in an old version of the pipeline (case 2), 3 fields have been prepended (taxid, 'NT', NT accession ID).
-            # If m8 is from rapsearch in a newer version of the pipeline (case 3), many fields have been prepended (taxid, alignment info fields),
-            # but the delimiter ":read_id:" marks the beginning of the raw read ID.
-            read_id_column = read_id_column.split(":", 1)[1] # remove taxid field (all cases)
-            if ":read_id:" in read_id_column: # case 3
-                raw_read_id = read_id_column.split(":read_id:")[1]
-            elif read_id_column.startswith("NT:"): # case 2
-                raw_read_id = read_id_column.split(":", 2)[2]
-            else: # case 1
-                raw_read_id = read_id_column
+            raw_read_id = extract_m8_readid(read_id_column)
 
             # Get alignment quality metrics from m8 format (blast format 8):
             #   %id, alignment length, mismatches, gap openings, query start, query end,

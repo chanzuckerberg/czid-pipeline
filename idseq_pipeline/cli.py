@@ -11,8 +11,8 @@ Usage:
   idseq_pipeline blacklist
   idseq_pipeline lineages
   idseq_pipeline curate_accession2taxid --mapping_files <mapping_file1,mapping_file2,etc> --nr_file <nr_file> --nt_file <nt_file> --output_s3_folder <output_s3_folder> [--previous_mapping <previous_mapping>]
-  idseq_pipeline curate_accessionid2seq --input_s3_path <input_s3_path> --output_s3_path <output_s3_path>
-  idseq_pipeline accessionid2seq --s3_db_path <s3_db_path> --input_fasta_s3_path <input_fasta_s3_path> --output_json_s3_path <output_json_s3_path>
+  idseq_pipeline curate_accessionid2seq --s3_db_path <s3_db_path> --s3_db_loc_path <s3_db_loc_path>
+  idseq_pipeline accessionid2seq --s3_db_loc_path <s3_db_loc_path> --db_type <db_type> --input_fasta_s3_path <input_fasta_s3_path> --input_m8_s3_path <input_m9_s3_path> --output_json_s3_path <output_json_s3_path> [--local_db_path <local_db_path> --s3_db_path <s3_db_path>]
   idseq_pipeline -h | --help
   idseq_pipeline --version
 
@@ -22,10 +22,16 @@ Options:
   --mapping_files <mapping_file1,mapping_file2,etc>     Accession2taxid files from NCBI, comma-separated [default: /pub/taxonomy/accession2taxid/nucl_est.accession2taxid.gz,/pub/taxonomy/accession2taxid/nucl_gb.accession2taxid.gz,/pub/taxonomy/accession2taxid/nucl_gss.accession2taxid.gz,/pub/taxonomy/accession2taxid/nucl_wgs.accession2taxid.gz,/pub/taxonomy/accession2taxid/pdb.accession2taxid.gz,/pub/taxonomy/accession2taxid/prot.accession2taxid.gz]
   --nr_file <nr_file>                                   NR fasta file [default: /blast/db/FASTA/nr.gz]
   --nt_file <nt_file>                                   NT fasta file [default: /blast/db/FASTA/nt.gz]
-  --input_s3_path <input_s3_path>                 S3 path for NT or NR file
-  --output_s3_path <output_s3_path>                 S3 path for NT or NR location database output
   --output_s3_folder <output_s3_folder>                 S3 destination for curated accesstion2taxid output file [default: s3://czbiohub-infectious-disease/references]
   --previous_mapping <previous_mapping>                 S3 path to the previous version of accesstion2taxid.db.gz, to be compared to the new version
+  --s3_db_path <s3_db_path>                     S3 path for NT or NR file
+  --local_db_path <local_db_path>               Local path for NT or NR file
+  --s3_db_loc_path <s3_db_loc_path>             S3 path for NT or NR  location database
+  --db_type <db_type>                           NT or NR
+  --input_fasta_s3_path <input_fasta_s3_path>   S3 path Annotated fasta file with family/genus/species info noted
+  --input_m8_s3_path <input_m8_s3_path>         S3 path for m8 output file
+  --output_json_s3_path <output_json_s3_path>   S3 directory for json files
+
 
 Examples:
 
@@ -47,6 +53,13 @@ Examples:
   OUTPUT_PATH_S3=s3://czbiohub-infectious-disease/references INPUT=/pub/taxonomy/taxdump.tar.gz idseq_pipeline lineages
 
   INPUT_FASTA_S3='s3://czbiohub-ncbi-store/blast/db/FASTA/vector.gz' ACCESSION2TAXID_DB_S3_PATH='s3://czbiohub-infectious-disease/references/accession2taxid.db.gz' idseq_pipeline blacklist
+
+  idseq_pipeline curate_accessionid2seq --s3_db_path s3://yunfang-workdir/curate_accessionid2seq/nt.sample --s3_db_loc_path s3://yunfang-workdir/curate_accessionid2seq/nt.sample.db
+
+
+  idseq_pipeline accessionid2seq --s3_db_path s3://idseq-database/20170824/blast_db/nt.gz --s3_db_loc_path s3://idseq-database/20170824/blast_db/nt_loc.db --db_type NT --input_fasta_s3_path s3://idseq-samples-production/samples/1/1297/postprocess/taxid_annot_sorted_nt.fasta --input_m8_s3_path s3://idseq-samples-production/samples/1/1297/results/taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8 --output_json_s3_path s3://idseq-samples-production/samples/1/1297/postprocess/align_viz
+
+idseq_pipeline accessionid2seq --local_db_path /mnt/idseq/data/accession2seq/nt --s3_db_loc_path s3://idseq-database/20170824/blast_db/nt_loc.db --db_type NT --input_fasta_s3_path s3://idseq-samples-production/samples/1/1298/postprocess/taxid_annot_sorted_nt.fasta --input_m8_s3_path s3://idseq-samples-production/samples/1/1298/results/taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8 --output_json_s3_path s3://idseq-samples-production/samples/1/1298/postprocess/align_viz
 
 Help:
   For help using this tool, please open an issue on the Github repository:

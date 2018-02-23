@@ -51,8 +51,8 @@ class Curate_accessionid2seq(Base):
         execute_command("mkdir -p %s" % dest_dir)
         arguments = self.options
 
-        s3_input_file = arguments.get('--input_s3_path')
-        s3_output_file = arguments.get('--output_s3_path')
+        s3_input_file = arguments.get('--s3_db_path')
+        s3_output_file = arguments.get('--s3_db_loc_path')
         local_input_file = os.path.join(dest_dir, os.path.basename(s3_input_file))
         local_output_file = os.path.join(dest_dir, os.path.basename(s3_output_file))
 

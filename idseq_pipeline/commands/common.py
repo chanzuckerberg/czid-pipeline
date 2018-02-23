@@ -229,6 +229,21 @@ def percent_str(percent):
     except:
         return str(percent)
 
+def extract_m8_readid(read_id_column):
+    # Get raw read ID without our annotations:
+    # If m8 is from gsnap (case 1), 1 field has been prepended (taxid field).
+    # If m8 is from rapsearch in an old version of the pipeline (case 2), 3 fields have been prepended (taxid, 'NT', NT accession ID).
+    # If m8 is from rapsearch in a newer version of the pipeline (case 3), many fields have been prepended (taxid, alignment info fields),
+    # but the delimiter ":read_id:" marks the beginning of the raw read ID.
+    read_id_column = read_id_column.split(":", 1)[1] # remove taxid field (all cases)
+    if ":read_id:" in read_id_column: # case 3
+        raw_read_id = read_id_column.split(":read_id:")[1]
+    elif read_id_column.startswith("NT:"): # case 2
+        raw_read_id = read_id_column.split(":", 2)[2]
+    else: # case 1
+        raw_read_id = read_id_column
+    return raw_read_id
+
 def count_reads(file_name, file_type):
     count = 0
     if file_name[-3:] == '.gz':
