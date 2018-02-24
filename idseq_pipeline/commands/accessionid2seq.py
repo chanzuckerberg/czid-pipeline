@@ -114,7 +114,7 @@ def get_sequence_by_accession_id(accession_id, nt_loc_dict, ntf, nt_bucket, nt_k
             ref_seq = ntf.read(seq_len)
         else:
             # use AWS api
-            ref_seq = nt_key.get_contents_as_string(headers={'Range' : 'bytes=%d-%d' % (range_start, range_start + seq_len) })
+            ref_seq = nt_key.get_contents_as_string(headers={'Range' : 'bytes=%d-%d' % (range_start, range_start + seq_len - 1) })
         return ref_seq.replace("\n", "")
     else:
         return 'NOT FOUND'
