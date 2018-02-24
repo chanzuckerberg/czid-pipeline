@@ -11,6 +11,7 @@ import traceback
 import random
 import multiprocessing
 from .common import * #pylint: disable=wildcard-import
+from .accessionid2seq import *
 
 
 # that's per job;  by default in early 2018 jobs are subsampled to <= 100 chunks

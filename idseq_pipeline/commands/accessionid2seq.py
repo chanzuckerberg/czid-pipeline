@@ -14,6 +14,7 @@ import json
 import threading
 import traceback
 import os
+import boto
 
 
 # Test with the following function call
@@ -50,8 +51,16 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
     print("Read to Seq dictionary size: %d" % len(read2seq))
 
     # Go through m8 file infer the alignment info. grab the fasta sequence, lineage info, construct a tree, get the actual sequence from nt_file
-    nt_loc_dic = shelve.open(nt_loc_db)
-    nt = open(nt_file)
+    nt_loc_dict = shelve.open(nt_loc_db)
+    (ntf, nt_bucket, nt_key) = (None, None, None)
+    if nt_file.startswith("s3://"):
+        (nt_bucket, nt_key) = nt_file[5:].split("/", 1)
+        s3 = boto.connect_s3()
+        nt_bucket = s3.lookup(nt_bucket)
+        nt_key = nt_bucket.lookup(nt_key)
+    else:
+        ntf = open(nt_file)
+
     result_dict = {}
     line_count = 0
     with open(annotated_m8, 'r') as m8f:
@@ -62,6 +71,9 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
             accession_id = line_columns[1]
             metrics = line_columns[2:]
             seq_info = read2seq.get(read_id)
+            if line_count % 1000 == 0:
+                print("%d lines in the m8 file processed." % line_count)
+
             if seq_info:
                 [sequence, family_id, genus_id, species_id] = seq_info
                 result_dict[family_id] = result_dict.get(family_id, {})
@@ -72,13 +84,8 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
                 accession_dict['reads'].append((read_id, sequence, metrics))
                 if not accession_dict.get('ref_seq'):
                     # get reference sequence
-                    entry = nt_loc_dic.get(accession_id)
-                    if entry:
-                        nt.seek(entry[0]+entry[1], 0)
-                        ref_seq = nt.read(entry[2])
-                        accession_dict['ref_seq'] = ref_seq.replace("\n", "")
-                    else:
-                        accession_dict['ref_seq'] = 'NOT FOUND'
+                    accession_dict['ref_seq'] = get_sequence_by_accession_id(accession_id,
+                            nt_loc_dict, ntf, nt_bucket, nt_key)
 
                 result_dict[family_id][genus_id][species_id][accession_id] = accession_dict
     print("%d lines in the m8 file" % line_count)
@@ -96,6 +103,22 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
                     json.dump(species_dict, outjf)
     return "Read2Seq Size: %d, M8 lines %d" % (len(read2seq),line_count)
 
+
+def get_sequence_by_accession_id(accession_id, nt_loc_dict, ntf, nt_bucket, nt_key):
+    entry = nt_loc_dict.get(accession_id)
+    if entry:
+        range_start = entry[0]+entry[1]
+        seq_len = entry[2]
+        if ntf:
+            ntf.seek(range_start, 0)
+            ref_seq = ntf.read(seq_len)
+        else:
+            # use AWS api
+            ref_seq = nt_key.get_contents_as_string(headers={'Range' : 'bytes=%d-%d' % (range_start, range_start + seq_len) })
+        return ref_seq.replace("\n", "")
+    else:
+        return 'NOT FOUND'
+
 class Accessionid2seq(Base):
     def run(self):
         from .common import * #TO DO: clean up the imports across this package
@@ -112,7 +135,7 @@ class Accessionid2seq(Base):
         output_json_s3_path = arguments.get('--output_json_s3_path')
         output_json_s3_path = arguments.get('--output_json_s3_path').rstrip('/')
 
-        local_db_path = arguments.get('--local_db_path')
+        db_path = arguments.get('--local_db_path') # Try to get local file first
 
 
         local_db_loc_path =  os.path.join(dest_dir, os.path.basename(s3_db_loc_path))
@@ -120,18 +143,12 @@ class Accessionid2seq(Base):
         local_m8_path = os.path.join(dest_dir, os.path.basename(input_m8_s3_path))
         local_json_path = os.path.join(dest_dir, "align_viz")
 
-        # Copy the data over from s3
-        if not local_db_path:
-            local_db_path =  os.path.join(dest_dir, os.path.basename(s3_db_path))
-            if s3_db_path[-3:] == '.gz':
-                local_db_path = local_db_path[:-3]
-                execute_command("aws s3 cp %s - | gunzip > %s" %(s3_db_path, local_db_path))
-            else:
-                execute_command("aws s3 cp %s %s" %(s3_db_path, local_db_path))
+        if not db_path:
+            db_path = s3_db_path
         execute_command("aws s3 cp %s %s" %(s3_db_loc_path, local_db_loc_path))
         execute_command("aws s3 cp %s %s" %(input_fasta_s3_path, local_fasta_path))
         execute_command("aws s3 cp %s %s" %(input_m8_s3_path, local_m8_path))
-        summary= generate_alignment_viz_json(local_db_path, local_db_loc_path, db_type,
+        summary= generate_alignment_viz_json(db_path, local_db_loc_path, db_type,
                                              local_m8_path, local_fasta_path, local_json_path)
         summary_file_name = "%s.summary" % local_json_path
         with open(summary_file_name, 'w') as summaryf:
