@@ -308,6 +308,18 @@ def run_stage3(lazy_run=False):
         'NR',
         os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_FAMILY_NR),
         os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_FAMILY_NR))
+    # generate alignment visualization
+    logparams = return_merged_dict(
+        DEFAULT_LOGPARAMS,
+        {"title": "run_generate_align_viz"})
+    run_and_log(
+        logparams,
+        TARGET_OUTPUTS["run_generate_align_viz"],
+        False,
+        run_generate_align_viz,
+        os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_NT),
+        input_m8,
+        os.path.join(RESULT_DIR, ALIGN_VIZ_DIR))
 
     # combine results
     logparams = return_merged_dict(
@@ -325,15 +337,3 @@ def run_stage3(lazy_run=False):
         input_files,
         os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_ALL))
 
-    # generate alignment visualization
-    logparams = return_merged_dict(
-        DEFAULT_LOGPARAMS,
-        {"title": "run_generate_align_viz"})
-    run_and_log(
-        logparams,
-        TARGET_OUTPUTS["run_generate_align_viz"],
-        False,
-        run_generate_align_viz,
-        os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_NT),
-        input_m8,
-        os.path.join(RESULT_DIR, ALIGN_VIZ_DIR))
