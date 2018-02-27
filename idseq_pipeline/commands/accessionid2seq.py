@@ -15,6 +15,7 @@ import threading
 import traceback
 import os
 import boto
+import traceback
 
 REF_DISPLAY_RANGE = 100
 MAX_SEQ_DISPLAY_SIZE = 6000
@@ -147,11 +148,14 @@ def get_sequences_by_accession_list_s3(accession_id_list, nt_loc_dict, nt_s3_pat
 
 def get_sequence_for_thread(error_flags, accession_info, accession_id, nt_loc_dict, nt_s3_path, semaphore, mutex):
     try:
-        accession_info['seq'] = get_sequence_by_accession_id(accession_id, nt_loc_dict, None, nt_s3_path)
+        seq = get_sequence_by_accession_id(accession_id, nt_loc_dict, None, nt_s3_path)
+        with mutex:
+            accession_info['seq'] = seq
     except:
-	mutex.acquire()
-        error_flags["error"] = 1
-        mutex.release()
+        with mutex:
+            if not error_flags:
+                traceback.print_exc()
+            error_flags["error"] = 1
     finally:
         semaphore.release()
 
