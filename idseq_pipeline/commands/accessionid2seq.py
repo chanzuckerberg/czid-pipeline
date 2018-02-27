@@ -125,7 +125,7 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
             for (species_id, species_dict) in genus_dict.iteritems():
                 with open("%s/%s.species.%d.align_viz.json" %(output_json_dir, db_type.lower(), int(species_id)), 'wb') as outjf:
                     json.dump(species_dict, outjf)
-    return "Read2Seq Size: %d, M8 lines %d" % (len(read2seq),line_count)
+    return "Read2Seq Size: %d, M8 lines %d, %d unique accession ids" % (len(read2seq),line_count, len(accession2seq))
 
 def get_sequences_by_accession_list_s3(accession_id_list, nt_loc_dict, nt_s3_path):
     threads = []

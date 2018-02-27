@@ -64,7 +64,7 @@ TARGET_OUTPUTS = {"run_generate_taxid_fasta_from_accid": [os.path.join(RESULT_DI
                   "run_generate_taxid_locator__6": [os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_FAMILY_NR),
                                                     os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_FAMILY_NR)],
                   "run_combine_json": [os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_ALL)],
-                  "run_generate_align_viz": [os.path.join(RESULT_DIR, "%s.summary" % ALIGN_VIZ_DIR]
+                  "run_generate_align_viz": [os.path.join(RESULT_DIR, "%s.summary" % ALIGN_VIZ_DIR)]
                   }
 
 # references
@@ -207,7 +207,6 @@ def run_stage3(lazy_run=False):
     execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, GSNAP_M8_FILE , INPUT_DIR))
     input_m8 = os.path.join(INPUT_DIR, GSNAP_M8_FILE)
 
-
     # generate taxid fasta
     logparams = return_merged_dict(
         DEFAULT_LOGPARAMS,
@@ -334,5 +333,7 @@ def run_stage3(lazy_run=False):
         logparams,
         TARGET_OUTPUTS["run_generate_align_viz"],
         False,
-        run_generate_align_viz, input_file, input_m8,
+        run_generate_align_viz,
+        os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_NT),
+        input_m8,
         os.path.join(RESULT_DIR, ALIGN_VIZ_DIR))
