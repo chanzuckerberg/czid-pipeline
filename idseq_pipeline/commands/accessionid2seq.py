@@ -16,6 +16,9 @@ import traceback
 import os
 import boto
 
+REF_DISPLAY_RANGE = 100
+MAX_SEQ_DISPLAY_SIZE = 6000
+
 
 # Test with the following function call
 # generate_alignment_viz_json('../../nt','nt.db','NT', 'taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8', 'taxid_annot_sorted_nt.fasta', 'align_viz')
@@ -52,17 +55,28 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
 
     # Go through m8 file infer the alignment info. grab the fasta sequence, lineage info, construct a tree, get the actual sequence from nt_file
     nt_loc_dict = shelve.open(nt_loc_db)
-    (ntf, nt_bucket, nt_key) = (None, None, None)
+    (ntf, nt_s3_path) = (None, None)
     if nt_file.startswith("s3://"):
-        (nt_bucket, nt_key) = nt_file[5:].split("/", 1)
-        s3 = boto.connect_s3()
-        nt_bucket = s3.lookup(nt_bucket)
-        nt_key = nt_bucket.lookup(nt_key)
+        nt_s3_path = nt_file
     else:
         ntf = open(nt_file)
 
     result_dict = {}
     line_count = 0
+    accession2seq = {}
+    with open(annotated_m8, 'r') as m8f:
+      for line in m8f:
+          line_columns = line.rstrip().split("\t")
+          accession_id = line_columns[1]
+          accession2seq[accession_id] = accession2seq.get(accession_id, {'count': 0})
+          accession2seq[accession_id]['count'] += 1
+    print("%d unique accession ids" % len(accession2seq))
+    if ntf:
+        for accession_id, accession_info in accession2seq.iteritems():
+            accession_info['seq'] = get_sequence_by_accession_id(accession_id, nt_loc_dict, ntf, None)
+    else:
+        get_sequences_by_accession_list_s3(accession2seq, nt_loc_dict, nt_s3_path)
+
     with open(annotated_m8, 'r') as m8f:
         for line in m8f:
             line_count += 1
@@ -80,13 +94,23 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
                 result_dict[family_id][genus_id] = result_dict[family_id].get(genus_id, {})
                 result_dict[family_id][genus_id][species_id] = result_dict[family_id][genus_id].get(species_id, {})
                 accession_dict = result_dict[family_id][genus_id][species_id].get(accession_id, {})
+                ref_seq = accession2seq[accession_id]['seq']
                 accession_dict['reads'] = accession_dict.get('reads', [])
-                accession_dict['reads'].append((read_id, sequence, metrics))
-                if not accession_dict.get('ref_seq'):
-                    # get reference sequence
-                    accession_dict['ref_seq'] = get_sequence_by_accession_id(accession_id,
-                            nt_loc_dict, ntf, nt_bucket, nt_key)
-
+                ref_start = int(metrics[-4])
+                ref_end = int(metrics[-3])
+                if ref_start > ref_end: # SWAP
+                    (ref_start, ref_end) = (ref_end, ref_start)
+                ref_start-= 1;
+                prev_start = (ref_start - REF_DISPLAY_RANGE) if (ref_start - REF_DISPLAY_RANGE) > 0 else 0
+                post_end = ref_end + REF_DISPLAY_RANGE
+                if len(ref_seq) > MAX_SEQ_DISPLAY_SIZE:
+                    accession_dict['ref_seq'] = '...Reference Seq Too Long ...'
+                else:
+		    accession_dict['ref_seq'] = ref_seq
+                ref_read= [ref_seq[prev_start:ref_start], ref_seq[ref_start:ref_end], ref_seq[ref_end:post_end]]
+                accession_dict['reads'].append((read_id, sequence, metrics, ref_read))
+                accession_dict['ref_seq_len'] = len(ref_seq)
+                accession_dict['ref_link'] = "https://www.ncbi.nlm.nih.gov/nuccore/%s?report=fasta" % accession_id
                 result_dict[family_id][genus_id][species_id][accession_id] = accession_dict
     print("%d lines in the m8 file" % line_count)
 
@@ -103,9 +127,46 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
                     json.dump(species_dict, outjf)
     return "Read2Seq Size: %d, M8 lines %d" % (len(read2seq),line_count)
 
+def get_sequences_by_accession_list_s3(accession_id_list, nt_loc_dict, nt_s3_path):
+    threads = []
+    error_flags = {}
+    mutex = threading.RLock()
+    semaphore = threading.Semaphore(16)
+    for accession_id, accession_info in accession_id_list.iteritems():
+	semaphore.acquire()
+	t = threading.Thread(
+	    target=get_sequence_for_thread,
+	    args=[error_flags, accession_info, accession_id, nt_loc_dict, nt_s3_path, semaphore, mutex]
+	)
+        t.start()
+        threads.append(t)
+    for t in threads:
+        t.join()
+    if error_flags:
+        raise "Sorry there was an error"
 
-def get_sequence_by_accession_id(accession_id, nt_loc_dict, ntf, nt_bucket, nt_key):
+def get_sequence_for_thread(error_flags, accession_info, accession_id, nt_loc_dict, nt_s3_path, semaphore, mutex):
+    try:
+        accession_info['seq'] = get_sequence_by_accession_id(accession_id, nt_loc_dict, None, nt_s3_path)
+    except:
+	mutex.acquire()
+        error_flags["error"] = 1
+        mutex.release()
+    finally:
+        semaphore.release()
+
+seq_count = 0
+def get_sequence_by_accession_id(accession_id, nt_loc_dict, ntf, nt_s3_path):
+    global seq_count
+    if not ntf: # Had to open individual connections to be thread safe
+        (nt_bucket, nt_key) = nt_s3_path[5:].split("/", 1)
+        s3 = boto.connect_s3()
+        nt_bucket = s3.lookup(nt_bucket)
+        nt_key = nt_bucket.lookup(nt_key)
     entry = nt_loc_dict.get(accession_id)
+    seq_count += 1
+    if seq_count % 100 == 0:
+        print("%d sequences fetched. Getting sequence for %s" % (seq_count, accession_id))
     if entry:
         range_start = entry[0]+entry[1]
         seq_len = entry[2]
@@ -115,6 +176,7 @@ def get_sequence_by_accession_id(accession_id, nt_loc_dict, ntf, nt_bucket, nt_k
         else:
             # use AWS api
             ref_seq = nt_key.get_contents_as_string(headers={'Range' : 'bytes=%d-%d' % (range_start, range_start + seq_len - 1) })
+            s3.close()
         return ref_seq.replace("\n", "")
     else:
         return 'NOT FOUND'
@@ -159,10 +221,4 @@ class Accessionid2seq(Base):
 
         # Clean up
         execute_command("rm -rf %s" % dest_dir)
-
-
-
-
-
-
 
