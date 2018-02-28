@@ -14,7 +14,6 @@ import json
 import threading
 import traceback
 import os
-import boto
 import traceback
 
 REF_DISPLAY_RANGE = 100
@@ -164,9 +163,6 @@ def get_sequence_by_accession_id(accession_id, nt_loc_dict, ntf, nt_s3_path):
     global seq_count
     if not ntf: # Had to open individual connections to be thread safe
         (nt_bucket, nt_key) = nt_s3_path[5:].split("/", 1)
-        s3 = boto.connect_s3()
-        nt_bucket = s3.lookup(nt_bucket)
-        nt_key = nt_bucket.lookup(nt_key)
     entry = nt_loc_dict.get(accession_id)
     seq_count += 1
     if seq_count % 100 == 0:
@@ -178,9 +174,12 @@ def get_sequence_by_accession_id(accession_id, nt_loc_dict, ntf, nt_s3_path):
             ntf.seek(range_start, 0)
             ref_seq = ntf.read(seq_len)
         else:
+            tmp_file = 'accession-%s' % accession_id
+            execute_command("aws s3api get-object --range bytes=%d-%d --bucket %s --key %s %s" % (range_start, range_start + seq_len - 1, nt_bucket, nt_key, tmp_file))
+            with open(tmp_file) as af:
+                ref_seq=af.read()
+            execute_command("rm %s" % tmp_file)
             # use AWS api
-            ref_seq = nt_key.get_contents_as_string(headers={'Range' : 'bytes=%d-%d' % (range_start, range_start + seq_len - 1) })
-            s3.close()
         return ref_seq.replace("\n", "")
     else:
         return 'NOT FOUND'
