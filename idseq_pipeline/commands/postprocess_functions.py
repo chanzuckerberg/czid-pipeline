@@ -4,6 +4,7 @@ import json
 import shelve
 import logging
 from .common import * #pylint: disable=wildcard-import
+import accessionid2seq
 
 # data directories
 # from common import ROOT_DIR
@@ -23,8 +24,12 @@ INPUT_DIR = SAMPLE_DIR + '/inputs'
 RESULT_DIR = SAMPLE_DIR + '/results'
 DEFAULT_LOGPARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH}
 
+NT_LOC_DB = os.environ.get('NT_LOC_DB', "s3://idseq-database/20170824/blast_db/nt_loc.db")
+NT_DB = os.environ.get('NT_DB', "s3://idseq-database/20170824/blast_db/nt")
+
 # input files
 ACCESSION_ANNOTATED_FASTA = 'taxids.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.fasta'
+GSNAP_M8_FILE = 'taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
 
 # output files
 TAXID_ANNOT_FASTA = 'taxid_annot.fasta'
@@ -42,6 +47,7 @@ TAXID_LOCATIONS_JSON_FAMILY_NT = 'taxid_locations_family_nt.json'
 TAXID_LOCATIONS_JSON_FAMILY_NR = 'taxid_locations_family_nr.json'
 TAXID_LOCATIONS_JSON_ALL = 'taxid_locations_combined.json'
 LOGS_OUT_BASENAME = 'postprocess-log'
+ALIGN_VIZ_DIR = 'align_viz'
 
 # target outputs by task
 TARGET_OUTPUTS = {"run_generate_taxid_fasta_from_accid": [os.path.join(RESULT_DIR, TAXID_ANNOT_FASTA)],
@@ -57,7 +63,9 @@ TARGET_OUTPUTS = {"run_generate_taxid_fasta_from_accid": [os.path.join(RESULT_DI
                                                     os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_FAMILY_NT)],
                   "run_generate_taxid_locator__6": [os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_FAMILY_NR),
                                                     os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_FAMILY_NR)],
-                  "run_combine_json": [os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_ALL)]}
+                  "run_combine_json": [os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_ALL)],
+                  "run_generate_align_viz": [os.path.join(RESULT_DIR, "%s.summary" % ALIGN_VIZ_DIR)]
+                  }
 
 # references
 # from common import ACCESSION2TAXID
@@ -150,6 +158,18 @@ def combine_json(input_json_list, output_json):
         json.dump(output, outf)
 
 # job functions
+
+def run_generate_align_viz(input_fasta, input_m8, output_dir):
+    nt_loc_db = fetch_reference(NT_LOC_DB)
+    summary= accessionid2seq.generate_alignment_viz_json(NT_DB, nt_loc_db, "NT",
+                                                         input_m8, input_fasta, output_dir)
+    summary_file_name = "%s.summary" % output_dir
+    with open(summary_file_name, 'w') as summaryf:
+	summaryf.write(summary)
+    # copy the data over
+    execute_command("aws s3 cp %s %s/align_viz --recursive" % (output_dir, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp %s %s/" % (summary_file_name, SAMPLE_S3_OUTPUT_PATH))
+
 def run_generate_taxid_fasta_from_accid(input_fasta, output_fasta):
     accession2taxid_path = fetch_reference(ACCESSION2TAXID)
     lineage_path = fetch_reference(LINEAGE_SHELF)
@@ -182,6 +202,10 @@ def run_stage3(lazy_run=False):
     # download input
     execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, ACCESSION_ANNOTATED_FASTA, INPUT_DIR))
     input_file = os.path.join(INPUT_DIR, ACCESSION_ANNOTATED_FASTA)
+
+    # download m8
+    execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, GSNAP_M8_FILE , INPUT_DIR))
+    input_m8 = os.path.join(INPUT_DIR, GSNAP_M8_FILE)
 
     # generate taxid fasta
     logparams = return_merged_dict(
@@ -284,6 +308,18 @@ def run_stage3(lazy_run=False):
         'NR',
         os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_FAMILY_NR),
         os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_FAMILY_NR))
+    # generate alignment visualization
+    logparams = return_merged_dict(
+        DEFAULT_LOGPARAMS,
+        {"title": "run_generate_align_viz"})
+    run_and_log(
+        logparams,
+        TARGET_OUTPUTS["run_generate_align_viz"],
+        False,
+        run_generate_align_viz,
+        os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_NT),
+        input_m8,
+        os.path.join(RESULT_DIR, ALIGN_VIZ_DIR))
 
     # combine results
     logparams = return_merged_dict(
@@ -300,3 +336,4 @@ def run_stage3(lazy_run=False):
         run_combine_json,
         input_files,
         os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_ALL))
+
