@@ -212,13 +212,46 @@ def run_star_part(output_dir, genome_dir, fastq_files):
     execute_command_realtime_stdout(" ".join(star_command_params), os.path.join(output_dir, "Log.progress.out"))
 
 
+def install_s3mi(installed={}, mutex=threading.RLock()): #pylint: disable=dangerous-default-value
+    with mutex:
+        if installed:
+            return
+        try:
+            # This is typically a no-op.
+            execute_command("which s3mi || pip install git+git://github.com/chanzuckerberg/s3mi.git")
+            execute_command("s3mi tweak-vm || echo s3mi tweak-vm is impossible under docker")
+        finally:
+            installed['time'] = time.time()
+
+
+def uncompressed(s3genome):
+    if s3genome.endswith(".gz"):
+        return s3genome[:-3]
+    if s3genome.endswith(".tgz"):
+        return s3genome[:-3] + "tar"
+    return s3genome
+
+
 def fetch_genome(s3genome):
     genome_name = os.path.basename(s3genome).rstrip(".gz").rstrip(".tar")
     if genome_name not in ("STAR_genome", "bowtie2_genome"):
         write_to_log("Oh hello interesting new genome {}".format(genome_name))
     genome_dir = os.path.join(REF_DIR, genome_name)
     if not os.path.exists(genome_dir):
-        execute_command("aws s3 cp --quiet {s3genome} - | tar xvfz - -C {refdir}".format(s3genome=s3genome, refdir=REF_DIR))
+        try:
+            #TODO Clean up and fold into fetch_reference
+            install_s3mi()
+            tarfile = uncompressed(s3genome)
+            try:
+                execute_command("s3mi cat {tarfile} | tar xvf - -C {refdir}".format(tarfile=tarfile, refdir=REF_DIR))
+            except:
+                if tarfile != s3genome:
+                    # The uncompressed version doesn't exist.   This is much slower, but no choice.
+                    execute_command("s3mi cat {s3genome} | tar xvfz - -C {refdir}".format(s3genome=s3genome, refdir=REF_DIR))
+                else:
+                    raise
+        except:
+            execute_command("aws s3 cp --quiet {s3genome} - | tar xvfz - -C {refdir}".format(s3genome=s3genome, refdir=REF_DIR))
         write_to_log("downloaded index")
     assert os.path.isdir(genome_dir)
     return genome_dir
