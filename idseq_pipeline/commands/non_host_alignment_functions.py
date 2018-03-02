@@ -27,10 +27,10 @@ MAX_INSTANCES_TO_POLL = 5
 
 # If no instance is available, we should refresh our list of instances, to pick up new instances
 # added by autoscaling.  Wait at least this long between refreshes to stay within AWS account limits.
-MIN_INTERVAL_BETWEEN_DESCRIBE_INSTANCES = 240
+MIN_INTERVAL_BETWEEN_DESCRIBE_INSTANCES = 180
 
 # Refresh at least every 30 minutes
-MAX_INTERVAL_BETWEEN_DESCRIBE_INSTANCES = 1200
+MAX_INTERVAL_BETWEEN_DESCRIBE_INSTANCES = 900
 
 # data directories
 ROOT_DIR = '/mnt'
@@ -508,8 +508,9 @@ def get_server_ips(service_name, environment, aggressive=False, cache={}, mutex=
         return []
 
 
-def wait_for_server_ip_work(service_name, key_path, remote_username, environment, max_concurrent, had_to_wait=[False]): #pylint: disable=dangerous-default-value
+def wait_for_server_ip_work(service_name, key_path, remote_username, environment, max_concurrent, chunk_id, had_to_wait=[False]): #pylint: disable=dangerous-default-value
     while True:
+        write_to_log("Chunk {chunk_id} of {service_name} is at third gate".format(chunk_id=chunk_id, service_name=service_name))
         instance_ips = get_server_ips(service_name, environment, aggressive=had_to_wait[0])
         instance_ips = random.sample(instance_ips, min(MAX_INSTANCES_TO_POLL, len(instance_ips)))
         ip_nproc_dict = {}
@@ -527,6 +528,7 @@ def wait_for_server_ip_work(service_name, key_path, remote_username, environment
             poller_threads.append(pt)
         for pt in poller_threads:
             pt.join()
+        write_to_log("Chunk {chunk_id} of {service_name} is at fourth gate".format(chunk_id=chunk_id, service_name=service_name))
         if not ip_nproc_dict:
             have_capacity = False
         else:
@@ -544,17 +546,16 @@ def wait_for_server_ip_work(service_name, key_path, remote_username, environment
                     urn.extend([ip] * weight)
             min_nproc_ip = random.choice(urn)
             free_slots = max_concurrent - ip_nproc_dict[min_nproc_ip]
-            print "%s server %s has capacity %d. Kicking off " % (service_name, min_nproc_ip, free_slots)
+            write_to_log("%s server %s has capacity %d. Kicking off " % (service_name, min_nproc_ip, free_slots))
             return min_nproc_ip
         else:
             had_to_wait[0] = True
             wait_seconds = random.randint(15, 60)
-            print "%s servers busy. Wait for %d seconds" % \
-                  (service_name, wait_seconds)
+            write_to_log("%s servers busy. Wait for %d seconds" % (service_name, wait_seconds))
             time.sleep(wait_seconds)
 
 
-def wait_for_server_ip(service_name, key_path, remote_username, environment, max_concurrent, mutex=threading.RLock(), mutexes={}, last_checks={}): #pylint: disable=dangerous-default-value
+def wait_for_server_ip(service_name, key_path, remote_username, environment, max_concurrent, chunk_id, mutex=threading.RLock(), mutexes={}, last_checks={}): #pylint: disable=dangerous-default-value
     # We rate limit these to ensure fairness across jobs regardless of job size
     with mutex:
         if service_name not in mutexes:
@@ -562,15 +563,16 @@ def wait_for_server_ip(service_name, key_path, remote_username, environment, max
             last_checks[service_name] = [None]
         lc = last_checks[service_name]
         mx = mutexes[service_name]
+    write_to_log("Chunk {chunk_id} of {service_name} is at second gate".format(chunk_id=chunk_id, service_name=service_name))
     with mx:
         if lc[0] != None:
             sleep_time = (60.0 / MAX_DISPATCHES_PER_MINUTE) - (time.time() - lc[0])
             if sleep_time > 0:
-                print "Sleeping for {:3.1f} seconds to rate-limit wait_for_server_ip.".format(sleep_time)
+                write_to_log("Sleeping for {:3.1f} seconds to rate-limit wait_for_server_ip.".format(sleep_time))
                 time.sleep(sleep_time)
         lc[0] = time.time()
         # if we had to wait here, that counts toward the rate limit delay
-        result = wait_for_server_ip_work(service_name, key_path, remote_username, environment, max_concurrent)
+        result = wait_for_server_ip_work(service_name, key_path, remote_username, environment, max_concurrent, chunk_id)
         return result
 
 
@@ -670,8 +672,8 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
         max_tries = 2
         try_number = 1
         while min_column_number != correct_number_of_output_columns and try_number <= max_tries:
-            write_to_log("waiting for server")
-            gsnapl_instance_ip = wait_for_server_ip('gsnap', key_path, remote_username, ENVIRONMENT, GSNAPL_MAX_CONCURRENT)
+            write_to_log("waiting for gsnap server for chunk {}".format(chunk_id))
+            gsnapl_instance_ip = wait_for_server_ip('gsnap', key_path, remote_username, ENVIRONMENT, GSNAPL_MAX_CONCURRENT, chunk_id)
             write_to_log("starting alignment for chunk %s on machine %s" % (chunk_id, gsnapl_instance_ip))
             execute_command(remote_command(commands, key_path, remote_username, gsnapl_instance_ip))
             # check if every row has correct number of columns (12) in the output file on the remote machine
@@ -799,8 +801,8 @@ def run_rapsearch_chunk(part_suffix, _remote_home_dir, remote_index_dir, remote_
         max_tries = 2
         try_number = 1
         while min_column_number != correct_number_of_output_columns and try_number <= max_tries:
-            write_to_log("waiting for server")
-            instance_ip = wait_for_server_ip('rapsearch', key_path, remote_username, ENVIRONMENT, RAPSEARCH2_MAX_CONCURRENT)
+            write_to_log("waiting for rapsearch server for chunk {}".format(chunk_id))
+            instance_ip = wait_for_server_ip('rapsearch', key_path, remote_username, ENVIRONMENT, RAPSEARCH2_MAX_CONCURRENT, chunk_id)
             write_to_log("starting alignment for chunk %s on machine %s" % (chunk_id, instance_ip))
             execute_command_realtime_stdout(remote_command(commands, key_path, remote_username, instance_ip))
             write_to_log("finished alignment for chunk %s" % chunk_id)
@@ -944,7 +946,7 @@ def run_stage2(lazy_run=True):
             if m:
                 execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_FASTQ_PATH, m.group(1), FASTQ_DIR))
             else:
-                print "%s doesn't match %s" % (line, FILE_TYPE)
+                write_to_log("%s doesn't match %s" % (line, FILE_TYPE))
         fastq_files = execute_command_with_output("ls %s/*.%s" % (FASTQ_DIR, FILE_TYPE)).rstrip().split("\n")
         # prepare files for gsnap
         cleaned_files, before_file_type_for_log = clean_direct_gsnapl_input(fastq_files)

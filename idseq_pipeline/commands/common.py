@@ -396,13 +396,15 @@ def upload_log_file(sample_s3_output_path, lock=threading.RLock()):
         execute_command("aws s3 cp --quiet %s %s/;" % (logh.baseFilename, sample_s3_output_path))
 
 
-def write_to_log(message, warning=False, lock=threading.RLock()):
+def write_to_log(message, warning=False):
     LOGGER = logging.getLogger()
-    with lock:
+    with print_lock:
         if warning:
             LOGGER.warn(message)
         else:
             LOGGER.info(message)
+        sys.stdout.flush()
+
 
 def unbuffer_stdout():
     # Unbuffer stdout and redirect stderr into stdout. This helps observe logged events in realtime.
