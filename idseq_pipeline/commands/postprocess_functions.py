@@ -167,8 +167,8 @@ def run_generate_align_viz(input_fasta, input_m8, output_dir):
     with open(summary_file_name, 'w') as summaryf:
 	summaryf.write(summary)
     # copy the data over
-    execute_command("aws s3 cp %s %s/align_viz --recursive" % (output_dir, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp %s %s/" % (summary_file_name, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s %s/align_viz --recursive" % (output_dir, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s %s/" % (summary_file_name, SAMPLE_S3_OUTPUT_PATH))
 
 def run_generate_taxid_fasta_from_accid(input_fasta, output_fasta):
     accession2taxid_path = fetch_reference(ACCESSION2TAXID)

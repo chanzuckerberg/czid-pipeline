@@ -232,17 +232,17 @@ def accessionid2seq_main(arguments):
 
     if not db_path:
         db_path = s3_db_path
-    execute_command("aws s3 cp %s %s" %(s3_db_loc_path, local_db_loc_path))
-    execute_command("aws s3 cp %s %s" %(input_fasta_s3_path, local_fasta_path))
-    execute_command("aws s3 cp %s %s" %(input_m8_s3_path, local_m8_path))
+    execute_command("aws s3 cp --quiet %s %s" %(s3_db_loc_path, local_db_loc_path))
+    execute_command("aws s3 cp --quiet %s %s" %(input_fasta_s3_path, local_fasta_path))
+    execute_command("aws s3 cp --quiet %s %s" %(input_m8_s3_path, local_m8_path))
     summary = generate_alignment_viz_json(db_path, local_db_loc_path, db_type,
                                           local_m8_path, local_fasta_path, local_json_path)
     summary_file_name = "%s.summary" % local_json_path
     with open(summary_file_name, 'w') as summaryf:
         summaryf.write(summary)
     # copy the data over
-    execute_command("aws s3 cp %s %s --recursive" % (local_json_path, output_json_s3_path))
-    execute_command("aws s3 cp %s %s/" % (summary_file_name, os.path.dirname(output_json_s3_path)))
+    execute_command("aws s3 cp --quiet %s %s --recursive" % (local_json_path, output_json_s3_path))
+    execute_command("aws s3 cp --quiet %s %s/" % (summary_file_name, os.path.dirname(output_json_s3_path)))
 
     # Clean up
     execute_command("rm -rf %s" % dest_dir)
