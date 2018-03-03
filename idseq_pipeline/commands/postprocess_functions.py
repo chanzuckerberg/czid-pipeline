@@ -4,7 +4,7 @@ import json
 import shelve
 import logging
 from .common import * #pylint: disable=wildcard-import
-import accessionid2seq
+import accessionid2seq_functions
 
 # data directories
 # from common import ROOT_DIR
@@ -161,8 +161,8 @@ def combine_json(input_json_list, output_json):
 
 def run_generate_align_viz(input_fasta, input_m8, output_dir):
     nt_loc_db = fetch_reference(NT_LOC_DB)
-    summary= accessionid2seq.generate_alignment_viz_json(NT_DB, nt_loc_db, "NT",
-                                                         input_m8, input_fasta, output_dir)
+    summary= accessionid2seq_functions.generate_alignment_viz_json(NT_DB, nt_loc_db, "NT",
+                                                                   input_m8, input_fasta, output_dir)
     summary_file_name = "%s.summary" % output_dir
     with open(summary_file_name, 'w') as summaryf:
 	summaryf.write(summary)
@@ -336,4 +336,3 @@ def run_stage3(lazy_run=False):
         run_combine_json,
         input_files,
         os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_ALL))
-
