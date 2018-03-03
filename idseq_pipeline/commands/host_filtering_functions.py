@@ -232,7 +232,7 @@ def uncompressed(s3genome):
     return s3genome
 
 
-def fetch_genome(s3genome):
+def fetch_genome_work(s3genome):
     genome_name = os.path.basename(s3genome).rstrip(".gz").rstrip(".tar")
     if genome_name not in ("STAR_genome", "bowtie2_genome"):
         write_to_log("Oh hello interesting new genome {}".format(genome_name))
@@ -257,12 +257,23 @@ def fetch_genome(s3genome):
     return genome_dir
 
 
+def fetch_genome(s3genome, mutex=threading.RLock(), mutexes={}): #pylint: disable=dangerous-default-value
+    with mutex:
+        if s3genome not in mutexes:
+            mutexes[s3genome] = threading.RLock()
+        mx = mutexes[s3genome]
+    with mx:
+        return fetch_genome_work(s3genome)
+
+
 def run_star(fastq_files):
     star_outputs = [STAR_OUT1, STAR_OUT2]
     num_fastqs = len(fastq_files)
     def unmapped_files_in(some_dir):
         return ["%s/Unmapped.out.mate%d" % (some_dir, i+1) for i in range(num_fastqs)]
     genome_dir = fetch_genome(STAR_GENOME)
+    # If we are here, we are also going to need a bowtie genome later;  start fetching it now
+    threading.Thread(target=fetch_genome, args=[BOWTIE2_GENOME]).start()
     # Check if parts.txt file exists, if so use the new version of (partitioned indices). Otherwise, stay put
     parts_file = os.path.join(genome_dir, "parts.txt")
     if os.path.isfile(parts_file):
