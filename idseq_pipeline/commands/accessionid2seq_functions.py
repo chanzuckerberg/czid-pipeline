@@ -119,27 +119,57 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
                     json.dump(species_dict, outjf)
     return "Read2Seq Size: %d, M8 lines %d, %d unique accession ids" % (len(read2seq), line_count, len(accession2seq))
 
+def delete_many(files, semaphore=None): #pylint: disable=dangerous-default-value
+    try:
+        for f in files:
+            os.remove(f)
+    except:
+        with print_lock:
+            print("Couldn't delete some temp files.  Moving on.")
+    finally:
+        if semaphore:
+            semaphore.release()
+
+def async_delete(tmp_file, mutex=threading.RLock(), to_be_deleted=[[]], batch_size=512, max_threads=threading.Semaphore(8)): #pylint: disable=dangerous-default-value
+    with mutex:
+        tbd = to_be_deleted[0]
+        if tmp_file:
+            tbd.append(tmp_file)
+            watermark = batch_size
+        else:
+            # flush
+            watermark = 1
+        while len(tbd) >= watermark:
+            delete_now, tbd = tbd[:batch_size], tbd[batch_size:]
+            max_threads.acquire()
+            threading.Thread(target=delete_many, args=[delete_now, max_threads]).start()
+        to_be_deleted[0] = tbd
+
+def async_deletes_flush():
+    async_delete(None)
+
 def get_sequences_by_accession_list_s3(accession_id_list, nt_loc_dict, nt_s3_path):
     threads = []
     error_flags = {}
+    semaphore = threading.Semaphore(64)
     mutex = threading.RLock()
-    semaphore = threading.Semaphore(16)
     for accession_id, accession_info in accession_id_list.iteritems():
         semaphore.acquire()
         t = threading.Thread(
             target=get_sequence_for_thread,
-            args=[error_flags, accession_info, accession_id, nt_loc_dict, nt_s3_path, semaphore, mutex]
+            args=[error_flags, accession_info, accession_id, nt_loc_dict, nt_s3_path, semaphore, mutex, async_delete]
         )
         t.start()
         threads.append(t)
     for t in threads:
         t.join()
+    async_deletes_flush()
     if error_flags:
         raise "Sorry there was an error"
 
-def get_sequence_for_thread(error_flags, accession_info, accession_id, nt_loc_dict, nt_s3_path, semaphore, mutex, seq_count=[0]): #pylint: disable=dangerous-default-value
+def get_sequence_for_thread(error_flags, accession_info, accession_id, nt_loc_dict, nt_s3_path, semaphore, mutex, async_delete_func, seq_count=[0]): #pylint: disable=dangerous-default-value
     try:
-        seq = get_sequence_by_accession_id(accession_id, nt_loc_dict, None, nt_s3_path)
+        seq = get_sequence_by_accession_id(accession_id, nt_loc_dict, None, nt_s3_path, async_delete_func)
         with mutex:
             accession_info['seq'] = seq
             seq_count[0] += 1
@@ -153,12 +183,7 @@ def get_sequence_for_thread(error_flags, accession_info, accession_id, nt_loc_di
     finally:
         semaphore.release()
 
-def get_sequence_by_accession_id(accession_id, nt_loc_dict, ntf, nt_s3_path, async_delete=threading.Semaphore(16)):
-    def deleter(tmp_file):
-        try:
-            os.remove(tmp_file)
-        finally:
-            async_delete.release()
+def get_sequence_by_accession_id(accession_id, nt_loc_dict, ntf, nt_s3_path, async_delete_func=None):
     if not ntf: # Had to open individual connections to be thread safe
         (nt_bucket, nt_key) = nt_s3_path[5:].split("/", 1)
     entry = nt_loc_dict.get(accession_id)
@@ -174,8 +199,10 @@ def get_sequence_by_accession_id(accession_id, nt_loc_dict, ntf, nt_s3_path, asy
             subprocess.check_output(get_range, shell=True)
             with open(tmp_file) as af:
                 ref_seq = af.read()
-            async_delete.acquire()
-            threading.Thread(target=deleter, args=[tmp_file]).start() # removing is slow, why wait
+            if async_delete_func:
+                async_delete_func(tmp_file)
+            else:
+                os.remove(tmp_file)
             # use AWS api
         return ref_seq.replace("\n", "")
     else:
