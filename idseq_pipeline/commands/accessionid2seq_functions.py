@@ -1,10 +1,15 @@
-import subprocess
 import shelve
 import re
 import json
 import threading
 import traceback
 import os
+
+import subprocess
+try:
+    from subprocess import DEVNULL #pylint: disable=no-name-in-module
+except:
+    DEVNULL = open(os.devnull, "r+b")
 
 from .common import * #pylint: disable=wildcard-import
 
@@ -65,8 +70,9 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
     print("%d unique accession ids" % len(accession2seq))
     if ntf:
         for accession_id, accession_info in accession2seq.iteritems():
-            accession_info['seq'] = get_sequence_by_accession_id(accession_id, nt_loc_dict, ntf, None)
+            accession_info['seq'] = get_sequence_by_accession_id_ntf(accession_id, nt_loc_dict, ntf)
     else:
+        # This can take an hour easily.
         get_sequences_by_accession_list_s3(accession2seq, nt_loc_dict, nt_s3_path)
 
     with open(annotated_m8, 'r') as m8f:
@@ -130,12 +136,12 @@ def delete_many(files, semaphore=None): #pylint: disable=dangerous-default-value
         if semaphore:
             semaphore.release()
 
-def async_delete(tmp_file, mutex=threading.RLock(), to_be_deleted=[[]], batch_size=512, max_threads=threading.Semaphore(8)): #pylint: disable=dangerous-default-value
+def async_delete(tmp_file, mutex=threading.RLock(), to_be_deleted=[[]], batch_size=2048, high_watermark=8192, max_threads=threading.Semaphore(8)): #pylint: disable=dangerous-default-value
     with mutex:
         tbd = to_be_deleted[0]
         if tmp_file:
             tbd.append(tmp_file)
-            watermark = batch_size
+            watermark = high_watermark
         else:
             # flush
             watermark = 1
@@ -153,11 +159,12 @@ def get_sequences_by_accession_list_s3(accession_id_list, nt_loc_dict, nt_s3_pat
     error_flags = {}
     semaphore = threading.Semaphore(64)
     mutex = threading.RLock()
+    nt_bucket, nt_key = nt_s3_path[5:].split("/", 1)
     for accession_id, accession_info in accession_id_list.iteritems():
         semaphore.acquire()
         t = threading.Thread(
             target=get_sequence_for_thread,
-            args=[error_flags, accession_info, accession_id, nt_loc_dict, nt_s3_path, semaphore, mutex, async_delete]
+            args=[error_flags, accession_info, accession_id, nt_loc_dict, nt_bucket, nt_key, semaphore, mutex, async_delete]
         )
         t.start()
         threads.append(t)
@@ -167,9 +174,9 @@ def get_sequences_by_accession_list_s3(accession_id_list, nt_loc_dict, nt_s3_pat
     if error_flags:
         raise "Sorry there was an error"
 
-def get_sequence_for_thread(error_flags, accession_info, accession_id, nt_loc_dict, nt_s3_path, semaphore, mutex, async_delete_func, seq_count=[0]): #pylint: disable=dangerous-default-value
+def get_sequence_for_thread(error_flags, accession_info, accession_id, nt_loc_dict, nt_bucket, nt_key, semaphore, mutex, async_delete_func, seq_count=[0]): #pylint: disable=dangerous-default-value
     try:
-        seq = get_sequence_by_accession_id(accession_id, nt_loc_dict, None, nt_s3_path, async_delete_func)
+        seq = get_sequence_by_accession_id_s3(accession_id, nt_loc_dict, nt_bucket, nt_key, async_delete_func)
         with mutex:
             accession_info['seq'] = seq
             seq_count[0] += 1
@@ -183,30 +190,31 @@ def get_sequence_for_thread(error_flags, accession_info, accession_id, nt_loc_di
     finally:
         semaphore.release()
 
-def get_sequence_by_accession_id(accession_id, nt_loc_dict, ntf, nt_s3_path, async_delete_func=None):
-    if not ntf: # Had to open individual connections to be thread safe
-        (nt_bucket, nt_key) = nt_s3_path[5:].split("/", 1)
+def get_sequence_by_accession_id_ntf(accession_id, nt_loc_dict, ntf):
+    ref_seq = 'NOT FOUND'
     entry = nt_loc_dict.get(accession_id)
     if entry:
         range_start = entry[0]+entry[1]
         seq_len = entry[2]
-        if ntf:
-            ntf.seek(range_start, 0)
-            ref_seq = ntf.read(seq_len)
-        else:
-            tmp_file = 'accession-%s' % accession_id
-            get_range = "aws s3api get-object --range bytes=%d-%d --bucket %s --key %s %s" % (range_start, range_start + seq_len - 1, nt_bucket, nt_key, tmp_file)
-            subprocess.check_output(get_range, shell=True)
-            with open(tmp_file) as af:
-                ref_seq = af.read()
-            if async_delete_func:
-                async_delete_func(tmp_file)
-            else:
-                os.remove(tmp_file)
-            # use AWS api
-        return ref_seq.replace("\n", "")
-    else:
-        return 'NOT FOUND'
+        ntf.seek(range_start, 0)
+        ref_seq = ntf.read(seq_len).replace("\n", "")
+    return ref_seq
+
+def get_sequence_by_accession_id_s3(accession_id, nt_loc_dict, nt_bucket, nt_key, delete_func=os.remove):
+    ref_seq = 'NOT FOUND'
+    entry = nt_loc_dict.get(accession_id)
+    if entry:
+        range_start = entry[0]+entry[1]
+        seq_len = entry[2]
+        tmp_file = 'accession-%s' % accession_id
+        os.mkfifo(tmp_file)
+        get_range = "aws s3api get-object --range bytes=%d-%d --bucket %s --key %s %s" % (range_start, range_start + seq_len - 1, nt_bucket, nt_key, tmp_file)
+        getter_subproc = subprocess.Popen(get_range, shell=True, stdout=DEVNULL)
+        ref_seq = subprocess.check_output("tr -d '\n' < {tmp_file}".format(tmp_file=tmp_file), shell=True)
+        exitcode = getter_subproc.wait()
+        assert exitcode == 0
+        delete_func(tmp_file)
+    return ref_seq
 
 def accessionid2seq_main(arguments):
 
