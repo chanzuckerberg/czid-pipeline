@@ -161,11 +161,8 @@ def combine_json(input_json_list, output_json):
 
 def run_generate_align_viz(input_fasta, input_m8, output_dir):
     nt_loc_db = fetch_reference(NT_LOC_DB)
-    summary= accessionid2seq_functions.generate_alignment_viz_json(NT_DB, nt_loc_db, "NT",
-                                                                   input_m8, input_fasta, output_dir)
-    summary_file_name = "%s.summary" % output_dir
-    with open(summary_file_name, 'w') as summaryf:
-	summaryf.write(summary)
+    summary_file_name = accessionid2seq_functions.generate_alignment_viz_json(NT_DB, nt_loc_db, "NT",
+                                                                              input_m8, input_fasta, output_dir)
     # copy the data over
     execute_command("aws s3 cp --quiet %s %s/align_viz --recursive" % (output_dir, SAMPLE_S3_OUTPUT_PATH))
     execute_command("aws s3 cp --quiet %s %s/" % (summary_file_name, SAMPLE_S3_OUTPUT_PATH))
