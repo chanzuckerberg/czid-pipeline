@@ -3,8 +3,8 @@ import subprocess
 import json
 import shelve
 import logging
+import idseq_pipeline.commands.accessionid2seq_functions as accessionid2seq_functions
 from .common import * #pylint: disable=wildcard-import
-import accessionid2seq_functions
 
 # data directories
 # from common import ROOT_DIR
@@ -65,7 +65,7 @@ TARGET_OUTPUTS = {"run_generate_taxid_fasta_from_accid": [os.path.join(RESULT_DI
                                                     os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_FAMILY_NR)],
                   "run_combine_json": [os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_ALL)],
                   "run_generate_align_viz": [os.path.join(RESULT_DIR, "%s.summary" % ALIGN_VIZ_DIR)]
-                  }
+                 }
 
 # references
 # from common import ACCESSION2TAXID
@@ -201,7 +201,7 @@ def run_stage3(lazy_run=False):
     input_file = os.path.join(INPUT_DIR, ACCESSION_ANNOTATED_FASTA)
 
     # download m8
-    execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, GSNAP_M8_FILE , INPUT_DIR))
+    execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, GSNAP_M8_FILE, INPUT_DIR))
     input_m8 = os.path.join(INPUT_DIR, GSNAP_M8_FILE)
 
     # generate taxid fasta

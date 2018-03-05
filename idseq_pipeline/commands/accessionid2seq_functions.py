@@ -160,8 +160,8 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
     if slave_id == 0:
         print("%d lines in the m8 file" % line_count)
 
-    for accession_id, ad in slave_results:
-        with open("%s/%s__family__%d__genus__%d__species__%d__accession__%s__align_viz.json" %(output_json_dir, db_type.lower(), int(ad['family_id']), int(ad['genus_id']), int(ad['species_id']), accession_id), 'wb') as outjf:
+    for accession_id, ad in slave_results.iteritems():
+        with open("%s/%s__family__%d__genus__%d__species__%d__accession__%s__align_viz.json" % (output_json_dir, db_type.lower(), int(ad['family_id']), int(ad['genus_id']), int(ad['species_id']), accession_id), 'wb') as outjf:
             json.dump(ad, outjf)
 
     if slave_id == 0:
