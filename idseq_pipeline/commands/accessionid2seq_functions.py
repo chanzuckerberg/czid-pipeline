@@ -96,7 +96,7 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
                 ref_start -= 1
                 prev_start = (ref_start - REF_DISPLAY_RANGE) if (ref_start - REF_DISPLAY_RANGE) > 0 else 0
                 post_end = ref_end + REF_DISPLAY_RANGE
-                ad['reads'].append((read_id, sequence, metrics, (prev_start, ref_start, ref_end, post_end)))
+                ad['reads'].append([read_id, sequence, metrics, (prev_start, ref_start, ref_end, post_end)])
                 ad['ref_link'] = "https://www.ncbi.nlm.nih.gov/nuccore/%s?report=fasta" % accession_id
 
     print("%d lines in the m8 file" % line_count)
