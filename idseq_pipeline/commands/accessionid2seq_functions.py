@@ -71,9 +71,8 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
             if seq_info:
                 accession_id = line_columns[1]
                 metrics = line_columns[2:]
-                if accession_id not in groups:
-                    groups[accession_id] = {'accession_id': accession_id, 'reads': []}
-                ad = groups[accession_id]  # "ad" is also known as "accession_info"
+                # "ad" is short for "accession_dict" aka "accession_info"
+                ad = groups.get(accession_id, {'reads': []})
                 sequence, ad['family_id'], ad['genus_id'], ad['species_id'] = seq_info
                 ref_start = int(metrics[-4])
                 ref_end = int(metrics[-3])
@@ -84,6 +83,7 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
                 post_end = ref_end + REF_DISPLAY_RANGE
                 ad['reads'].append([read_id, sequence, metrics, (prev_start, ref_start, ref_end, post_end)])
                 ad['ref_link'] = "https://www.ncbi.nlm.nih.gov/nuccore/%s?report=fasta" % accession_id
+                groups[accession_id] = ad
 
     print("%d lines in the m8 file" % line_count)
     print("%d unique accession ids" % len(groups))
