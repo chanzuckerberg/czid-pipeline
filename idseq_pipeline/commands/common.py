@@ -291,7 +291,7 @@ def configure_logger(log_file):
     LOGGER.addHandler(handler)
 
 
-def fetch_from_s3(source, destination, auto_unzip, mutex=threading.RLock(), locks={}):  #pylint: disable=dangerous-default-value
+def fetch_from_s3(source, destination, auto_unzip, allow_s3mi=False, mutex=threading.RLock(), locks={}):  #pylint: disable=dangerous-default-value
     with mutex:
         if os.path.exists(destination):
             if os.path.isdir(destination):
@@ -317,22 +317,47 @@ def fetch_from_s3(source, destination, auto_unzip, mutex=threading.RLock(), lock
                 raise
         with iostream:
             try:
+                if allow_s3mi:
+                    try:
+                        install_s3mi()
+                    except:
+                        allow_s3mi = False
                 if unzip:
-                    execute_command("aws s3 cp --quiet %s - | gzip -dc > %s" % (source, destination))
+                    try:
+                        assert allow_s3mi
+                        execute_command("s3mi cat %s | gzip -dc > %s" % (source, destination))
+                    except:
+                        execute_command("aws s3 cp --quiet %s - | gzip -dc > %s" % (source, destination))
                 else:
-                    execute_command("aws s3 cp --quiet %s %s" % (source, destination))
+                    try:
+                        assert allow_s3mi
+                        execute_command("s3mi cp %s %s" % (source, destination))
+                    except:
+                        execute_command("aws s3 cp --quiet %s %s" % (source, destination))
                 return destination
             except subprocess.CalledProcessError:
                 # Most likely the file doesn't exist in S3.
                 return None
 
 
-def fetch_lazy_result(source, destination):
-    return fetch_from_s3(source, destination, auto_unzip=False) != None
+def install_s3mi(installed={}, mutex=threading.RLock()): #pylint: disable=dangerous-default-value
+    with mutex:
+        if installed:
+            return
+        try:
+            # This is typically a no-op.
+            execute_command("which s3mi || pip install git+git://github.com/chanzuckerberg/s3mi.git")
+            execute_command("s3mi tweak-vm || echo s3mi tweak-vm is impossible under docker")
+        finally:
+            installed['time'] = time.time()
+
+
+def fetch_lazy_result(source, destination, allow_s3mi=False):
+    return fetch_from_s3(source, destination, auto_unzip=False, allow_s3mi=allow_s3mi) != None
 
 
 def fetch_reference(source, auto_unzip=True):
-    path = fetch_from_s3(source, REF_DIR, auto_unzip)
+    path = fetch_from_s3(source, REF_DIR, auto_unzip, allow_s3mi=True)
     assert path != None
     return path
 
@@ -349,7 +374,7 @@ def run_and_log_eager(logparams, target_outputs, func_name, *args):
 
 def run_and_log_s3(logparams, target_outputs, lazy_run, s3_result_dir, func_name, *args):
     def lazy_fetch(output_file):
-        return fetch_lazy_result(os.path.join(s3_result_dir, os.path.basename(output_file)), output_file)
+        return fetch_lazy_result(os.path.join(s3_result_dir, os.path.basename(output_file)), output_file, allow_s3mi=True)
     with run_and_log_mutex:
         return run_and_log_work(logparams, target_outputs, lazy_run, func_name, lazy_fetch, *args)
 

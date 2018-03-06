@@ -212,18 +212,6 @@ def run_star_part(output_dir, genome_dir, fastq_files):
     execute_command_realtime_stdout(" ".join(star_command_params), os.path.join(output_dir, "Log.progress.out"))
 
 
-def install_s3mi(installed={}, mutex=threading.RLock()): #pylint: disable=dangerous-default-value
-    with mutex:
-        if installed:
-            return
-        try:
-            # This is typically a no-op.
-            execute_command("which s3mi || pip install git+git://github.com/chanzuckerberg/s3mi.git")
-            execute_command("s3mi tweak-vm || echo s3mi tweak-vm is impossible under docker")
-        finally:
-            installed['time'] = time.time()
-
-
 def uncompressed(s3genome):
     if s3genome.endswith(".gz"):
         return s3genome[:-3]
