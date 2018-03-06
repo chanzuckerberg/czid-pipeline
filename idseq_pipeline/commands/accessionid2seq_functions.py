@@ -117,7 +117,11 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
                     prev_start, ref_start, ref_end, post_end = read[3]
                     tf.seek(prev_start, 0)
                     segment = tf.read(post_end - prev_start)
-                    read[3] = [segment[0:ref_start-prev_start], ref_seq[ref_start-prev_start:ref_end-prev_start], ref_seq[ref_end-prev_start:post_end-prev_start]]
+                    read[3] = [
+                        segment[0:(ref_start - prev_start)],
+                        segment[(ref_start - prev_start):(ref_end - prev_start)],
+                        segment[(ref_end - prev_start):(post_end - prev_start)]
+                    ]
             to_be_deleted.append(tmp_file)
         if ad['ref_seq_len'] > MAX_SEQ_DISPLAY_SIZE:
             ad['ref_seq'] = '...Reference Seq Too Long ...'
