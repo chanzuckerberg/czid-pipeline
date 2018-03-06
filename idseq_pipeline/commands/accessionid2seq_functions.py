@@ -115,6 +115,9 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
         if ad['ref_seq_len'] <= MAX_SEQ_DISPLAY_SIZE and 'ref_seq' not in ad:
             with open(tmp_file, "rb") as tf:
                 ad['ref_seq'] = tf.read()
+                # the previous value of ad['ref_seq_len'] is greater because it includes newline characters
+                # the value we set here excludes newline characters
+                ad['ref_seq_len'] = len(ad['ref_seq'])
             to_be_deleted.append(tmp_file)
         if 'ref_seq' in ad:
             ref_seq = ad['ref_seq']
@@ -133,7 +136,6 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
             to_be_deleted.append(tmp_file)
         if ad['ref_seq_len'] > MAX_SEQ_DISPLAY_SIZE:
             ad['ref_seq'] = '...Reference Seq Too Long ...'
-        del ad['ref_seq_len']
         family_id = ad.pop('family_id')
         genus_id = ad.pop('genus_id')
         species_id = ad.pop('species_id')
