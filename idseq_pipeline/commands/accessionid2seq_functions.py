@@ -20,20 +20,6 @@ MAX_SEQ_DISPLAY_SIZE = 6000
 # Test with the following function call
 # generate_alignment_viz_json('../../nt','nt.db','NT', 'taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8', 'taxid_annot_sorted_nt.fasta', 'align_viz')
 
-def get_chunk_start(full_size, num_chunks, chunk_idx):
-    if chunk_idx >= num_chunks:
-        return full_size
-    return int(chunk_idx * (full_size / float(num_chunks)))
-
-def get_dict_chunk(entire_dict, num_chunks, chunk_idx):
-    chunk_start = get_chunk_start(len(entire_dict), num_chunks, chunk_idx)
-    chunk_end = get_chunk_start(len(entire_dict), num_chunks, chunk_idx + 1)
-    result = {}
-    all_keys = sorted(entire_dict.keys())
-    for k in all_keys[chunk_start:chunk_end]:
-        result[k] = entire_dict[k]
-    return result
-
 def parse_reads(annotated_fasta, db_type):
     read2seq = {}
 
@@ -103,7 +89,6 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
     print("%d unique accession ids" % len(groups))
 
     if nt_file.startswith("s3://"):
-        # This can take an hour easily.
         get_sequences_by_accession_list_from_s3(groups, nt_loc_dict, nt_file)
     else:
         get_sequences_by_accession_list_from_file(groups, nt_loc_dict, nt_file)
