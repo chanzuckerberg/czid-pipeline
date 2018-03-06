@@ -2,7 +2,6 @@ import shelve
 import re
 import json
 import threading
-import multiprocessing
 import traceback
 import os
 
@@ -60,116 +59,114 @@ def parse_reads(annotated_fasta, db_type):
 
 def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
                                 annotated_m8, annotated_fasta,
-                                output_json_dir,
-                                slave_id=None,
-                                num_slaves=8):
+                                output_json_dir):
     """Generate alignment details from the reference sequence, m8 and annotated fasta """
     # Go through annotated_fasta with a db_type (NT/NR match).  Infer the family/genus/species info
 
     if db_type != 'NT' and db_type != 'NR':
         return
 
-    if slave_id == None:  # master
-        tentative_summary = "%s.summary.tentative" % output_json_dir
-        final_summary = "%s.summary" % output_json_dir
-        if os.path.exists(final_summary):
-            os.remove(final_summary)
-        if os.path.exists(tentative_summary):
-            os.remove(tentative_summary)
-        execute_command("mkdir -p %s " % output_json_dir)
-        processes = [multiprocessing.Process(target=generate_alignment_viz_json,
-                                             args=[nt_file, nt_loc_db, db_type, annotated_m8, annotated_fasta,
-                                                   output_json_dir, sid, num_slaves])
-                     for sid in range(num_slaves)]
-        for p in processes:
-            p.start()
-        for p in processes:
-            p.join()
-        for p in processes:
-            if p.exitcode != 0:
-                raise "Sorry, a generate_alignment_viz_json subprocess encountered a problem."
-        os.rename(tentative_summary, final_summary)
-        return final_summary
-
     read2seq = parse_reads(annotated_fasta, db_type)
 
-    if slave_id == 0:
-        print("Read to Seq dictionary size: %d" % len(read2seq))
+    print("Read to Seq dictionary size: %d" % len(read2seq))
 
-    # Go through m8 file infer the alignment info. grab the fasta sequence, lineage info, construct a tree, get the actual sequence from nt_file
-    nt_loc_dict = shelve.open(nt_loc_db)
-    accession2seq = {}
-    with open(annotated_m8, 'r') as m8f:
-        for line in m8f:
-            line_columns = line.rstrip().split("\t")
-            accession_id = line_columns[1]
-            accession2seq[accession_id] = accession2seq.get(accession_id, {'count': 0})
-            accession2seq[accession_id]['count'] += 1
-    if slave_id == 0:
-        print("%d unique accession ids" % len(accession2seq))
-
-    # Replace accession2seq with the part this slave will work on.
-    # TODO partition accession ids based on range lengths so we balance across slaves
-    accession_ids_count = len(accession2seq)
-    accession2seq = get_dict_chunk(accession2seq, num_slaves, slave_id)
-
-    if nt_file.startswith("s3://"):
-        # This can take an hour easily.
-        get_sequences_by_accession_list_from_s3(accession2seq, nt_loc_dict, nt_file, num_slaves, slave_id)
-    else:
-        get_sequences_by_accession_list_from_file(accession2seq, nt_loc_dict, nt_file)
-
-    # group reads by accession id
-    slave_results = {}
+    # Go through m8 file infer the alignment info. grab the fasta sequence, lineage info
+    groups = {}
     line_count = 0
-
+    nt_loc_dict = shelve.open(nt_loc_db)
     with open(annotated_m8, 'r') as m8f:
         for line in m8f:
             line_count += 1
+            if line_count % 100000 == 0:
+                print("%d lines in the m8 file processed." % line_count)
             line_columns = line.rstrip().split("\t")
-            accession_id = line_columns[1]
-            if accession_id in accession2seq:
-                ref_seq = accession2seq[accession_id]['seq']
-                read_id = extract_m8_readid(line_columns[0])
-                seq_info = read2seq.get(read_id)
+            read_id = extract_m8_readid(line_columns[0])
+            seq_info = read2seq.get(read_id)
+            if seq_info:
+                accession_id = line_columns[1]
                 metrics = line_columns[2:]
-                if slave_id == 0 and line_count % 100000 == 0:
-                    print("%d lines in the m8 file processed by slave 0." % line_count)
+                if accession_id not in groups:
+                    groups[accession_id] = {'accession_id': accession_id, 'reads': []}
+                ad = groups[accession_id]  # "ad" is also known as "accession_info"
+                sequence, ad['family_id'], ad['genus_id'], ad['species_id'] = seq_info
+                ref_start = int(metrics[-4])
+                ref_end = int(metrics[-3])
+                if ref_start > ref_end: # SWAP
+                    (ref_start, ref_end) = (ref_end, ref_start)
+                ref_start -= 1
+                prev_start = (ref_start - REF_DISPLAY_RANGE) if (ref_start - REF_DISPLAY_RANGE) > 0 else 0
+                post_end = ref_end + REF_DISPLAY_RANGE
+                ad['reads'].append((read_id, sequence, metrics, (prev_start, ref_start, ref_end, post_end)))
+                ad['ref_link'] = "https://www.ncbi.nlm.nih.gov/nuccore/%s?report=fasta" % accession_id
 
-                if seq_info:
-                    if accession_id not in slave_results:
-                        slave_results[accession_id] = {'accession_id': accession_id, 'reads': []}
-                    ad = slave_results[accession_id]
-                    sequence, ad['family_id'], ad['genus_id'], ad['species_id'] = seq_info
-                    ref_start = int(metrics[-4])
-                    ref_end = int(metrics[-3])
-                    if ref_start > ref_end: # SWAP
-                        (ref_start, ref_end) = (ref_end, ref_start)
-                    ref_start -= 1
-                    prev_start = (ref_start - REF_DISPLAY_RANGE) if (ref_start - REF_DISPLAY_RANGE) > 0 else 0
-                    post_end = ref_end + REF_DISPLAY_RANGE
-                    if len(ref_seq) > MAX_SEQ_DISPLAY_SIZE:
-                        ad['ref_seq'] = '...Reference Seq Too Long ...'
-                    else:
-                        ad['ref_seq'] = ref_seq
-                    ref_read = [ref_seq[prev_start:ref_start], ref_seq[ref_start:ref_end], ref_seq[ref_end:post_end]]
-                    ad['reads'].append((read_id, sequence, metrics, ref_read))
-                    ad['ref_seq_len'] = len(ref_seq)
-                    ad['ref_link'] = "https://www.ncbi.nlm.nih.gov/nuccore/%s?report=fasta" % accession_id
+    print("%d lines in the m8 file" % line_count)
+    print("%d unique accession ids" % len(groups))
 
-    if slave_id == 0:
-        print("%d lines in the m8 file" % line_count)
+    if nt_file.startswith("s3://"):
+        # This can take an hour easily.
+        get_sequences_by_accession_list_from_s3(groups, nt_loc_dict, nt_file)
+    else:
+        get_sequences_by_accession_list_from_file(groups, nt_loc_dict, nt_file)
 
-    for accession_id, ad in slave_results.iteritems():
-        with open("%s/%s__family__%d__genus__%d__species__%d__accession__%s__align_viz.json" % (output_json_dir, db_type.lower(), int(ad['family_id']), int(ad['genus_id']), int(ad['species_id']), accession_id), 'wb') as outjf:
-            json.dump(ad, outjf)
+    result_dict = {}
+    to_be_deleted = []
+    for accession_id, ad in groups.iteritems():
+        tmp_file = 'accession-%s' % accession_id
+        if ad['ref_seq_len'] <= MAX_SEQ_DISPLAY_SIZE and 'ref_seq' not in ad:
+            with open(tmp_file, "rb") as tf:
+                ad['ref_seq'] = tf.read()
+            to_be_deleted.append(tmp_file)
+        if 'ref_seq' in ad:
+            ref_seq = ad['ref_seq']
+            for read in ad['reads']:
+                prev_start, ref_start, ref_end, post_end = read[3]
+                read[3] = [ref_seq[prev_start:ref_start], ref_seq[ref_start:ref_end], ref_seq[ref_end:post_end]]
+        else:
+            # the reference sequence is too long to read entirely in RAM, so we only read the mapped segments
+            tmp_file = 'accession-%s' % accession_id
+            with open(tmp_file, "rb") as tf:
+                for read in ad['reads']:
+                    prev_start, ref_start, ref_end, post_end = read[3]
+                    tf.seek(prev_start, 0)
+                    segment = tf.read(post_end - prev_start)
+                    read[3] = [segment[0:ref_start-prev_start], ref_seq[ref_start-prev_start:ref_end-prev_start], ref_seq[ref_end-prev_start:post_end-prev_start]]
+            to_be_deleted.append(tmp_file)
+        if ad['ref_seq_len'] > MAX_SEQ_DISPLAY_SIZE:
+            ad['ref_seq'] = '...Reference Seq Too Long ...'
+        del ad['ref_seq_len']
+        family_id = ad.pop('family_id')
+        genus_id = ad.pop('genus_id')
+        species_id = ad.pop('species_id')
+        family_dict = result_dict.get(family_id, {})
+        genus_dict = family_dict.get(genus_id, {})
+        species_dict = genus_dict.get(species_id, {})
+        species_dict[accession_id] = ad
+        genus_dict[species_id] = species_dict
+        family_dict[genus_id] = genus_dict
+        result_dict[family_id] = family_dict
 
-    if slave_id == 0:
-        summary = "Read2Seq Size: %d, M8 lines %d, %d unique accession ids" % (len(read2seq), line_count, accession_ids_count)
-        summary_file_name = "%s.summary.tentative" % output_json_dir
-        with open(summary_file_name, 'w') as summaryf:
-            summaryf.write(summary)
+    deleter_thread = threading.Thread(target=map, args=[os.remove, to_be_deleted])
+    deleter_thread.start()
 
+    # output json by species, genus, family
+    execute_command("mkdir -p %s " % output_json_dir)
+    for (family_id, family_dict) in result_dict.iteritems():
+        with open("%s/%s.family.%d.align_viz.json" %(output_json_dir, db_type.lower(), int(family_id)), 'wb') as outjf:
+            json.dump(family_dict, outjf)
+        for (genus_id, genus_dict) in family_dict.iteritems():
+            with open("%s/%s.genus.%d.align_viz.json" %(output_json_dir, db_type.lower(), int(genus_id)), 'wb') as outjf:
+                json.dump(genus_dict, outjf)
+            for (species_id, species_dict) in genus_dict.iteritems():
+                with open("%s/%s.species.%d.align_viz.json" %(output_json_dir, db_type.lower(), int(species_id)), 'wb') as outjf:
+                    json.dump(species_dict, outjf)
+
+    deleter_thread.join()
+
+    summary = "Read2Seq Size: %d, M8 lines %d, %d unique accession ids" % (len(read2seq), line_count, len(groups))
+    summary_file_name = "%s.summary" % output_json_dir
+    with open(summary_file_name, 'w') as summaryf:
+        summaryf.write(summary)
+    return summary_file_name
 
 
 def delete_many(files, semaphore=None): #pylint: disable=dangerous-default-value
@@ -183,57 +180,39 @@ def delete_many(files, semaphore=None): #pylint: disable=dangerous-default-value
         if semaphore:
             semaphore.release()
 
-def async_delete(tmp_file, mutex=threading.RLock(), to_be_deleted=[[]], batch_size=1024, high_watermark=2048, max_threads=threading.Semaphore(3)): #pylint: disable=dangerous-default-value
-    with mutex:
-        tbd = to_be_deleted[0]
-        if tmp_file:
-            tbd.append(tmp_file)
-            watermark = high_watermark
-        else:
-            # flush
-            watermark = 1
-        while len(tbd) >= watermark:
-            delete_now, tbd = tbd[:batch_size], tbd[batch_size:]
-            max_threads.acquire()
-            threading.Thread(target=delete_many, args=[delete_now, max_threads]).start()
-        to_be_deleted[0] = tbd
-
-def async_deletes_flush():
-    async_delete(None)
-
 def get_sequences_by_accession_list_from_file(accession2seq, nt_loc_dict, nt_file):
     with open(nt_file) as ntf:
         for accession_id, accession_info in accession2seq.iteritems():
-            accession_info['seq'] = get_sequence_by_accession_id_ntf(accession_id, nt_loc_dict, ntf)
+            accession_info['ref_seq'] = get_sequence_by_accession_id_ntf(accession_id, nt_loc_dict, ntf)
+            accession_info['ref_seq_len'] = len(accession_info['ref_seq'])
 
-def get_sequences_by_accession_list_from_s3(accession_id_list, nt_loc_dict, nt_s3_path, num_slaves, slave_id):
+def get_sequences_by_accession_list_from_s3(accession_id_groups, nt_loc_dict, nt_s3_path):
     threads = []
     error_flags = {}
-    semaphore = threading.Semaphore(8)
+    semaphore = threading.Semaphore(64)
     mutex = threading.RLock()
     nt_bucket, nt_key = nt_s3_path[5:].split("/", 1)
-    for accession_id, accession_info in accession_id_list.iteritems():
+    for accession_id, accession_info in accession_id_groups.iteritems():
         semaphore.acquire()
         t = threading.Thread(
             target=get_sequence_for_thread,
-            args=[error_flags, accession_info, accession_id, nt_loc_dict, nt_bucket, nt_key, semaphore, mutex, async_delete, num_slaves, slave_id]
+            args=[error_flags, accession_info, accession_id, nt_loc_dict, nt_bucket, nt_key, semaphore, mutex]
         )
         t.start()
         threads.append(t)
     for t in threads:
         t.join()
-    async_deletes_flush()
     if error_flags:
         raise "Sorry there was an error"
 
-def get_sequence_for_thread(error_flags, accession_info, accession_id, nt_loc_dict, nt_bucket, nt_key, semaphore, mutex, async_delete_func, num_slaves, slave_id, seq_count=[0]): #pylint: disable=dangerous-default-value
+def get_sequence_for_thread(error_flags, accession_info, accession_id, nt_loc_dict, nt_bucket, nt_key, semaphore, mutex, seq_count=[0]): #pylint: disable=dangerous-default-value
     try:
-        seq = get_sequence_by_accession_id_s3(accession_id, nt_loc_dict, nt_bucket, nt_key, async_delete_func)
+        ref_seq_len = get_sequence_by_accession_id_s3(accession_id, nt_loc_dict, nt_bucket, nt_key)
         with mutex:
-            accession_info['seq'] = seq
+            accession_info['ref_seq_len'] = ref_seq_len
             seq_count[0] += 1
-            if slave_id == 0 and seq_count[0] % 100 == 0:
-                print("%d sequences fetched by slave 0 of %d, most recently %s" % (seq_count[0], num_slaves, accession_id))
+            if seq_count[0] % 100 == 0:
+                print("%d sequences fetched, most recently %s" % (seq_count[0], accession_id))
     except:
         with mutex:
             if not error_flags:
@@ -243,7 +222,7 @@ def get_sequence_for_thread(error_flags, accession_info, accession_id, nt_loc_di
         semaphore.release()
 
 def get_sequence_by_accession_id_ntf(accession_id, nt_loc_dict, ntf):
-    ref_seq = 'NOT FOUND'
+    ref_seq = ''
     entry = nt_loc_dict.get(accession_id)
     if entry:
         range_start = entry[0]+entry[1]
@@ -252,22 +231,22 @@ def get_sequence_by_accession_id_ntf(accession_id, nt_loc_dict, ntf):
         ref_seq = ntf.read(seq_len).replace("\n", "")
     return ref_seq
 
-def get_sequence_by_accession_id_s3(accession_id, nt_loc_dict, nt_bucket, nt_key, delete_func=os.remove):
-    ref_seq = 'NOT FOUND'
+def get_sequence_by_accession_id_s3(accession_id, nt_loc_dict, nt_bucket, nt_key):
+    seq_len = 0
     entry = nt_loc_dict.get(accession_id)
     if entry:
         range_start = entry[0]+entry[1]
         seq_len = entry[2]
-        tmp_file = '/tmp/accession-%s' % accession_id
-        os.mkfifo(tmp_file)
-        get_range = "aws s3api get-object --range bytes=%d-%d --bucket %s --key %s %s" % (range_start, range_start + seq_len - 1, nt_bucket, nt_key, tmp_file)
-        getter_subproc = subprocess.Popen(get_range, shell=True, stdout=DEVNULL)
-        with open(tmp_file, "rb") as tf:
-            ref_seq = tf.read().replace("\n", "")
-        exitcode = getter_subproc.wait()
+        pipe_file = 'pipe-accession-%s' % accession_id
+        accession_file = 'accession-%s' % accession_id
+        os.mkfifo(pipe_file)
+        get_range = "aws s3api get-object --range bytes=%d-%d --bucket %s --key %s %s" % (range_start, range_start + seq_len - 1, nt_bucket, nt_key, pipe_file)
+        get_range_proc = subprocess.Popen(get_range, shell=True, stdout=DEVNULL)
+        subprocess.check_call("tr -d '\n' < {pipe_file} > {accession_file}".format(pipe_file=pipe_file, accession_file=accession_file), shell=True)
+        exitcode = get_range_proc.wait()
         assert exitcode == 0
-        delete_func(tmp_file)
-    return ref_seq
+        os.remove(pipe_file)
+    return seq_len
 
 def accessionid2seq_main(arguments):
 
