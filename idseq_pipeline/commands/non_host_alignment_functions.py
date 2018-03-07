@@ -105,9 +105,9 @@ TARGET_OUTPUTS = {"run_gsnapl_remotely": [os.path.join(RESULT_DIR, GSNAPL_DEDUP_
                   "run_generate_unidentified_fasta": [os.path.join(RESULT_DIR, UNIDENTIFIED_FASTA_OUT)]}
 
 # compute capacity
-GSNAPL_MAX_CONCURRENT = 2 # number of gsnapl jobs allowed to run concurrently on 1 machine
-RAPSEARCH2_MAX_CONCURRENT = 3
-GSNAPL_CHUNK_SIZE = 30000 # number of fasta records in a chunk so it runs in ~10 minutes on i3.16xlarge
+GSNAPL_MAX_CONCURRENT = 4 # number of gsnapl jobs allowed to run concurrently on 1 machine
+RAPSEARCH2_MAX_CONCURRENT = 6
+GSNAPL_CHUNK_SIZE = 15000 # number of fasta records in a chunk so it runs in ~10 minutes on i3.16xlarge
 RAPSEARCH_CHUNK_SIZE = 10000
 
 # references
