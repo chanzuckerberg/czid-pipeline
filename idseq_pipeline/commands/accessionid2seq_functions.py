@@ -95,48 +95,68 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
 
     result_dict = {}
     to_be_deleted = []
+    error_count = 0
     for accession_id, ad in groups.iteritems():
-        tmp_file = 'accession-%s' % accession_id
-        if ad['ref_seq_len'] <= MAX_SEQ_DISPLAY_SIZE and 'ref_seq' not in ad:
-            with open(tmp_file, "rb") as tf:
-                ad['ref_seq'] = tf.read()
-                # the previous value of ad['ref_seq_len'] is greater because it includes newline characters
-                # the value we set here excludes newline characters
-                ad['ref_seq_len'] = len(ad['ref_seq'])
-            to_be_deleted.append(tmp_file)
-        if 'ref_seq' in ad:
-            ref_seq = ad['ref_seq']
-            for read in ad['reads']:
-                prev_start, ref_start, ref_end, post_end = read[3]
-                read[3] = [ref_seq[prev_start:ref_start], ref_seq[ref_start:ref_end], ref_seq[ref_end:post_end]]
-        else:
-            # the reference sequence is too long to read entirely in RAM, so we only read the mapped segments
+        try:
             tmp_file = 'accession-%s' % accession_id
-            with open(tmp_file, "rb") as tf:
+            if ad['ref_seq_len'] <= MAX_SEQ_DISPLAY_SIZE and 'ref_seq' not in ad:
+                if ad['ref_seq_len'] == 0:
+                    ad['ref_seq'] = "REFERENCE SEQUENCE NOT FOUND"
+                else:
+                    with open(tmp_file, "rb") as tf:
+                        ad['ref_seq'] = tf.read()
+                    to_be_deleted.append(tmp_file)
+            if 'ref_seq' in ad:
+                ref_seq = ad['ref_seq']
                 for read in ad['reads']:
                     prev_start, ref_start, ref_end, post_end = read[3]
-                    tf.seek(prev_start, 0)
-                    segment = tf.read(post_end - prev_start)
-                    read[3] = [
-                        segment[0:(ref_start - prev_start)],
-                        segment[(ref_start - prev_start):(ref_end - prev_start)],
-                        segment[(ref_end - prev_start):(post_end - prev_start)]
-                    ]
-            to_be_deleted.append(tmp_file)
-        if ad['ref_seq_len'] > MAX_SEQ_DISPLAY_SIZE:
-            ad['ref_seq'] = '...Reference Seq Too Long ...'
-        family_id = ad.pop('family_id')
-        genus_id = ad.pop('genus_id')
-        species_id = ad.pop('species_id')
-        family_dict = result_dict.get(family_id, {})
-        genus_dict = family_dict.get(genus_id, {})
-        species_dict = genus_dict.get(species_id, {})
-        species_dict[accession_id] = ad
-        genus_dict[species_id] = species_dict
-        family_dict[genus_id] = genus_dict
-        result_dict[family_id] = family_dict
+                    read[3] = [ref_seq[prev_start:ref_start], ref_seq[ref_start:ref_end], ref_seq[ref_end:post_end]]
+            else:
+                # the reference sequence is too long to read entirely in RAM, so we only read the mapped segments
+                tmp_file = 'accession-%s' % accession_id
+                with open(tmp_file, "rb") as tf:
+                    for read in ad['reads']:
+                        prev_start, ref_start, ref_end, post_end = read[3]
+                        tf.seek(prev_start, 0)
+                        segment = tf.read(post_end - prev_start)
+                        read[3] = [
+                            segment[0:(ref_start - prev_start)],
+                            segment[(ref_start - prev_start):(ref_end - prev_start)],
+                            segment[(ref_end - prev_start):(post_end - prev_start)]
+                        ]
+                to_be_deleted.append(tmp_file)
+            if ad['ref_seq_len'] > MAX_SEQ_DISPLAY_SIZE:
+                ad['ref_seq'] = '...Reference Seq Too Long ...'
+        except:
+            ad['ref_seq'] = "ERROR ACCESSING REFERENCE SEQUENCE FOR ACCESSION ID {}".format(accession_id)
+            if error_count == 0:
+                # print stack trace for first error
+                traceback.print_exc()
+            error_count += 1
+        finally:
+            family_id = ad.pop('family_id')
+            genus_id = ad.pop('genus_id')
+            species_id = ad.pop('species_id')
+            family_dict = result_dict.get(family_id, {})
+            genus_dict = family_dict.get(genus_id, {})
+            species_dict = genus_dict.get(species_id, {})
+            species_dict[accession_id] = ad
+            genus_dict[species_id] = species_dict
+            family_dict[genus_id] = genus_dict
+            result_dict[family_id] = family_dict
 
-    deleter_thread = threading.Thread(target=map, args=[os.remove, to_be_deleted])
+    if error_count > 10:
+        # Fail this many and the job is toast
+        raise "Sorry, could not access reference sequences for over {error_count} accession IDs.".format(error_count=error_count)
+
+    def safe_multi_delete(files):
+        for f in files:
+            try:
+                os.remove(f)
+            except:
+                pass
+
+    deleter_thread = threading.Thread(target=safe_multi_delete, args=[to_be_deleted])
     deleter_thread.start()
 
     # output json by species, genus, family
@@ -228,15 +248,29 @@ def get_sequence_by_accession_id_s3(accession_id, nt_loc_dict, nt_bucket, nt_key
     if entry:
         range_start = entry[0]+entry[1]
         seq_len = entry[2]
-        pipe_file = 'pipe-accession-%s' % accession_id
         accession_file = 'accession-%s' % accession_id
-        os.mkfifo(pipe_file)
-        get_range = "aws s3api get-object --range bytes=%d-%d --bucket %s --key %s %s" % (range_start, range_start + seq_len - 1, nt_bucket, nt_key, pipe_file)
-        get_range_proc = subprocess.Popen(get_range, shell=True, stdout=DEVNULL)
-        subprocess.check_call("tr -d '\n' < {pipe_file} > {accession_file}".format(pipe_file=pipe_file, accession_file=accession_file), shell=True)
-        exitcode = get_range_proc.wait()
-        assert exitcode == 0
-        os.remove(pipe_file)
+        NUM_RETRIES = 3
+        for attempt in range(NUM_RETRIES):
+            try:
+                pipe_file = 'pipe-{attempt}-accession-{accession_id}'.format(attempt=attempt, accession_id=accession_id)
+                os.mkfifo(pipe_file)
+                get_range = "aws s3api get-object --range bytes=%d-%d --bucket %s --key %s %s" % (range_start, range_start + seq_len - 1, nt_bucket, nt_key, pipe_file)
+                get_range_proc = subprocess.Popen(get_range, shell=True, stdout=DEVNULL)
+                subprocess.check_call("tr -d '\n' < {pipe_file} > {accession_file}".format(pipe_file=pipe_file, accession_file=accession_file), shell=True)
+                exitcode = get_range_proc.wait()
+                assert exitcode == 0
+                seq_len = os.stat(accession_file).st_size
+                break
+            except:
+                if attempt+1 < NUM_RETRIES:
+                    time.sleep(1.0 * (4 ** attempt))
+                else:
+                    raise
+            finally:
+                try:
+                    os.remove(pipe_file)
+                except:
+                    pass
     return seq_len
 
 def accessionid2seq_main(arguments):
