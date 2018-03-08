@@ -211,7 +211,7 @@ def generate_taxid_annotated_fasta_from_m8(input_fasta_file, m8_file, output_fas
                 continue
             parts = line.split("\t")
             log_corrupt(len(parts) < 12, m8_file, line)
-            read_name = parts[0]
+            read_name = extract_m8_readid(parts[0])
             read_name_parts = read_name.split("/")
             if len(read_name_parts) > 1:
                 output_read_name = read_name_parts[0] + '/' + read_name_parts[-1]
