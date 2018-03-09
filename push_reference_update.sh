@@ -36,7 +36,7 @@ aws s3 cp s3://czbiohub-infectious-disease/references/nt_k16.tar ${ARCHIVE_FOLDE
 aws s3 cp s3://czbiohub-infectious-disease/references/nt_k16.version.txt ${ARCHIVE_FOLDER}/
 
 echo 'Making new GSNAP index...'
-INPUT_FASTA_S3=${URL_PREFIX}/blast/db/FASTA/nt.gz SERVER_IP=${GSNAP_SERVER_IP} KEY_S3_PATH=s3://czbiohub-infectious-disease/idseq-production.pem OUTPUT_PATH_S3=$DESTINATION OUTPUT_NAME=nt_k16 idseq_pipeline gsnap_indexing
+INPUT_FASTA_S3=${URL_PREFIX}/blast/db/FASTA/nt.gz SERVER_IP=${GSNAP_SERVER_IP} KEY_S3_PATH=s3://idseq-secrets/idseq-production.pem OUTPUT_PATH_S3=$DESTINATION OUTPUT_NAME=nt_k16 idseq_pipeline gsnap_indexing
 
 ## Make RAPSearch2 index
 echo 'Archiving RAPSearch2 index...'
