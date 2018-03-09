@@ -133,6 +133,7 @@ def subsample_single_fasta(input_file, records_to_keep, type_, output_file):
     record_number = 0
     assert isinstance(records_to_keep, set), "Essential for this to complete in our lifetimes."
     kept_read_ids = set()
+    kept_reads_count = 0
     # write_to_log(sorted(records_to_keep))
     with open(input_file, 'rb') as input_f:
         with open(output_file, 'wb') as output_f:
@@ -150,16 +151,20 @@ def subsample_single_fasta(input_file, records_to_keep, type_, output_file):
                 if condition:
                     output_f.write(sequence_name)
                     output_f.write(sequence_data)
+                    kept_reads_count += 1
                     kept_read_ids.add(sequence_basename)
                 sequence_name = input_f.readline()
                 sequence_data = input_f.readline()
                 record_number += 1
+    if type_ == "record_indices":
+        if len(kept_read_ids) != len(records_to_keep):
+            write_to_log("WARNING:  Repeated read IDs in {input_file}:  Found {kri} read IDs in {rtk} sampled rows.".format(input_file=input_file, kri=len(kept_read_ids), rtk=len(records_to_keep)))
     if type_ == "read_ids":
         if kept_read_ids != records_to_keep:
             missing = records_to_keep - kept_read_ids
             examples = sorted(random.sample(missing, min(10, len(missing))))
             assert kept_read_ids == records_to_keep, "Not all desired read IDs were found in the file: {}\nMissing: {}".format(input_file, examples)
-    return kept_read_ids
+    return kept_read_ids, kept_reads_count
 
 def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads):
     input_files = [os.path.join(RESULT_DIR, f) for f in input_files_basenames]
@@ -174,13 +179,15 @@ def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads
     records_to_keep = set(random.sample(xrange(total_records), target_n_reads))
     subsampled_files = []
     known_kept_read_ids = set()
+    kept_reads_count = 0
     # subsample the paired files and record read IDs kept
     for input_file in input_files:
         input_dir = os.path.split(input_file)[0]
         input_basename = os.path.split(input_file)[1]
         output_basename = "%s.%s" % (subsample_prefix, input_basename)
         output_file = os.path.join(input_dir, output_basename)
-        kept_read_ids = subsample_single_fasta(input_file, records_to_keep, "record_indices", output_file)
+        kept_read_ids, kept_reads_count = subsample_single_fasta(input_file, records_to_keep, "record_indices", output_file)
+        assert kept_reads_count == target_n_reads
         subsampled_files.append(output_basename)
         known_kept_read_ids |= kept_read_ids
     # subsample the merged file to the same read IDs
@@ -188,7 +195,12 @@ def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads
     input_basename = os.path.split(merged_file)[1]
     subsampled_merged_file = "%s.%s" % (subsample_prefix, input_basename)
     output_file = os.path.join(input_dir, subsampled_merged_file)
-    subsample_single_fasta(merged_file, kept_read_ids, "read_ids", output_file)
+    _, kept_reads_count = subsample_single_fasta(merged_file, known_kept_read_ids, "read_ids", output_file)
+    num_desired = target_n_reads * len(input_files_basenames)
+    if kept_reads_count != num_desired:
+        # TODO Need a way to surface these warnings somehow in the webapp.
+        write_to_log("WARNING:  Improperly paired reads.  Total reads in sampled merged fasta: {krc}".format(krc=kept_reads_count))
+    assert kept_reads_count == num_desired
     return subsampled_files, subsampled_merged_file
 
 
@@ -931,7 +943,7 @@ def run_stage2(lazy_run=True):
             execute_command("aws s3 cp --quiet %s %s/" % (input1_s3_path, SAMPLE_S3_OUTPUT_PATH))
             execute_command("aws s3 cp --quiet %s %s/" % (input2_s3_path, SAMPLE_S3_OUTPUT_PATH))
             execute_command("aws s3 cp --quiet %s %s/" % (input3_s3_path, SAMPLE_S3_OUTPUT_PATH))
-        _gsnapl_input_files = [EXTRACT_UNMAPPED_FROM_SAM_OUT1, EXTRACT_UNMAPPED_FROM_SAM_OUT2]
+        gsnapl_input_files = [EXTRACT_UNMAPPED_FROM_SAM_OUT1, EXTRACT_UNMAPPED_FROM_SAM_OUT2]
         before_file_name_for_log = os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1)
         before_file_type_for_log = "fasta_paired"
         # Import existing job stats
@@ -951,16 +963,16 @@ def run_stage2(lazy_run=True):
         # prepare files for gsnap
         cleaned_files, before_file_type_for_log = clean_direct_gsnapl_input(fastq_files)
         before_file_name_for_log = cleaned_files[0]
-        _gsnapl_input_files = [os.path.basename(f) for f in cleaned_files]
+        gsnapl_input_files = [os.path.basename(f) for f in cleaned_files]
         # make combined fasta needed later
-        _merged_fasta = os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3)
-        generate_merged_fasta(cleaned_files, _merged_fasta)
-        execute_command("aws s3 cp --quiet %s %s/" % (_merged_fasta, SAMPLE_S3_OUTPUT_PATH))
+        merged_fasta = os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3)
+        generate_merged_fasta(cleaned_files, merged_fasta)
+        execute_command("aws s3 cp --quiet %s %s/" % (merged_fasta, SAMPLE_S3_OUTPUT_PATH))
         # Create new stats
         stats = StatsFile(STATS_OUT, RESULT_DIR, None, SAMPLE_S3_OUTPUT_PATH)
 
     # Make sure there are no tabs in sequence names, since tabs are used as a delimiter in m8 files
-    files_to_collapse_basenames = _gsnapl_input_files + [EXTRACT_UNMAPPED_FROM_SAM_OUT3]
+    files_to_collapse_basenames = gsnapl_input_files + [EXTRACT_UNMAPPED_FROM_SAM_OUT3]
     collapsed_files = ["%s/nospace.%s" % (RESULT_DIR, f) for f in files_to_collapse_basenames]
     for file_basename in files_to_collapse_basenames:
         execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_OUTPUT_PATH, file_basename, RESULT_DIR))
