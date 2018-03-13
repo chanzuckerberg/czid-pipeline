@@ -194,8 +194,10 @@ def delete_many(files, semaphore=None): #pylint: disable=dangerous-default-value
 def get_sequences_by_accession_list_from_file(accession2seq, nt_loc_dict, nt_file):
     with open(nt_file) as ntf:
         for accession_id, accession_info in accession2seq.iteritems():
-            accession_info['ref_seq'] = get_sequence_by_accession_id_ntf(accession_id, nt_loc_dict, ntf)
-            accession_info['ref_seq_len'] = len(accession_info['ref_seq'])
+            (ref_seq, seq_name) = get_sequence_by_accession_id_ntf(accession_id, nt_loc_dict, ntf)
+            accession_info['ref_seq'] = ref_seq
+            accession_info['ref_seq_len'] = len(ref_seq)
+            accession_info['name'] = seq_name
 
 def get_sequences_by_accession_list_from_s3(accession_id_groups, nt_loc_dict, nt_s3_path):
     threads = []
@@ -218,9 +220,10 @@ def get_sequences_by_accession_list_from_s3(accession_id_groups, nt_loc_dict, nt
 
 def get_sequence_for_thread(error_flags, accession_info, accession_id, nt_loc_dict, nt_bucket, nt_key, semaphore, mutex, seq_count=[0]): #pylint: disable=dangerous-default-value
     try:
-        ref_seq_len = get_sequence_by_accession_id_s3(accession_id, nt_loc_dict, nt_bucket, nt_key)
+        (ref_seq_len, seq_name) = get_sequence_by_accession_id_s3(accession_id, nt_loc_dict, nt_bucket, nt_key)
         with mutex:
             accession_info['ref_seq_len'] = ref_seq_len
+            accession_info['name'] = seq_name
             seq_count[0] += 1
             if seq_count[0] % 100 == 0:
                 print("%d sequences fetched, most recently %s" % (seq_count[0], accession_id))
@@ -234,29 +237,33 @@ def get_sequence_for_thread(error_flags, accession_info, accession_id, nt_loc_di
 
 def get_sequence_by_accession_id_ntf(accession_id, nt_loc_dict, ntf):
     ref_seq = ''
+    seq_name = ''
     entry = nt_loc_dict.get(accession_id)
     if entry:
-        range_start = entry[0]+entry[1]
-        seq_len = entry[2]
+        range_start = entry[0]
+        seq_len = entry[1] + entry[2]
         ntf.seek(range_start, 0)
-        ref_seq = ntf.read(seq_len).replace("\n", "")
-    return ref_seq
+        (seq_name, ref_seq) = ntf.read(seq_len).split("\n", 1)
+        ref_seq = ref_seq.replace("\n", "")
+        seq_name = seq_name.split(" ", 1)[1]
+    return (ref_seq, seq_name)
 
 def get_sequence_by_accession_id_s3(accession_id, nt_loc_dict, nt_bucket, nt_key):
     seq_len = 0
+    seq_name = ''
     entry = nt_loc_dict.get(accession_id)
     if entry:
-        range_start = entry[0]+entry[1]
-        seq_len = entry[2]
+        (range_start, name_length, seq_len) = entry
+
         accession_file = 'accession-%s' % accession_id
         NUM_RETRIES = 3
         for attempt in range(NUM_RETRIES):
             try:
                 pipe_file = 'pipe-{attempt}-accession-{accession_id}'.format(attempt=attempt, accession_id=accession_id)
                 os.mkfifo(pipe_file)
-                get_range = "aws s3api get-object --range bytes=%d-%d --bucket %s --key %s %s" % (range_start, range_start + seq_len - 1, nt_bucket, nt_key, pipe_file)
+                get_range = "aws s3api get-object --range bytes=%d-%d --bucket %s --key %s %s" % (range_start, range_start + name_length + seq_len - 1, nt_bucket, nt_key, pipe_file)
                 get_range_proc = subprocess.Popen(get_range, shell=True, stdout=DEVNULL)
-                subprocess.check_call("tr -d '\n' < {pipe_file} > {accession_file}".format(pipe_file=pipe_file, accession_file=accession_file), shell=True)
+                seq_name = subprocess.check_output("cat {pipe_file} |tee >(tail -n+2 |tr -d '\n' > {accession_file}) |head -1 ".format(pipe_file=pipe_file, accession_file=accession_file), executable='/bin/bash', shell=True).split(" ", 1)[1]
                 exitcode = get_range_proc.wait()
                 assert exitcode == 0
                 seq_len = os.stat(accession_file).st_size
@@ -271,7 +278,7 @@ def get_sequence_by_accession_id_s3(accession_id, nt_loc_dict, nt_bucket, nt_key
                     os.remove(pipe_file)
                 except:
                     pass
-    return seq_len
+    return (seq_len, seq_name)
 
 def accessionid2seq_main(arguments):
 

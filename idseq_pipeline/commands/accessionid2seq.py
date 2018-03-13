@@ -6,6 +6,7 @@ class Accessionid2seq(Base):
 
     def run(self):
         from .accessionid2seq_functions import accessionid2seq_main
+        from .common import *
 
         unbuffer_stdout()
 
