@@ -199,7 +199,7 @@ def subsample_fastas(input_files_basenames, merged_file_basename, target_n_reads
     num_desired = target_n_reads * len(input_files_basenames)
     if kept_reads_count != num_desired:
         # TODO Need a way to surface these warnings somehow in the webapp.
-        write_to_log("WARNING:  Improperly paired reads.  Total reads in sampled merged fasta: {krc}".format(krc=kept_reads_count))
+        write_to_log("ERROR:  Improperly paired reads.  Total reads in sampled merged fasta: {krc}".format(krc=kept_reads_count))
     assert kept_reads_count == num_desired
     return subsampled_files, subsampled_merged_file
 
