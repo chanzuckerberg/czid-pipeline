@@ -254,29 +254,19 @@ def fetch_genome(s3genome, mutex=threading.RLock(), mutexes={}): #pylint: disabl
         return fetch_genome_work(s3genome)
 
 
-def get_read(f, line):
-    """
-    Given file "f" with most recently read line "line", parse the read R that begins
-    with "line" and return a triple consisting of (all lines comprising R,
-    R's id, the first line that belongs to the next read after R).
-
-    At EOF, this function will idempotently return ([], None, "").
-    """
+def get_read(f):
+    # The FASTQ format specifies that each read consists of 4 lines,
+    # the first of which begins with @ followed by read ID.
     r, rid = [], None
-    if line == None:
-        # This case occurs at the beginning of the file.
-        line = f.readline()
+    line = f.readline()
     if line:
         assert line[0] == "@"
         rid = line.split("\t", 1)[0].strip()
-        # A fastq read comprises exactly 4 lines
-        for i in range(4):
-            if not line:
-                # EOF
-                break
-            r.append(line)
-            line = f.readline()
-    return r, rid, line
+        r.append(line)
+        r.append(f.readline())
+        r.append(f.readline())
+        r.append(f.readline())
+    return r, rid
 
 
 def write_lines(of, lines):
@@ -285,15 +275,18 @@ def write_lines(of, lines):
 
 
 def handle_outstanding_read(r0, r0id, outstanding_r0, outstanding_r1, of0, of1, mem, max_mem):
-    if r0id in outstanding_r1:
-        write_lines(of0, r0)
-        write_lines(of1, outstanding_r1.pop(r0id))
-        mem -= 1
-    else:
-        outstanding_r0[r0id] = r0
-        mem += 1
-        if mem > max_mem:
-            max_mem = mem
+    # If read r0 completes an outstanding r1, output the pair (r0, r1).
+    # Else r0 becomes outstanding, so in future some r1 may complete it.
+    if r0id:
+        if r0id in outstanding_r1:
+            write_lines(of0, r0)
+            write_lines(of1, outstanding_r1.pop(r0id))
+            mem -= 1
+        else:
+            outstanding_r0[r0id] = r0
+            mem += 1
+            if mem > max_mem:
+                max_mem = mem
     return mem, max_mem
 
 
@@ -303,21 +296,17 @@ def sync_pairs_work(of0, of1, if0, if1):
     outstanding_r1 = {}
     mem = 0
     max_mem = 0
-    l0 = None
-    l1 = None
     while True:
-        r0, r0id, l0 = get_read(if0, l0)
-        r1, r1id, l1 = get_read(if1, l1)
-        if not l0 and not l1:
+        r0, r0id = get_read(if0)
+        r1, r1id = get_read(if1)
+        if not r0 and not r1:
             break
         if r0id == r1id:
-            # If the input pairs are already synchronized, we always take this branch.
+            # If the input pairs are already synchronized, we take this branch on every iteration.
             write_lines(of0, r0)
             write_lines(of1, r1)
-            continue
-        if r0id:
+        else:
             mem, max_mem = handle_outstanding_read(r0, r0id, outstanding_r0, outstanding_r1, of0, of1, mem, max_mem)
-        if r1id:
             mem, max_mem = handle_outstanding_read(r1, r1id, outstanding_r1, outstanding_r0, of1, of0, mem, max_mem)
     return outstanding_r0, outstanding_r1, max_mem
 
