@@ -264,15 +264,18 @@ def get_read(f, line):
     """
     r, rid = [], None
     if line == None:
+        # This case occurs at the beginning of the file.
         line = f.readline()
     if line:
         assert line[0] == "@"
         rid = line.split("\t", 1)[0].strip()
-        while True:
+        # A fastq read comprises exactly 4 lines
+        for i in range(4):
+            if not line:
+                # EOF
+                break
             r.append(line)
             line = f.readline()
-            if not line or line[0] == "@":
-                break
     return r, rid, line
 
 
