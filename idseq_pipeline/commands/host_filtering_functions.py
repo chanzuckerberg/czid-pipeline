@@ -254,6 +254,89 @@ def fetch_genome(s3genome, mutex=threading.RLock(), mutexes={}): #pylint: disabl
         return fetch_genome_work(s3genome)
 
 
+def get_read(f):
+    # The FASTQ format specifies that each read consists of 4 lines,
+    # the first of which begins with @ followed by read ID.
+    r, rid = [], None
+    line = f.readline()
+    if line:
+        assert line[0] == "@"
+        rid = line.split("\t", 1)[0].strip()
+        r.append(line)
+        r.append(f.readline())
+        r.append(f.readline())
+        r.append(f.readline())
+    return r, rid
+
+
+def write_lines(of, lines):
+    for l in lines:
+        of.write(l)
+
+
+def handle_outstanding_read(r0, r0id, outstanding_r0, outstanding_r1, of0, of1, mem, max_mem):
+    # If read r0 completes an outstanding r1, output the pair (r0, r1).
+    # Else r0 becomes outstanding, so in future some r1 may complete it.
+    if r0id:
+        if r0id in outstanding_r1:
+            write_lines(of0, r0)
+            write_lines(of1, outstanding_r1.pop(r0id))
+            mem -= 1
+        else:
+            outstanding_r0[r0id] = r0
+            mem += 1
+            if mem > max_mem:
+                max_mem = mem
+    return mem, max_mem
+
+
+def sync_pairs_work(of0, of1, if0, if1):
+    # TODO:  Use this as a template for merging fasta?
+    outstanding_r0 = {}
+    outstanding_r1 = {}
+    mem = 0
+    max_mem = 0
+    while True:
+        r0, r0id = get_read(if0)
+        r1, r1id = get_read(if1)
+        if not r0 and not r1:
+            break
+        if r0id == r1id:
+            # If the input pairs are already synchronized, we take this branch on every iteration.
+            write_lines(of0, r0)
+            write_lines(of1, r1)
+        else:
+            mem, max_mem = handle_outstanding_read(r0, r0id, outstanding_r0, outstanding_r1, of0, of1, mem, max_mem)
+            mem, max_mem = handle_outstanding_read(r1, r1id, outstanding_r1, outstanding_r0, of1, of0, mem, max_mem)
+    return outstanding_r0, outstanding_r1, max_mem
+
+
+def sync_pairs(fastq_files, max_discrepancies=0):
+    """
+    The given fastq_files contain the same read IDs but in different order.
+    Output the same data in sycnhronized order.  Omit up to max_discrepancies
+    if necessary.  If more must be suppressed, raise assertion.
+    """
+    if len(fastq_files) != 2:
+        return fastq_files
+    output_filenames = [ifn + ".synchornized_pairs.fq" for ifn in fastq_files]
+    with open(fastq_files[0], "rb") as if_0:
+        with open(fastq_files[1], "rb") as if_1:
+            with open(output_filenames[0], "wb") as of_0:
+                with open(output_filenames[1], "wb") as of_1:
+                    outstanding_r0, outstanding_r1, max_mem = sync_pairs_work(of_0, of_1, if_0, if_1)
+    if max_mem:
+        # This will be printed if some pairs were out of order.
+        warning_message = "WARNING:  Pair order out of sync in {fqf}.  Synchronized using RAM for {max_mem} pairs.".format(fqf=fastq_files, max_mem=max_mem)
+        write_to_log(warning_message)
+    discrepancies_count = len(outstanding_r0) + len(outstanding_r1)
+    if discrepancies_count:
+        warning_message = "WARNING:  Found {dc} broken pairs in {fqf}, e.g., {example}.".format(dc=discrepancies_count, fqf=fastq_files, example=(outstanding_r0 or outstanding_r1).popitem()[0])
+        write_to_log(warning_message)
+        assert discrepancies_count <= max_discrepancies, warning_message
+    return output_filenames
+
+
 def run_star(fastq_files):
     star_outputs = [STAR_OUT1, STAR_OUT2]
     num_fastqs = len(fastq_files)
@@ -272,10 +355,10 @@ def run_star(fastq_files):
             tmp_result_dir = "%s/star-part-%d" % (SCRATCH_DIR, part_idx)
             genome_part = "%s/part-%d" % (genome_dir, part_idx)
             run_star_part(tmp_result_dir, genome_part, unmapped)
-            unmapped = unmapped_files_in(tmp_result_dir)
+            unmapped = sync_pairs(unmapped_files_in(tmp_result_dir))
     else:
         run_star_part(SCRATCH_DIR, genome_dir, fastq_files)
-        unmapped = unmapped_files_in(SCRATCH_DIR)
+        unmapped = sync_pairs(unmapped_files_in(SCRATCH_DIR))
     for i, f in enumerate(unmapped):
         output_i = os.path.join(RESULT_DIR, star_outputs[i])
         execute_command("mv %s %s;" % (f, output_i))
@@ -283,6 +366,7 @@ def run_star(fastq_files):
     # cleanup
     execute_command("cd %s; rm -rf *" % SCRATCH_DIR)
     write_to_log("finished job")
+
 
 def run_priceseqfilter(input_fqs):
     # PriceSeqFilter determines input type based on extension.
