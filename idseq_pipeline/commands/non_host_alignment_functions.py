@@ -14,8 +14,10 @@ from .common import * #pylint: disable=wildcard-import
 
 
 # that's per job;  by default in early 2018 jobs are subsampled to <= 100 chunks
-MAX_CHUNKS_IN_FLIGHT = 64
-chunks_in_flight = threading.Semaphore(MAX_CHUNKS_IN_FLIGHT)
+MAX_CHUNKS_IN_FLIGHT_GSNAP = 64
+MAX_CHUNKS_IN_FLIGHT_RAPSEARCH = 64
+chunks_in_flight_gsnap = threading.Semaphore(MAX_CHUNKS_IN_FLIGHT_GSNAP)
+chunks_in_flight_rapsearch = threading.Semaphore(MAX_CHUNKS_IN_FLIGHT_RAPSEARCH)
 
 # Dispatch at most this many chunks per minute, to ensure fairness
 # amongst jobs regardless of job size (not the best way to do it,
@@ -725,12 +727,13 @@ def run_gsnapl_remotely(input_files, lazy_run):
     mutex = threading.RLock()
     iii = list(enumerate(input_chunks))
     random.shuffle(iii)
+    chunks_in_flight = chunks_in_flight_gsnap
     for n, chunk_input_files in iii:
         chunks_in_flight.acquire()
         check_for_errors(mutex, chunk_output_files, input_chunks, "gsnap")
         t = threading.Thread(
             target=run_chunk_wrapper,
-            args=[chunk_output_files, n, mutex, run_gsnapl_chunk,
+            args=[chunks_in_flight, chunk_output_files, n, mutex, run_gsnapl_chunk,
                   [part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, remote_username,
                    chunk_input_files, key_path, lazy_run]])
         t.start()
@@ -833,7 +836,7 @@ def run_rapsearch_chunk(part_suffix, _remote_home_dir, remote_index_dir, remote_
     return os.path.join(CHUNKS_RESULT_DIR, outfile_basename)
 
 
-def run_chunk_wrapper(chunk_output_files, n, mutex, target, args):
+def run_chunk_wrapper(chunks_in_flight, chunk_output_files, n, mutex, target, args):
     result = "error"
     try:
         result = target(*args)
@@ -871,12 +874,13 @@ def run_rapsearch2_remotely(input_fasta, lazy_run):
     mutex = threading.RLock()
     iii = list(enumerate(input_chunks))
     random.shuffle(iii)
+    chunks_in_flight = chunks_in_flight_rapsearch
     for n, chunk_input_files in iii:
         chunks_in_flight.acquire()
         check_for_errors(mutex, chunk_output_files, input_chunks, "rapsearch")
         t = threading.Thread(
             target=run_chunk_wrapper,
-            args=[chunk_output_files, n, mutex, run_rapsearch_chunk,
+            args=[chunks_in_flight, chunk_output_files, n, mutex, run_rapsearch_chunk,
                   # Arguments passed to run_rapsearch_chunk
                   [part_suffix, remote_home_dir, remote_index_dir, remote_work_dir,
                    remote_username, chunk_input_files[0], key_path, lazy_run]]
