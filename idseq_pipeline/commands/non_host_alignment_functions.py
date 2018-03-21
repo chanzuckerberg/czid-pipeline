@@ -25,7 +25,9 @@ chunks_in_flight_rapsearch = threading.Semaphore(MAX_CHUNKS_IN_FLIGHT_RAPSEARCH)
 MAX_DISPATCHES_PER_MINUTE = 10
 
 # poll this many random servers per wait_for_instance_ip
-MAX_INSTANCES_TO_POLL = 5
+MAX_INSTANCES_TO_POLL = 8
+
+MAX_POLLING_LATENCY = 10 # seconds
 
 # If no instance is available, we should refresh our list of instances, to pick up new instances
 # added by autoscaling.  Wait at least this long between refreshes to stay within AWS account limits.
@@ -107,7 +109,7 @@ TARGET_OUTPUTS = {"run_gsnapl_remotely": [os.path.join(RESULT_DIR, GSNAPL_DEDUP_
                   "run_generate_unidentified_fasta": [os.path.join(RESULT_DIR, UNIDENTIFIED_FASTA_OUT)]}
 
 # compute capacity
-GSNAPL_MAX_CONCURRENT = 4 # number of gsnapl jobs allowed to run concurrently on 1 machine
+GSNAPL_MAX_CONCURRENT = 3 # number of gsnapl jobs allowed to run concurrently on 1 machine
 RAPSEARCH2_MAX_CONCURRENT = 6
 GSNAPL_CHUNK_SIZE = 15000 # number of fasta records in a chunk so it runs in ~10 minutes on i3.16xlarge
 RAPSEARCH_CHUNK_SIZE = 10000
@@ -529,19 +531,26 @@ def wait_for_server_ip_work(service_name, key_path, remote_username, environment
         instance_ips = random.sample(instance_ips, min(MAX_INSTANCES_TO_POLL, len(instance_ips)))
         ip_nproc_dict = {}
         dict_mutex = threading.RLock()
+        dict_writable = True
         def poll_server(ip):
             command = 'ssh -o "StrictHostKeyChecking no" -o "ConnectTimeout 5" -i %s %s@%s "ps aux | grep %s | grep -v bash" || echo "error"' % (key_path, remote_username, ip, service_name)
-            output = execute_command_with_output(command).rstrip().split("\n")
+            output = execute_command_with_output(command, timeout=MAX_POLLING_LATENCY).rstrip().split("\n")
             if output != ["error"]:
                 with dict_mutex:
-                    ip_nproc_dict[ip] = len(output) - 1
+                    if dict_writable:
+                        ip_nproc_dict[ip] = len(output) - 1
         poller_threads = []
         for ip in instance_ips:
             pt = threading.Thread(target=poll_server, args=[ip])
             pt.start()
             poller_threads.append(pt)
         for pt in poller_threads:
-            pt.join()
+            pt.join(MAX_POLLING_LATENCY)
+        with dict_mutex:
+            # Any zombie threads won't be allowed to modify the dict.
+            dict_writable = False
+        if len(ip_nproc_dict) < len(poller_threads):
+            write_to_log("Only {} out of {} instances responded to polling;  {} threads are timing out.".format(len(ip_nproc_dict), len(poller_threads), len([pt for pt in poller_threads if pt.isAlive()])))
         write_to_log("Chunk {chunk_id} of {service_name} is at fourth gate".format(chunk_id=chunk_id, service_name=service_name))
         if not ip_nproc_dict:
             have_capacity = False
@@ -564,7 +573,7 @@ def wait_for_server_ip_work(service_name, key_path, remote_username, environment
             return min_nproc_ip
         else:
             had_to_wait[0] = True
-            wait_seconds = random.randint(15, 60)
+            wait_seconds = random.randint(max(20, MAX_POLLING_LATENCY), max(60, MAX_POLLING_LATENCY))
             write_to_log("%s servers busy. Wait for %d seconds" % (service_name, wait_seconds))
             time.sleep(wait_seconds)
 
