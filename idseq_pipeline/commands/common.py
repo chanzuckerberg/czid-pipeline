@@ -134,15 +134,51 @@ class CommandTracker(Updater):
     count = 0
 
     def __init__(self, update_period=15):
-        super(CommandTracker, self).__init__(update_period, self.print_update)
+        super(CommandTracker, self).__init__(update_period, self.print_update_and_enforce_timeout)
+        # User can set the watchdog to a function that takes self.id and t_elapsed as single arg
+        self.proc = None
+        self.timeout = None
+        self.t_sigterm_sent = None
+        self.t_sigkill_sent = None
+        self.grace_period = update_period / 2.0
         with CommandTracker.lock:
             self.id = CommandTracker.count
             CommandTracker.count += 1
 
-    def print_update(self, t_elapsed):
+    def print_update_and_enforce_timeout(self, t_elapsed):
         with print_lock:
-            print "Command %d still running after %3.1f seconds." % (self.id, t_elapsed)
+            if self.proc == None or self.proc.poll() == None:
+                print "Command %d still running after %3.1f seconds." % (self.id, t_elapsed)
+            else:
+                # This should be uncommon, unless there is lengthy python processing following
+                # the command in the same CommandTracker "with" block.
+                print "Command %d postprocessing after %3.1f seconds." % (self.id, t_elapsed)
             sys.stdout.flush()
+        self.enforce_timeout(t_elapsed)
+
+    def enforce_timeout(self, t_elapsed):
+        if not self.proc or t_elapsed <= self.timeout or self.proc.poll() != None:
+            # Unregistered subprocess, subprocess not yet timed out, or subprocess already exited.
+            pass
+        elif not self.t_sigterm_sent:
+            # Send SIGTERM first.
+            with print_lock:
+                print "Command %d has exceeded timeout of %3.1f seconds.  Sending SIGTERM." % (self.id, self.timeout)
+                sys.stdout.flush()
+            self.t_sigterm_sent = time.time()
+            self.proc.terminate()
+        elif not self.t_sigkill_sent:
+            # Grace_period after SIGTERM, send SIGKILL.
+            if time.time() > self.t_sigterm_sent + self.grace_period:
+                with print_lock:
+                    print "Command %d still alive %3.1f seconds after SIGTERM.  Sending SIGKILL." % (self.id, time.time() - self.t_sigterm_sent)
+                    sys.stdout.flush()
+                self.t_sigkill_sent = time.time()
+                self.proc.kill()
+        else:
+            with print_lock:
+                print "Command %d still alive %3.1f seconds after SIGKILL." % (self.id, time.time() - self.t_sigkill_sent)
+                sys.stdout.flush()
 
 
 class ProgressFile(object):
@@ -162,12 +198,21 @@ class ProgressFile(object):
             self.tail_subproc.kill()
 
 
-def execute_command_with_output(command, progress_file=None):
+def execute_command_with_output(command, progress_file=None, timeout=None, grace_period=None):
     with CommandTracker() as ct:
         with print_lock:
             print "Command {}: {}".format(ct.id, command)
         with ProgressFile(progress_file):
-            return subprocess.check_output(command, shell=True)
+            # Capture only stdout.   Send stderr to parent stderr.   Take input from parent stdin.
+            ct.proc = subprocess.Popen(command, shell=True, stdin=sys.stdin.fileno(), stdout=subprocess.PIPE, stderr=sys.stderr.fileno())
+            if timeout:
+                ct.timeout = timeout
+            if grace_period:
+                ct.grace_period = grace_period
+            stdout, _undefined = ct.proc.communicate()
+            if ct.proc.returncode:
+                raise subprocess.CalledProcessError(ct.proc.returncode, command, stdout)
+            return stdout
 
 
 def execute_command_realtime_stdout(command, progress_file=None):
