@@ -360,7 +360,7 @@ def run_star(fastq_files):
             unmapped = sync_pairs(unmapped_files_in(tmp_result_dir))
     else:
         # if index was not partitioned, can make host gene-counts output file
-        run_star_part(SCRATCH_DIR, genome_dir, fastq_files, true)
+        run_star_part(SCRATCH_DIR, genome_dir, fastq_files, True)
         unmapped = sync_pairs(unmapped_files_in(SCRATCH_DIR))
         gene_counts = os.path.join(SCRATCH_DIR, "ReadsPerGene.out.tab") # need to verify exact name of output file
         execute_command("aws s3 cp --quiet %s %s/;" % (gene_counts, SAMPLE_S3_OUTPUT_PATH))
