@@ -194,7 +194,7 @@ def generate_unmapped_pairs_from_sam(sam_file, output_prefix):
     output_merged_read.close()
 
 # job functions
-def run_star_part(output_dir, genome_dir, fastq_files):
+def run_star_part(output_dir, genome_dir, fastq_files, gene_counts=False):
     execute_command("mkdir -p %s" % output_dir)
     star_command_params = ['cd', output_dir, ';', STAR,
                            '--outFilterMultimapNmax', '99999',
@@ -209,6 +209,8 @@ def run_star_part(output_dir, genome_dir, fastq_files):
                            '--readFilesIn', " ".join(fastq_files)]
     if fastq_files[0][-3:] == '.gz':
         star_command_params += ['--readFilesCommand', 'zcat']
+    if gene_counts:
+        star_command_params += ['--quantMode', 'GeneCounts']
     execute_command_realtime_stdout(" ".join(star_command_params), os.path.join(output_dir, "Log.progress.out"))
 
 
@@ -357,8 +359,12 @@ def run_star(fastq_files):
             run_star_part(tmp_result_dir, genome_part, unmapped)
             unmapped = sync_pairs(unmapped_files_in(tmp_result_dir))
     else:
-        run_star_part(SCRATCH_DIR, genome_dir, fastq_files)
+        # if index was not partitioned, can make host gene-counts output file
+        run_star_part(SCRATCH_DIR, genome_dir, fastq_files, true)
         unmapped = sync_pairs(unmapped_files_in(SCRATCH_DIR))
+        gene_counts = os.path.join(SCRATCH_DIR, "ReadsPerGene.out.tab") # need to verify exact name of output file
+        execute_command("aws s3 cp --quiet %s %s/;" % (gene_counts, SAMPLE_S3_OUTPUT_PATH))
+
     for i, f in enumerate(unmapped):
         output_i = os.path.join(RESULT_DIR, star_outputs[i])
         execute_command("mv %s %s;" % (f, output_i))
