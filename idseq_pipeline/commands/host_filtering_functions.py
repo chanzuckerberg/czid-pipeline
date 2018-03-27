@@ -210,7 +210,7 @@ def run_star_part(output_dir, genome_dir, fastq_files, count_genes=False):
                            '--readFilesIn', " ".join(fastq_files)]
     if fastq_files[0][-3:] == '.gz':
         star_command_params += ['--readFilesCommand', 'zcat']
-    if count_genes:
+    if count_genes and os.path.isfile("%s/sjdbList.fromGTF.out.tab" % genome_dir):
         star_command_params += ['--quantMode', 'GeneCounts']
     execute_command_realtime_stdout(" ".join(star_command_params), os.path.join(output_dir, "Log.progress.out"))
 
