@@ -9,3 +9,4 @@ from .curate_accession2taxid import *
 from .curate_accessionid2seq import *
 from .accessionid2seq import *
 from .blacklist import *
+from .set_folder_name import *

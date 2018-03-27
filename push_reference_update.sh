@@ -36,6 +36,9 @@ echo 'Making new GSNAP index...'
 echo "INPUT_FASTA_S3: ${URL_PREFIX}/blast/db/FASTA/nt.gz"
 echo "OUTPUT NAME: nt_k16"
 echo "OUTPUT PATH S3: $dest2"
+
+idseq_pipeline set_folder_name
+exit 0
 INPUT_FASTA_S3=${URL_PREFIX}/blast/db/FASTA/nt.gz SERVER_IP=${GSNAP_SERVER_IP} KEY_S3_PATH=s3://idseq-secrets/idseq-production.pem OUTPUT_PATH_S3=$dest2 OUTPUT_NAME=nt_k16 idseq_pipeline gsnap_indexing
 
 ## Make RAPSearch2 index
