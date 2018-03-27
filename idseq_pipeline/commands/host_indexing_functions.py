@@ -19,8 +19,8 @@ STAR = "STAR"
 BOWTIE2_BUILD = "bowtie2-build"
 
 # output names
-STAR_INDEX_OUT = 'STAR_genome.tar.gz'
-BOWTIE2_INDEX_OUT = 'bowtie2_genome.tar.gz'
+STAR_INDEX_OUT = 'STAR_genome.tar'
+BOWTIE2_INDEX_OUT = 'bowtie2_genome.tar'
 
 ### Functions
 def split_fasta(fasta_file, max_fasta_part_size):
@@ -79,8 +79,8 @@ def make_star_index(fasta_file, result_dir, scratch_dir, lazy_run):
         print "finished making STAR index part %d " % i
     # record # parts into parts.txt
     execute_command(" echo %d > %s/%s/parts.txt" % (len(fasta_file_list), scratch_dir, star_genome_dir_name))
-    # archive and compress
-    execute_command("tar czvf %s/%s -C %s %s" % (result_dir, STAR_INDEX_OUT, scratch_dir, star_genome_dir_name))
+    # archive
+    execute_command("tar cvf %s/%s -C %s %s" % (result_dir, STAR_INDEX_OUT, scratch_dir, star_genome_dir_name))
     # copy to S3
     execute_command("aws s3 cp --quiet %s/%s %s/;" % (result_dir, STAR_INDEX_OUT, OUTPUT_PATH_S3))
     # cleanup
@@ -98,8 +98,8 @@ def make_bowtie2_index(host_name, fasta_file, result_dir, scratch_dir, lazy_run)
                               BOWTIE2_BUILD, fasta_file, host_name]
     execute_command(" ".join(bowtie2_command_params))
     print "finished making bowtie2 index"
-    # archive and compress
-    execute_command("tar czvf %s/%s -C %s %s" % (result_dir, BOWTIE2_INDEX_OUT, scratch_dir, bowtie2_genome_dir_name))
+    # archive
+    execute_command("tar cvf %s/%s -C %s %s" % (result_dir, BOWTIE2_INDEX_OUT, scratch_dir, bowtie2_genome_dir_name))
     # copy to S3
     execute_command("aws s3 cp --quiet %s/%s %s/;" % (result_dir, BOWTIE2_INDEX_OUT, OUTPUT_PATH_S3))
     # cleanup
