@@ -368,7 +368,6 @@ def run_star(fastq_files):
     else:
         run_star_part(SCRATCH_DIR, genome_dir, fastq_files)
         result_files = sync_pairs(unmapped_files_in(SCRATCH_DIR))
-
     for i, f in enumerate(result_files):
         output_i = os.path.join(RESULT_DIR, star_outputs[i])
         execute_command("mv %s %s;" % (f, output_i))
