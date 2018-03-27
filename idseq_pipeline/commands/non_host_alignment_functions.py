@@ -214,6 +214,10 @@ def concatenate_files(file_list, output_file):
             with open(f, 'rb') as fd:
                 shutil.copyfileobj(fd, outf)
 
+def remove_annotation(read_id):
+    result = re.sub(r'NT:(.*?):', '', read_id)
+    result = re.sub(r'NR:(.*?):', '', result)
+    return result
 
 def generate_taxid_annotated_fasta_from_m8(input_fasta_file, m8_file, output_fasta_file, annotation_prefix):
     '''Tag reads based on the m8 output'''
@@ -242,6 +246,7 @@ def generate_taxid_annotated_fasta_from_m8(input_fasta_file, m8_file, output_fas
     sequence_data = input_fasta_f.readline()
     while sequence_name and sequence_data:
         read_id = sequence_name.rstrip().lstrip('>')
+        read_id = remove_annotation(read_id)
         accession = read_to_accession_id.get(read_id, '')
         new_read_name = annotation_prefix + ':' + accession + ':' + read_id
         output_fasta_f.write(">%s\n" % new_read_name)
