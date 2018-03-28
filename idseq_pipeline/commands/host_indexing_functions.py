@@ -11,6 +11,7 @@ DEST_DIR = ROOT_DIR + '/idseq/indexes' # generated indexes go here
 
 # arguments from environment variables
 INPUT_FASTA_S3 = os.environ.get('INPUT_FASTA_S3')
+INPUT_GTF_S3 = os.environ.get('INPUT_GTF_S3')
 OUTPUT_PATH_S3 = os.environ.get('OUTPUT_PATH_S3').rstrip('/')
 HOST_NAME = os.environ.get('HOST_NAME')
 
@@ -51,7 +52,7 @@ def split_fasta(fasta_file, max_fasta_part_size):
     return fasta_file_list
 
 
-def make_star_index(fasta_file, result_dir, scratch_dir, lazy_run):
+def make_star_index(fasta_file, gtf_file, result_dir, scratch_dir, lazy_run):
     if lazy_run:
         output = os.path.join(result_dir, STAR_INDEX_OUT)
         if os.path.isfile(output):
@@ -68,11 +69,16 @@ def make_star_index(fasta_file, result_dir, scratch_dir, lazy_run):
 
     for i in range(len(fasta_file_list)):
         print "start making STAR index part %d" % i
+        gtf_command_part = ''
+        if i == 0 and gtf_file:
+            gtf_command_part = '--sjdbGTFfile %s' % gtf_file
+
         star_genome_part_dir = "%s/part-%d" % (star_genome_dir_name, i)
         star_command_params = ['cd', scratch_dir, ';',
                                'mkdir -p ', star_genome_part_dir, ';',
                                STAR, '--runThreadN', str(multiprocessing.cpu_count()),
                                '--runMode', 'genomeGenerate',
+                               gtf_command_part,
                                '--genomeDir', star_genome_part_dir,
                                '--genomeFastaFiles', fasta_file_list[i]]
         execute_command(" ".join(star_command_params))
@@ -115,6 +121,11 @@ def make_indexes(version, lazy_run = False):
     scratch_dir = os.path.join(host_dir, 'scratch')
     execute_command("mkdir -p %s %s %s %s" % (host_dir, fasta_dir, result_dir, scratch_dir))
 
+    input_gtf_local = None
+    print(INPUT_GTF_S3)
+    if INPUT_GTF_S3:
+        input_gtf_local, _version_number = download_reference_locally_with_version_any_source_type(INPUT_GTF_S3, fasta_dir, scratch_dir)
+
     input_fasta_local, version_number = download_reference_locally_with_version_any_source_type(INPUT_FASTA_S3, fasta_dir, scratch_dir)
 
     # unzip if necessary
@@ -129,7 +140,7 @@ def make_indexes(version, lazy_run = False):
         execute_command(command)
 
     # make STAR index
-    make_star_index(input_fasta_local, result_dir, scratch_dir, lazy_run)
+    make_star_index(input_fasta_local, input_gtf_local, result_dir, scratch_dir, lazy_run)
 
     # make bowtie2 index
     make_bowtie2_index(host_name, input_fasta_local, result_dir, scratch_dir, lazy_run)
