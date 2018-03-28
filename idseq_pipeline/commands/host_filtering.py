@@ -10,4 +10,4 @@ class Host_filtering(Base):
         unbuffer_stdout()
         upload_commit_sha(self.version)
 
-        run_stage1(True)
+        run_stage1(False)

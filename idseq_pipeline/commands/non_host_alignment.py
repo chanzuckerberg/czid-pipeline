@@ -10,4 +10,4 @@ class Non_host_alignment(Base):
         unbuffer_stdout()
         upload_commit_sha(self.version)
 
-        run_stage2(True)
+        run_stage2(False)
