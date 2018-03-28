@@ -49,7 +49,7 @@ def make_rapsearch_index():
     os.environ["KEY_S3_PATH"] = "s3://czbiohub-infectious-disease/idseq-alpha.pem"
     os.environ["OUTPUT_PATH_S3"] = dest
     os.environ["OUTPUT_NAME"] = "nr_rapsearch"
-    pipeline_command("rapsearch_indexing")
+    execute_command("idseq_pipeline rapsearch_indexing")
 
 
 def make_lineage_files():
@@ -58,7 +58,7 @@ def make_lineage_files():
     dest = "s3://idseq-database/taxonomy/" + date
     os.environ["OUTPUT_PATH_S3"] = dest
     os.environ["INPUT"] = os.environ["URL_PREFIX"] + taxdump
-    pipeline_command("lineages")
+    execute_command("idseq_pipeline lineages")
 
 
 def make_accession_mapping():
@@ -79,9 +79,9 @@ def make_accession_mapping():
 
     os.environ["MAPPING_FILES"] = map_env
     prev_mapping = "s3://czbiohub-infectious-disease/references/accession2taxid.db.gz"
-    cmd = "curate_accession2taxid --mapping_files %s --nr_file %s --nt_file %s --output_s3_folder %s --previous_mapping %s".format(
+    cmd = "idseq_pipeline curate_accession2taxid --mapping_files %s --nr_file %s --nt_file %s --output_s3_folder %s --previous_mapping %s".format(
         map_env, pre + nr, pre + nt, dest, prev_mapping)
-    pipeline_command(cmd)
+    execute_command(cmd)
 
 
 def date_setup():
@@ -114,15 +114,6 @@ def set_index_date(input_files):
 
     res = source_str + "__" + now_str
     return res
-
-
-def pipeline_command(cmd):
-    cmd = cmd.split()
-    proc = subprocess.Popen(["idseq_pipeline"] + cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    res = proc.communicate()
-    for ln in (res[0] + res[1]).splitlines():
-        # Print out stdout and stderr
-        print ln
 
 
 main()
