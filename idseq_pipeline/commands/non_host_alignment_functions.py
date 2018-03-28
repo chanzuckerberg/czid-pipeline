@@ -246,8 +246,7 @@ def generate_taxid_annotated_fasta_from_m8(input_fasta_file, m8_file, output_fas
     sequence_data = input_fasta_f.readline()
     while sequence_name and sequence_data:
         read_id = sequence_name.rstrip().lstrip('>')
-        read_id = remove_annotation(read_id)
-        accession = read_to_accession_id.get(read_id, '')
+        accession = read_to_accession_id.get(remove_annotation(read_id), '')
         new_read_name = annotation_prefix + ':' + accession + ':' + read_id
         output_fasta_f.write(">%s\n" % new_read_name)
         output_fasta_f.write(sequence_data)
