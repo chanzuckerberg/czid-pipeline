@@ -364,7 +364,9 @@ def run_star(fastq_files):
             run_star_part(tmp_result_dir, genome_part, unmapped, count_genes)
             result_files = sync_pairs(unmapped_files_in(tmp_result_dir))
             if count_genes:
-                result_files += [os.path.join(tmp_result_dir, "ReadsPerGene.out.tab")]
+                gene_count_file = os.path.join(tmp_result_dir, "ReadsPerGene.out.tab")
+                if os.path.isfile(gene_count_file):
+                    result_files += [gene_count_file]
     else:
         run_star_part(SCRATCH_DIR, genome_dir, fastq_files)
         result_files = sync_pairs(unmapped_files_in(SCRATCH_DIR))
