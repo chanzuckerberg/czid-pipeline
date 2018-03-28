@@ -588,3 +588,6 @@ def upload_version_tracker(source_file, output_name, reference_version_number, o
     with open(version_tracker_file, 'wb') as f:
         json.dump(version_json, f)
     execute_command("aws s3 cp --quiet %s %s/" % (version_tracker_file, output_path_s3))
+
+def env_set_if_blank(key, value):
+    os.environ[key] = os.environ.get(key, value)
