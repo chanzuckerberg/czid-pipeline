@@ -6,6 +6,7 @@ from .common import * #pylint: disable=wildcard-import
 # output files
 STAR_OUT1 = 'unmapped.star.1.fq'
 STAR_OUT2 = 'unmapped.star.2.fq'
+STAR_COUNTS_OUT = 'reads_per_gene.star.tab'
 PRICESEQFILTER_OUT1 = 'priceseqfilter.unmapped.star.1.fq'
 PRICESEQFILTER_OUT2 = 'priceseqfilter.unmapped.star.2.fq'
 FQ2FA_OUT1 = 'priceseqfilter.unmapped.star.1.fasta'
@@ -194,7 +195,7 @@ def generate_unmapped_pairs_from_sam(sam_file, output_prefix):
     output_merged_read.close()
 
 # job functions
-def run_star_part(output_dir, genome_dir, fastq_files):
+def run_star_part(output_dir, genome_dir, fastq_files, count_genes=False):
     execute_command("mkdir -p %s" % output_dir)
     star_command_params = ['cd', output_dir, ';', STAR,
                            '--outFilterMultimapNmax', '99999',
@@ -209,6 +210,8 @@ def run_star_part(output_dir, genome_dir, fastq_files):
                            '--readFilesIn', " ".join(fastq_files)]
     if fastq_files[0][-3:] == '.gz':
         star_command_params += ['--readFilesCommand', 'zcat']
+    if count_genes and os.path.isfile("%s/sjdbList.fromGTF.out.tab" % genome_dir):
+        star_command_params += ['--quantMode', 'GeneCounts']
     execute_command_realtime_stdout(" ".join(star_command_params), os.path.join(output_dir, "Log.progress.out"))
 
 
@@ -338,7 +341,7 @@ def sync_pairs(fastq_files, max_discrepancies=0):
 
 
 def run_star(fastq_files):
-    star_outputs = [STAR_OUT1, STAR_OUT2]
+    star_outputs = [STAR_OUT1, STAR_OUT2, STAR_COUNTS_OUT]
     num_fastqs = len(fastq_files)
     def unmapped_files_in(some_dir):
         return ["%s/Unmapped.out.mate%d" % (some_dir, i+1) for i in range(num_fastqs)]
@@ -354,12 +357,20 @@ def run_star(fastq_files):
         for part_idx in range(num_parts):
             tmp_result_dir = "%s/star-part-%d" % (SCRATCH_DIR, part_idx)
             genome_part = "%s/part-%d" % (genome_dir, part_idx)
-            run_star_part(tmp_result_dir, genome_part, unmapped)
-            unmapped = sync_pairs(unmapped_files_in(tmp_result_dir))
+            count_genes = (part_idx == 0)
+            # run first part in gene-counting mode:
+            # (a) ERCCs are doped into first part and we want their counts
+            # (b) if there is only 1 part (e.g. human), the host gene counts also make sense
+            run_star_part(tmp_result_dir, genome_part, unmapped, count_genes)
+            result_files = sync_pairs(unmapped_files_in(tmp_result_dir))
+            if count_genes:
+                gene_count_file = os.path.join(tmp_result_dir, "ReadsPerGene.out.tab")
+                if os.path.isfile(gene_count_file):
+                    result_files += [gene_count_file]
     else:
         run_star_part(SCRATCH_DIR, genome_dir, fastq_files)
-        unmapped = sync_pairs(unmapped_files_in(SCRATCH_DIR))
-    for i, f in enumerate(unmapped):
+        result_files = sync_pairs(unmapped_files_in(SCRATCH_DIR))
+    for i, f in enumerate(result_files):
         output_i = os.path.join(RESULT_DIR, star_outputs[i])
         execute_command("mv %s %s;" % (f, output_i))
         execute_command("aws s3 cp --quiet %s %s/;" % (output_i, SAMPLE_S3_OUTPUT_PATH))
