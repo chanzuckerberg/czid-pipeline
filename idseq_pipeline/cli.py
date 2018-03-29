@@ -14,6 +14,7 @@ Usage:
   idseq_pipeline curate_accessionid2seq --s3_db_path <s3_db_path> --s3_db_loc_path <s3_db_loc_path>
   idseq_pipeline accessionid2seq --s3_db_loc_path <s3_db_loc_path> --db_type <db_type> --input_fasta_s3_path <input_fasta_s3_path> --input_m8_s3_path <input_m9_s3_path> --output_json_s3_path <output_json_s3_path> [--local_db_path <local_db_path> --s3_db_path <s3_db_path>]
   idseq_pipeline -h | --help
+  idseq_pipeline push_reference_update
   idseq_pipeline --version
 
 Options:

@@ -222,7 +222,6 @@ def execute_command_realtime_stdout(command, progress_file=None):
         with ProgressFile(progress_file):
             subprocess.check_call(command, shell=True)
 
-
 def execute_command(command, progress_file=None):
     execute_command_realtime_stdout(command, progress_file)
 
