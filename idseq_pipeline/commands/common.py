@@ -527,13 +527,12 @@ def download_reference_locally(ncbitool_path, input_fasta_ncbi_path, version_num
     execute_command(command)
     return os.path.join(destination_dir, os.path.basename(input_fasta_ncbi_path))
 
-def download_reference_locally_with_version_any_source_type(ref_file, dest_dir, ncbitool_dest_dir):
+def download_reference_locally_with_version_any_source_type(ref_file, dest_dir, ncbitool_dest_dir, auto_unzip=False):
     # Get input reference and version number.
     # If download does not use ncbitool (e.g. direct s3 link), indicate that there is no versioning.
     input_fasta_name = os.path.basename(ref_file)
     if ref_file.startswith("s3://"):
-        execute_command("aws s3 cp --quiet %s %s/" % (ref_file, dest_dir))
-        input_fasta_local = os.path.join(dest_dir, input_fasta_name)
+        input_fasta_local = fetch_from_s3(ref_file, dest_dir, auto_unzip, allow_s3mi=True)
         version_number = VERSION_NONE
     elif ref_file.startswith("ftp://"):
         execute_command("cd %s; wget %s" % (dest_dir, ref_file))
