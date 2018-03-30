@@ -31,38 +31,27 @@ ARCHIVE_FOLDER=s3://idseq-database/${DATE}/archive
 echo Old indexes will be archived to ${ARCHIVE_FOLDER}
 
 ## Make GSNAP index
-echo 'Archiving GSNAP index...'
-aws s3 cp s3://czbiohub-infectious-disease/references/nt_k16.tar ${ARCHIVE_FOLDER}/
-aws s3 cp s3://czbiohub-infectious-disease/references/nt_k16.version.txt ${ARCHIVE_FOLDER}/
-
+dest2=s3://idseq-database/alignment_indexes/${DATE}
 echo 'Making new GSNAP index...'
-INPUT_FASTA_S3=${URL_PREFIX}/blast/db/FASTA/nt.gz SERVER_IP=${GSNAP_SERVER_IP} KEY_S3_PATH=s3://idseq-secrets/idseq-production.pem OUTPUT_PATH_S3=$DESTINATION OUTPUT_NAME=nt_k16 idseq_pipeline gsnap_indexing
+echo "INPUT_FASTA_S3: ${URL_PREFIX}/blast/db/FASTA/nt.gz"
+echo "OUTPUT NAME: nt_k16"
+echo "OUTPUT PATH S3: $dest2"
+
+idseq_pipeline set_folder_name
+exit 0
+INPUT_FASTA_S3=${URL_PREFIX}/blast/db/FASTA/nt.gz SERVER_IP=${GSNAP_SERVER_IP} KEY_S3_PATH=s3://idseq-secrets/idseq-production.pem OUTPUT_PATH_S3=$dest2 OUTPUT_NAME=nt_k16 idseq_pipeline gsnap_indexing
 
 ## Make RAPSearch2 index
-echo 'Archiving RAPSearch2 index...'
-aws s3 cp s3://czbiohub-infectious-disease/references/nr_rapsearch/nr_rapsearch ${ARCHIVE_FOLDER}/
-aws s3 cp s3://czbiohub-infectious-disease/references/nr_rapsearch/nr_rapsearch.info ${ARCHIVE_FOLDER}/
-aws s3 cp s3://czbiohub-infectious-disease/references/nr_rapsearch.version.txt ${ARCHIVE_FOLDER}/
-
 echo 'Making new RAPSearch2 index...'
-INPUT_FASTA_S3=${URL_PREFIX}/blast/db/FASTA/nr.gz SERVER_IP=${RAPSEARCH_SERVER_IP} KEY_S3_PATH=s3://czbiohub-infectious-disease/idseq-alpha.pem OUTPUT_PATH_S3=$DESTINATION OUTPUT_NAME=nr_rapsearch idseq_pipeline rapsearch_indexing
+INPUT_FASTA_S3=${URL_PREFIX}/blast/db/FASTA/nr.gz SERVER_IP=${RAPSEARCH_SERVER_IP} KEY_S3_PATH=s3://czbiohub-infectious-disease/idseq-alpha.pem OUTPUT_PATH_S3=$dest2 OUTPUT_NAME=nr_rapsearch idseq_pipeline rapsearch_indexing
 
 ## Make taxonomy lineage files
-echo 'Archiving taxonomy lineage files...'
-aws s3 cp s3://czbiohub-infectious-disease/references/names.csv.gz ${ARCHIVE_FOLDER}/
-aws s3 cp s3://czbiohub-infectious-disease/references/taxid-lineages.db ${ARCHIVE_FOLDER}/
-aws s3 cp s3://czbiohub-infectious-disease/references/taxid-lineages.csv.gz ${ARCHIVE_FOLDER}/
-aws s3 cp s3://czbiohub-infectious-disease/references/deuterostome_taxids.txt ${ARCHIVE_FOLDER}/
-aws s3 cp s3://czbiohub-infectious-disease/references/lineage_and_deuterostome.version.txt ${ARCHIVE_FOLDER}/
-
 echo 'Making new taxonomy lineage files...'
-OUTPUT_PATH_S3=$DESTINATION INPUT=${URL_PREFIX}/pub/taxonomy/taxdump.tar.gz idseq_pipeline lineages
+dest2=s3://idseq-database/taxonomy/${DATE}
+OUTPUT_PATH_S3=$dest2 INPUT=${URL_PREFIX}/pub/taxonomy/taxdump.tar.gz idseq_pipeline lineages
 
 ## Make accession2taxid mapping and record diff with old accession list
-echo 'Archiving accession2taxid mapping...'
-aws s3 cp s3://czbiohub-infectious-disease/references/accession2taxid.db.gz ${ARCHIVE_FOLDER}/
-aws s3 cp s3://czbiohub-infectious-disease/references/accession2taxid.version.txt ${ARCHIVE_FOLDER}/
-
 echo 'Making new accession2taxid mapping...'
+dest2=s3://idseq-database/alignment_data/${DATE}
 MAPPING_FILES=${URL_PREFIX}/pub/taxonomy/accession2taxid/nucl_est.accession2taxid.gz,${URL_PREFIX}/pub/taxonomy/accession2taxid/nucl_gb.accession2taxid.gz,${URL_PREFIX}/pub/taxonomy/accession2taxid/nucl_gss.accession2taxid.gz,${URL_PREFIX}/pub/taxonomy/accession2taxid/nucl_wgs.accession2taxid.gz,${URL_PREFIX}/pub/taxonomy/accession2taxid/pdb.accession2taxid.gz,${URL_PREFIX}/pub/taxonomy/accession2taxid/prot.accession2taxid.gz
-idseq_pipeline curate_accession2taxid --mapping_files ${MAPPING_FILES} --nr_file ${URL_PREFIX}/blast/db/FASTA/nr.gz --nt_file ${URL_PREFIX}/blast/db/FASTA/nt.gz --output_s3_folder $DESTINATION --previous_mapping s3://czbiohub-infectious-disease/references/accession2taxid.db.gz
+idseq_pipeline curate_accession2taxid --mapping_files ${MAPPING_FILES} --nr_file ${URL_PREFIX}/blast/db/FASTA/nr.gz --nt_file ${URL_PREFIX}/blast/db/FASTA/nt.gz --output_s3_folder $dest2 --previous_mapping s3://czbiohub-infectious-disease/references/accession2taxid.db.gz
