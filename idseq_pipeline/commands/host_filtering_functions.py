@@ -343,6 +343,7 @@ def sync_pairs(fastq_files, max_discrepancies=0):
 def run_star(fastq_files):
     star_outputs = [STAR_OUT1, STAR_OUT2, STAR_COUNTS_OUT]
     num_fastqs = len(fastq_files)
+    gene_count_output = None
     def unmapped_files_in(some_dir):
         return ["%s/Unmapped.out.mate%d" % (some_dir, i+1) for i in range(num_fastqs)]
     genome_dir = fetch_genome(STAR_GENOME)
@@ -366,7 +367,9 @@ def run_star(fastq_files):
             if count_genes:
                 gene_count_file = os.path.join(tmp_result_dir, "ReadsPerGene.out.tab")
                 if os.path.isfile(gene_count_file):
-                    result_files += [gene_count_file]
+                    gene_count_output = gene_count_file
+        if gene_count_output:
+            result_files += [gene_count_output]
     else:
         run_star_part(SCRATCH_DIR, genome_dir, fastq_files)
         result_files = sync_pairs(unmapped_files_in(SCRATCH_DIR))
