@@ -351,26 +351,24 @@ def run_star(fastq_files):
     threading.Thread(target=fetch_genome, args=[BOWTIE2_GENOME]).start()
     # Check if parts.txt file exists, if so use the new version of (partitioned indices). Otherwise, stay put
     parts_file = os.path.join(genome_dir, "parts.txt")
-    if os.path.isfile(parts_file):
-        with open(parts_file, 'rb') as parts_f:
-            num_parts = int(parts_f.read())
-        unmapped = fastq_files
-        for part_idx in range(num_parts):
-            tmp_result_dir = "%s/star-part-%d" % (SCRATCH_DIR, part_idx)
-            genome_part = "%s/part-%d" % (genome_dir, part_idx)
-            count_genes = (part_idx == 0)
-            # run first part in gene-counting mode:
-            # (a) ERCCs are doped into first part and we want their counts
-            # (b) if there is only 1 part (e.g. human), the host gene counts also make sense
-            run_star_part(tmp_result_dir, genome_part, unmapped, count_genes)
-            unmapped = sync_pairs(unmapped_files_in(tmp_result_dir))
-            if count_genes:
-                gene_count_file = os.path.join(tmp_result_dir, "ReadsPerGene.out.tab")
-                if os.path.isfile(gene_count_file):
-                    gene_count_output = gene_count_file
-    else:
-        run_star_part(SCRATCH_DIR, genome_dir, fastq_files)
-        unmapped = sync_pairs(unmapped_files_in(SCRATCH_DIR))
+
+    assert(os.path.isfile(parts_file))
+    with open(parts_file, 'rb') as parts_f:
+        num_parts = int(parts_f.read())
+    unmapped = fastq_files
+    for part_idx in range(num_parts):
+        tmp_result_dir = "%s/star-part-%d" % (SCRATCH_DIR, part_idx)
+        genome_part = "%s/part-%d" % (genome_dir, part_idx)
+        run_star_part(tmp_result_dir, genome_part, unmapped, part_idx == 0)
+        unmapped = sync_pairs(unmapped_files_in(tmp_result_dir))
+        # run part 0 in gene-counting mode:
+        # (a) ERCCs are doped into part 0 and we want their counts
+        # (b) if there is only 1 part (e.g. human), the host gene counts also make sense
+        if part_idx == 0:
+            gene_count_file = os.path.join(tmp_result_dir, "ReadsPerGene.out.tab")
+            if os.path.isfile(gene_count_file):
+                gene_count_output = gene_count_file
+
     result_files = unmapped
     if gene_count_output:
         result_files += [gene_count_output]
