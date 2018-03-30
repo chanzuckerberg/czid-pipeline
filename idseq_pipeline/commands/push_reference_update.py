@@ -29,13 +29,13 @@ class Push_reference_update(Base):
 
         ## To pull NCBI references through ncbitool, which archives and records versions, set URL_PREFIX=''.
         # To pull the latest files from NCBI without using ncbitool (no version information), set URL_PREFIX=ftp://ftp.ncbi.nlm.nih.gov.
-        env_set_if_blank("URL_PREFIX", "ftp://ftp.ncbi.nlm.nih.gov")
+        env_set_if_blank("URL_PREFIX", "")
 
         ## Instances with adequate resources for making gsnap and rapsearch indexes.
         # Need to have write access to destination folders.
         env_set_if_blank("RAPSEARCH_SERVER_IP", "54.191.193.210")
         env_set_if_blank("GSNAP_SERVER_IP", "34.211.67.166")
-        env_set_if_blank("DEST_PREFIX", "s3://idseq-database-test")
+        env_set_if_blank("DEST_PREFIX", "s3://czbiohub-ncbi-store/test")
 
         ##### COMMANDS #####
         os.system("mkdir -p %s" % self.LOCAL_WORK_DIR)
@@ -43,8 +43,8 @@ class Push_reference_update(Base):
         input_files = [self.nr, self.nt] + self.mapping_files
         date = self.set_index_date(input_files, tool_path)
         print("DATE: " + date)
-        # self.make_gsnap_index(date)
-        # self.make_rapsearch_index(date)
+        self.make_gsnap_index(date)
+        self.make_rapsearch_index(date)
         self.make_accession_mapping(date)
 
     def make_gsnap_index(self, date):
@@ -73,6 +73,7 @@ class Push_reference_update(Base):
 
         os.environ["MAPPING_FILES"] = map_env
         prev_mapping = "s3://czbiohub-infectious-disease/references/accession2taxid.db.gz"
+        # prev_mapping = "s3://czbiohub-ncbi-store/test/pdb.accession2taxid.gz"
         cmd = "idseq_pipeline curate_accession2taxid --mapping_files %s --nr_file %s --nt_file %s --output_s3_folder %s --previous_mapping %s" % (
             map_env, pre + self.nr, pre + self.nt, dest, prev_mapping)
         print cmd
