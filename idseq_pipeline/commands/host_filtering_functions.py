@@ -363,16 +363,17 @@ def run_star(fastq_files):
             # (a) ERCCs are doped into first part and we want their counts
             # (b) if there is only 1 part (e.g. human), the host gene counts also make sense
             run_star_part(tmp_result_dir, genome_part, unmapped, count_genes)
-            result_files = sync_pairs(unmapped_files_in(tmp_result_dir))
+            unmapped = sync_pairs(unmapped_files_in(tmp_result_dir))
             if count_genes:
                 gene_count_file = os.path.join(tmp_result_dir, "ReadsPerGene.out.tab")
                 if os.path.isfile(gene_count_file):
                     gene_count_output = gene_count_file
-        if gene_count_output:
-            result_files += [gene_count_output]
     else:
         run_star_part(SCRATCH_DIR, genome_dir, fastq_files)
-        result_files = sync_pairs(unmapped_files_in(SCRATCH_DIR))
+        unmapped = sync_pairs(unmapped_files_in(SCRATCH_DIR))
+    result_files = unmapped
+    if gene_count_output:
+        result_files += [gene_count_output]
     for i, f in enumerate(result_files):
         output_i = os.path.join(RESULT_DIR, star_outputs[i])
         execute_command("mv %s %s;" % (f, output_i))
