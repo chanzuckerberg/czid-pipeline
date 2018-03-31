@@ -28,5 +28,5 @@ Release notes
 
 - 1.2.0
     - Work around STAR concurrency bug causing misordered pairs in 10%
-      of samples with paired end reads, causing reduced sensitivity
-      in gsnap etc.
+      of samples with paired end reads, and thus lost reads and reduced
+      sensitivity downstream.
