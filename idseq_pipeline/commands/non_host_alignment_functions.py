@@ -955,12 +955,23 @@ def run_stage2(lazy_run=True):
     input2_present = check_s3_file_presence(input2_s3_path)
     input3_present = check_s3_file_presence(input3_s3_path)
     if input1_present and input2_present and input3_present:
-        # output of previous stage
+        # output of previous stage, paired-end reads
         if SAMPLE_S3_INPUT_PATH != SAMPLE_S3_OUTPUT_PATH:
             execute_command("aws s3 cp --quiet %s %s/" % (input1_s3_path, SAMPLE_S3_OUTPUT_PATH))
             execute_command("aws s3 cp --quiet %s %s/" % (input2_s3_path, SAMPLE_S3_OUTPUT_PATH))
             execute_command("aws s3 cp --quiet %s %s/" % (input3_s3_path, SAMPLE_S3_OUTPUT_PATH))
         gsnapl_input_files = [EXTRACT_UNMAPPED_FROM_SAM_OUT1, EXTRACT_UNMAPPED_FROM_SAM_OUT2]
+        before_file_name_for_log = os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1)
+        before_file_type_for_log = "fasta_paired"
+        # Import existing job stats
+        stats = StatsFile(STATS_OUT, RESULT_DIR, SAMPLE_S3_INPUT_PATH, SAMPLE_S3_OUTPUT_PATH)
+        stats.load_from_s3()
+    elif input1_present and input3_present:
+        # output of previous stage, non-paired-end
+        if SAMPLE_S3_INPUT_PATH != SAMPLE_S3_OUTPUT_PATH:
+            execute_command("aws s3 cp --quiet %s %s/" % (input1_s3_path, SAMPLE_S3_OUTPUT_PATH))
+            execute_command("aws s3 cp --quiet %s %s/" % (input3_s3_path, SAMPLE_S3_OUTPUT_PATH))
+        gsnapl_input_files = [EXTRACT_UNMAPPED_FROM_SAM_OUT1]
         before_file_name_for_log = os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1)
         before_file_type_for_log = "fasta_paired"
         # Import existing job stats
