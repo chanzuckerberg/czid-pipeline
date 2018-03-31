@@ -21,11 +21,12 @@ To install after cloning:
 Release notes
 -------------
 
+- 1.3.0   
+    - Fix bug causing alignment to run before host subtraction in samples
+      with unpaired reads.
+    - Include ERCC gene counts from STAR.
 
-1.3.0 -- Correctly subtract host for non-paired reads.  Previously for
-         non-paired reads, alignment was being performed on a random
-         sample of the unfiltered input.
-
-         Include ERCC gene counts from STAR.
-
-1.2.0 -- Synchronize misordered pairs after STAR.
+- 1.2.0
+    - Work around STAR concurrency bug causing misordered pairs in 10%
+      of samples with paired end reads, causing reduced sensitivity
+      in gsnap etc.
