@@ -27,6 +27,5 @@ Release notes
     - Include ERCC gene counts from STAR.
 
 - 1.2.0
-    - Work around STAR concurrency bug causing misordered pairs in 10%
-      of samples with paired end reads, and thus lost reads and reduced
-      sensitivity downstream.
+    - Synchronize pair order after STAR to improve sensitivity in 10% of
+      samples with paired-end reads.
