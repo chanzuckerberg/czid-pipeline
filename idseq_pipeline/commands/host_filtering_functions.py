@@ -341,7 +341,7 @@ def sync_pairs(fastq_files, max_discrepancies=0):
 
 
 def run_star(fastq_files):
-    star_outputs = [STAR_OUT1, STAR_OUT2, STAR_COUNTS_OUT]
+    star_outputs = [STAR_COUNTS_OUT, STAR_OUT1, STAR_OUT2]
     num_fastqs = len(fastq_files)
     gene_count_output = None
     def unmapped_files_in(some_dir):
@@ -352,7 +352,7 @@ def run_star(fastq_files):
     # Check if parts.txt file exists, if so use the new version of (partitioned indices). Otherwise, stay put
     parts_file = os.path.join(genome_dir, "parts.txt")
 
-    assert(os.path.isfile(parts_file))
+    assert os.path.isfile(parts_file)
     with open(parts_file, 'rb') as parts_f:
         num_parts = int(parts_f.read())
     unmapped = fastq_files
@@ -369,13 +369,12 @@ def run_star(fastq_files):
             if os.path.isfile(gene_count_file):
                 gene_count_output = gene_count_file
 
-    result_files = unmapped
-    if gene_count_output:
-        result_files += [gene_count_output]
+    result_files = [gene_count_output] + unmapped
     for i, f in enumerate(result_files):
-        output_i = os.path.join(RESULT_DIR, star_outputs[i])
-        execute_command("mv %s %s;" % (f, output_i))
-        execute_command("aws s3 cp --quiet %s %s/;" % (output_i, SAMPLE_S3_OUTPUT_PATH))
+        if f != None:
+            output_i = os.path.join(RESULT_DIR, star_outputs[i])
+            execute_command("mv %s %s;" % (f, output_i))
+            execute_command("aws s3 cp --quiet %s %s/;" % (output_i, SAMPLE_S3_OUTPUT_PATH))
     # cleanup
     execute_command("cd %s; rm -rf *" % SCRATCH_DIR)
     write_to_log("finished job")
