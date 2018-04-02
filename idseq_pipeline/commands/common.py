@@ -10,8 +10,6 @@ import os
 import traceback
 
 NCBITOOL_S3_PATH = "s3://czbiohub-infectious-disease/ncbitool" # S3 location of ncbitool executable
-ACCESSION2TAXID = 's3://czbiohub-infectious-disease/references/accession2taxid.db.gz'
-LINEAGE_SHELF = 's3://czbiohub-infectious-disease/references/taxid-lineages.db'
 VERSION_NONE = -1
 
 # data directories
@@ -588,3 +586,9 @@ def upload_version_tracker(source_file, output_name, reference_version_number, o
     with open(version_tracker_file, 'wb') as f:
         json.dump(version_json, f)
     execute_command("aws s3 cp --quiet %s %s/" % (version_tracker_file, output_path_s3))
+
+def get_env_or_err(key):
+    if not key in os.environ:
+        raise NameError("%s not defined in env variables" % key)
+    else:
+        return os.environ.get(key)

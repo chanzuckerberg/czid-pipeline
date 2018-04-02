@@ -2,10 +2,10 @@ import os
 from .common import *
 
 # output location
-OUTPUT_PATH_S3 = os.environ.get('OUTPUT_PATH_S3').rstrip('/')
+OUTPUT_PATH_S3 = get_env_or_err('OUTPUT_PATH_S3').rstrip('/')
 
 # input reference
-INPUT = os.environ.get('INPUT', '/pub/taxonomy/taxdump.tar.gz')
+INPUT = get_env_or_err('INPUT')
 
 def make_lineages(version):
     # Install ncbitax2lin
