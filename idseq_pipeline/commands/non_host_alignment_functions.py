@@ -697,6 +697,17 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
                           '-D', remote_index_dir, '-d', 'nt_k16']
                          + [remote_work_dir+'/'+input_fa for input_fa in input_files]
                          + ['> '+remote_outfile, ';'])
+    # Also produce gsnap output with mutliple hits per read
+    multihit_local_outfile = CHUNKS_RESULT_DIR + "/multihit-" + outfile_basename
+    multihit_remote_outfile = 'multihit-' + remote_outfile
+    commands += " ".join([remote_home_dir+'/bin/gsnapl',
+                          '-A', 'm8', '--batch=0', '--use-shared-memory=0',
+                          '--gmap-mode=none', '--npaths=1000', '--ordered',
+                          '-t', '32',
+                          '--maxsearch=1000', '--max-mismatches=40',
+                          '-D', remote_index_dir, '-d', 'nt_k16']
+                         + [remote_work_dir+'/'+input_fa for input_fa in input_files]
+                         + ['> ' + multihit_remote_outfile, ';'])
 
     if not lazy_run or not fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, dedup_outfile_basename), CHUNKS_RESULT_DIR):
         correct_number_of_output_columns = 12
@@ -717,6 +728,7 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
         assert min_column_number == correct_number_of_output_columns, "Chunk %s output corrupt; not copying to S3. Re-start pipeline to try again." % chunk_id
         with iostream:
             execute_command(scp(key_path, remote_username, gsnapl_instance_ip, remote_outfile, local_outfile))
+            execute_command(scp(key_path, remote_username, gsnapl_instance_ip, multihit_remote_outfile, multihit_local_outfile))
         # Deduplicate m8 input. Sometimes GSNAPL outputs multiple consecutive lines for same original read and same accession id. Count functions expect only 1 (top hit).
         execute_command("echo '' >> %s;" % local_outfile) # add a blank line at the end of the file so S3 copy doesn't fail if output is empty
         deduplicate_m8(os.path.join(CHUNKS_RESULT_DIR, outfile_basename), os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename))
@@ -764,7 +776,10 @@ def run_gsnapl_remotely(input_files, lazy_run):
     with iostream:
         concatenate_files(chunk_output_files, os.path.join(RESULT_DIR, GSNAPL_DEDUP_OUT))
         execute_command("aws s3 cp --quiet %s/%s %s" % (RESULT_DIR, GSNAPL_DEDUP_OUT, output_file))
-
+        # Also copy multihit outputs
+        multihit_chunk_output_files = [f.replace("dedup", "multihit") for f in chunk_output_files]
+        concatenate_files(multihit_chunk_output_files, os.path.join(RESULT_DIR, MULTIHIT_GSNAPL_OUT))
+        execute_command("aws s3 cp --quiet %s/%s %s" % (RESULT_DIR, MULTIHIT_GSNAPL_OUT, os.path.join(SAMPLE_S3_OUTPUT_PATH, MULTIHIT_GSNAPL_OUT)))
 
 
 
