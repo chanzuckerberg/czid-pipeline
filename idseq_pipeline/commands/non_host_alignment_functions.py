@@ -699,7 +699,7 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
                          + ['> '+remote_outfile, ';'])
     # Also produce gsnap output with mutliple hits per read
     multihit_local_outfile = CHUNKS_RESULT_DIR + "/multihit-" + outfile_basename
-    multihit_remote_outfile = 'multihit-' + remote_outfile
+    multihit_remote_outfile = os.path.join(remote_work_dir, 'multihit-' + outfile_basename)
     commands += " ".join([remote_home_dir+'/bin/gsnapl',
                           '-A', 'm8', '--batch=0', '--use-shared-memory=0',
                           '--gmap-mode=none', '--npaths=1000', '--ordered',
