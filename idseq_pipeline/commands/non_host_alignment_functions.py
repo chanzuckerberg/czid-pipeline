@@ -735,10 +735,15 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
         deduplicate_m8(os.path.join(CHUNKS_RESULT_DIR, outfile_basename), os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename))
         with iostream:
             execute_command("aws s3 cp --quiet %s/%s %s/" % (CHUNKS_RESULT_DIR, dedup_outfile_basename, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
+        # Deduplicate multihit m8 by using taxonomy info
+        call_hits_m8(multihit_local_outfile, dedup_multihit_local_outfile)
     with iostream:
         execute_command("sed -i '$ {/^$/d;}' %s" % os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename)) # remove blank line from end of file
     write_to_log("finished alignment for chunk %s" % chunk_id)
     return os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename)
+
+
+def call_hits_m8(input_file, output_file):
 
 
 
