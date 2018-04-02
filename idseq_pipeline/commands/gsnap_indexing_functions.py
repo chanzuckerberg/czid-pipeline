@@ -19,7 +19,7 @@ GMAPDB_PATH = "/home/ubuntu/share"
 GSNAPL_PATH = "/home/ubuntu/bin"
 
 # S3 location of ncbitool executable
-NCBITOOL_S3_PATH = "s3://czbiohub-infectious-disease/ncbitool"
+NCBITOOL_S3_PATH = "s3://idseq-database/ncbitool"
 
 # working directories
 WORK_DIR = "/home/ubuntu/share/gmap_build_workdir" # on GSNAP machine

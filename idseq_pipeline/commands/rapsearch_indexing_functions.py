@@ -16,7 +16,7 @@ INPUT_FASTA_S3 = os.environ.get('INPUT_FASTA_S3')
 PRE_RAPSEARCH_PATH = "/usr/local/bin/prerapsearch"
 
 # S3 location of ncbitool executable
-NCBITOOL_S3_PATH = "s3://czbiohub-infectious-disease/ncbitool"
+NCBITOOL_S3_PATH = "s3://idseq-database/ncbitool"
 
 # working directories
 WORK_DIR = "/home/ec2-user/data/pre_rapsearch_workdir" # on RAPSearch machine

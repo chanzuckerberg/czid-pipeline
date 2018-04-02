@@ -3,7 +3,7 @@ import json
 import os
 
 from .base import Base
-from .common import env_set_if_blank, execute_command, install_ncbitool_locally, execute_command_with_output, \
+from .common import env_set_if_blank, install_ncbitool_locally, execute_command_with_output, \
     datetime as dt, time
 
 
@@ -13,15 +13,17 @@ class Push_reference_update(Base):
 
         ## Input files ##
         self.LOCAL_WORK_DIR = "idseq_pipeline_temp"
-        self.nr = "/blast/db/FASTA/env_nr.gz"
-        self.nt = "/blast/db/FASTA/pdbnt.gz"
+        self.nr = "/blast/db/FASTA/nr.gz"
+        self.nt = "/blast/db/FASTA/nt.gz"
+        # self.nr = "/blast/db/FASTA/env_nr.gz"
+        # self.nt = "/blast/db/FASTA/pdbnt.gz"
         self.mapping_files = [
-            # "/pub/taxonomy/accession2taxid/nucl_est.accession2taxid.gz",
-              # "/pub/taxonomy/accession2taxid/nucl_gb.accession2taxid.gz",
-              # "/pub/taxonomy/accession2taxid/nucl_gss.accession2taxid.gz",
-              # "/pub/taxonomy/accession2taxid/nucl_wgs.accession2taxid.gz",
-              "/pub/taxonomy/accession2taxid/pdb.accession2taxid.gz"
-              # "/pub/taxonomy/accession2taxid/prot.accession2taxid.gz"
+            "/pub/taxonomy/accession2taxid/nucl_est.accession2taxid.gz",
+              "/pub/taxonomy/accession2taxid/nucl_gb.accession2taxid.gz",
+              "/pub/taxonomy/accession2taxid/nucl_gss.accession2taxid.gz",
+              "/pub/taxonomy/accession2taxid/nucl_wgs.accession2taxid.gz",
+              "/pub/taxonomy/accession2taxid/pdb.accession2taxid.gz",
+              "/pub/taxonomy/accession2taxid/prot.accession2taxid.gz"
                               ]
 
     def run(self):
@@ -35,7 +37,8 @@ class Push_reference_update(Base):
         # Need to have write access to destination folders.
         env_set_if_blank("RAPSEARCH_SERVER_IP", "54.191.193.210")
         env_set_if_blank("GSNAP_SERVER_IP", "34.211.67.166")
-        env_set_if_blank("DEST_PREFIX", "s3://czbiohub-ncbi-store/test")
+        env_set_if_blank("DEST_PREFIX", "s3://idseq-database")
+        env_set_if_blank("PREV_ACC_MAPPING", "s3://czbiohub-infectious-disease/references/accession2taxid.db.gz")
 
         ##### COMMANDS #####
         os.system("mkdir -p %s" % self.LOCAL_WORK_DIR)
@@ -43,8 +46,8 @@ class Push_reference_update(Base):
         input_files = [self.nr, self.nt] + self.mapping_files
         date = self.set_index_date(input_files, tool_path)
         print("DATE: " + date)
-        self.make_gsnap_index(date)
-        self.make_rapsearch_index(date)
+        # self.make_gsnap_index(date)
+        # self.make_rapsearch_index(date)
         self.make_accession_mapping(date)
 
     def make_gsnap_index(self, date):
@@ -72,7 +75,7 @@ class Push_reference_update(Base):
         map_env = ','.join(map_env)  # Concatenate into env var
 
         os.environ["MAPPING_FILES"] = map_env
-        prev_mapping = "s3://czbiohub-infectious-disease/references/accession2taxid.db.gz"
+        prev_mapping = os.environ["PREV_ACC_MAPPING"]
         # prev_mapping = "s3://czbiohub-ncbi-store/test/pdb.accession2taxid.gz"
         cmd = "idseq_pipeline curate_accession2taxid --mapping_files %s --nr_file %s --nt_file %s --output_s3_folder %s --previous_mapping %s" % (
             map_env, pre + self.nr, pre + self.nt, dest, prev_mapping)
