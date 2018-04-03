@@ -736,19 +736,54 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
         with iostream:
             execute_command("aws s3 cp --quiet %s/%s %s/" % (CHUNKS_RESULT_DIR, dedup_outfile_basename, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
         # Deduplicate multihit m8 by using taxonomy info
-        call_hits_m8(multihit_local_outfile, dedup_multihit_local_outfile)
+        multihit_summary_file = CHUNKS_RESULT_DIR + "/summary-multihit-" + outfile_basename
+        call_hits_m8(multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file)
+        with iostream:
+            execute_command("aws s3 cp --quiet %s %s/" % (multihit_summary_file, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
     with iostream:
         execute_command("sed -i '$ {/^$/d;}' %s" % os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename)) # remove blank line from end of file
     write_to_log("finished alignment for chunk %s" % chunk_id)
     return os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename)
 
 
-def call_hits_m8(input_file, output_file):
-    read_ids = set(execute_command_with_output("cut -f1 %s" % input_file).split("\n"))
-    sorted_input_file = input_file + "-sorted"
-    execute_command("sort -k1 %s > %s" % (input_file, sorted_input_file))
+def call_hits_m8(input_m8, output_m8, output_summary):
+    # Get lineage info
+    lineage_path = fetch_reference(LINEAGE_SHELF)
+    lineage_map = shelve.open(lineage_path)
+    accession2taxid_path = fetch_reference(ACCESSION2TAXID)
+    accession2taxid_dict = shelve.open(accession2taxid_path)
+    # Helper functions
+    def add_taxid_hits(accession, hits):
+        taxid = accession2taxid_dict.get(accession.split(".")[0], "NA")
+        species_taxid, genus_taxid, family_taxid = lineage_map.get(taxid, ("-100", "-200", "-300"))
+        hits["species"] += [species_taxid]
+        hits["genus"] += [genus_taxid]
+        hits["family"] += [family_taxid]
+        return hits
+    def call_hit_level(read_id, hits, read_to_hit_level):
+        for i, level in enumerate(["species", "genus", "family"]):
+            n = len(set(hits[level])) # number of distinct taxids at this level
+            if n == 1:
+                read_to_hit_level[read_id] = i+1 # level id number
+                return read_to_hit_level
+        return read_to_hit_level
+    # Deduplicate m8 and summarize hits
+    read_ids = set(execute_command_with_output("grep -v '^#' %s | cut -f1" % input_m8).split("\n"))
+    sorted_input_m8 = input_m8 + "-sorted"
+    execute_command("sort -k1 %s > %s" % (input_m8, sorted_input_m8))
+    read_to_hit_level = {}
+    outf = open(output_m8, "wb")
     for read_id in read_ids:
-      accessions = execute_command_with_output("grep %s %s | cut -f2" % (read_id, sorted_input_file)).split("\n")
+        first_line = execute_command_with_output("grep '^%s' %s" % (read_id, sorted_input_m8)).split("\n")[0]
+        accessions = execute_command_with_output("grep '^%s' %s | cut -f2" % (read_id, sorted_input_m8)).split("\n")
+        hits = { "species": [], "genus": [], "family": [] }
+        for acc in accessions:
+            hits = add_taxid_hits(acc, hits)
+        read_to_hit_level = call_hit(read_id, hits, read_to_hit_level)
+        outf.write(first_line)
+    outf.close()
+    with open(output_summary, 'wb') as f:
+        json.dump(read_to_hit_level, f)
 
 def run_gsnapl_remotely(input_files, lazy_run):
     output_file = os.path.join(SAMPLE_S3_OUTPUT_PATH, GSNAPL_DEDUP_OUT)
