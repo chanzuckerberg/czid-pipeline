@@ -65,6 +65,7 @@ STATS_OUT = 'stats.json'
 VERSION_OUT = 'versions.json'
 MULTIHIT_GSNAPL_OUT = 'multihit.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
 SUMMARY_MULTIHIT_GSNAPL_OUT = 'summary.multihit.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.tab'
+DEDUP_MULTIHIT_GSNAPL_OUT = 'dedup.multihit.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
 
 # arguments from environment variables
 SKIP_DEUTERO_FILTER = int(os.environ.get('SKIP_DEUTERO_FILTER', 0))
@@ -738,8 +739,10 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
             execute_command("aws s3 cp --quiet %s/%s %s/" % (CHUNKS_RESULT_DIR, dedup_outfile_basename, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
         # Deduplicate multihit m8 by using taxonomy info
         multihit_summary_file = CHUNKS_RESULT_DIR + "/summary-multihit-" + outfile_basename
+        dedup_multihit_local_outfile = CHUNKS_RESULT_DIR + "/dedup-multihit-" + outfile_basename
         call_hits_m8(multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file)
         with iostream:
+            execute_command("aws s3 cp --quiet %s %s/" % (dedup_multihit_local_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
             execute_command("aws s3 cp --quiet %s %s/" % (multihit_summary_file, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
     with iostream:
         execute_command("sed -i '$ {/^$/d;}' %s" % os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename)) # remove blank line from end of file
@@ -824,12 +827,15 @@ def run_gsnapl_remotely(input_files, lazy_run):
         concatenate_files(chunk_output_files, os.path.join(RESULT_DIR, GSNAPL_DEDUP_OUT))
         execute_command("aws s3 cp --quiet %s/%s %s" % (RESULT_DIR, GSNAPL_DEDUP_OUT, output_file))
         # Also copy multihit outputs
-        multihit_chunk_output_files = [f.replace("dedup", "multihit") for f in chunk_output_files]
+        multihit_chunk_output_files = [f.replace("dedup.", "multihit.") for f in chunk_output_files]
         concatenate_files(multihit_chunk_output_files, os.path.join(RESULT_DIR, MULTIHIT_GSNAPL_OUT))
         execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, MULTIHIT_GSNAPL_OUT, SAMPLE_S3_OUTPUT_PATH))
         multihit_chunk_summaries = [f.replace("multihit", "summary-multihit") for f in multihit_chunk_output_files]
         concatenate_files(multihit_chunk_summaries, os.path.join(RESULT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT))
         execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT, SAMPLE_S3_OUTPUT_PATH))
+        multihit_chunk_dedup_m8s = [f.replace("summary-multihit", "dedup-multihit") for f in multihit_chunk_summaries]
+        concatenate_files(multihit_chunk_dedup_m8s, os.path.join(RESULT_DIR, DEDUP_MULTIHIT_GSNAPL_OUT))
+        execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, DEDUP_MULTIHIT_GSNAPL_OUT, SAMPLE_S3_OUTPUT_PATH))
 
 
 def run_annotate_m8_with_taxids(input_m8, output_m8):
