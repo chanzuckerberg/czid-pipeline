@@ -788,9 +788,11 @@ def call_hits_m8(input_m8, output_m8, output_summary):
         hits = { "species": [], "genus": [], "family": [] }
         for acc in accessions:
             hits = add_taxid_hits(acc, hits)
+        print hits
         read_to_hit_level = call_hit_level(read_id, hits, read_to_hit_level)
         outf.write(first_line + "\n")
     outf.close()
+    print read_to_hit_level
     with open(output_summary, 'wb') as f:
         for read_id, hit_level in read_to_hit_level.iteritems():
             f.write("%s\t%d\n" % (read_id, hit_level))
