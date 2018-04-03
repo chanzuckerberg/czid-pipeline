@@ -830,13 +830,21 @@ def run_gsnapl_remotely(input_files, lazy_run):
         concatenate_files(chunk_output_files, os.path.join(RESULT_DIR, GSNAPL_DEDUP_OUT))
         execute_command("aws s3 cp --quiet %s/%s %s" % (RESULT_DIR, GSNAPL_DEDUP_OUT, output_file))
         # Also copy multihit outputs
-        multihit_chunk_output_files = [f.replace("dedup.", "multihit.") for f in chunk_output_files]
+        multihit_chunk_output_files = [f.replace("dedup", "multihit") for f in chunk_output_files]
+        print "multihit_chunk_output_files"
+        print multihit_chunk_output_files
         concatenate_files(multihit_chunk_output_files, os.path.join(RESULT_DIR, MULTIHIT_GSNAPL_OUT))
         execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, MULTIHIT_GSNAPL_OUT, SAMPLE_S3_OUTPUT_PATH))
+
         multihit_chunk_summaries = [f.replace("multihit", "summary-multihit") for f in multihit_chunk_output_files]
+        print "multihit_chunk_summaries"
+        print multihit_chunk_summaries
         concatenate_files(multihit_chunk_summaries, os.path.join(RESULT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT))
         execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT, SAMPLE_S3_OUTPUT_PATH))
+
         multihit_chunk_dedup_m8s = [f.replace("summary-multihit", "dedup-multihit") for f in multihit_chunk_summaries]
+        print "multihit_chunk_dedup_m8s"
+        print multihit_chunk_dedup_m8s
         concatenate_files(multihit_chunk_dedup_m8s, os.path.join(RESULT_DIR, DEDUP_MULTIHIT_GSNAPL_OUT))
         execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, DEDUP_MULTIHIT_GSNAPL_OUT, SAMPLE_S3_OUTPUT_PATH))
 
