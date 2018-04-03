@@ -775,7 +775,9 @@ def call_hits_m8(input_m8, output_m8, output_summary):
         read_to_hit_level[read_id] = -1
         return read_to_hit_level
     # Deduplicate m8 and summarize hits
-    read_ids = set(execute_command_with_output("grep -v '^#' %s | cut -f1" % input_m8).split("\n"))
+    read_ids = execute_command_with_output("grep -v '^#' %s | cut -f1" % input_m8).split("\n")
+    read_ids = filter(None, read_ids)
+    read_ids = set(read_ids)
     sorted_input_m8 = input_m8 + "-sorted"
     execute_command("sort -k1 %s > %s" % (input_m8, sorted_input_m8))
     read_to_hit_level = {}
