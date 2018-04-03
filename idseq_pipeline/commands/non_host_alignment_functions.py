@@ -744,8 +744,11 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
 
 
 def call_hits_m8(input_file, output_file):
-
-
+    read_ids = set(execute_command_with_output("cut -f1 %s" % input_file).split("\n"))
+    sorted_input_file = input_file + "-sorted"
+    execute_command("sort -k1 %s > %s" % (input_file, sorted_input_file))
+    for read_id in read_ids:
+      accessions = execute_command_with_output("grep %s %s | cut -f2" % (read_id, sorted_input_file)).split("\n")
 
 def run_gsnapl_remotely(input_files, lazy_run):
     output_file = os.path.join(SAMPLE_S3_OUTPUT_PATH, GSNAPL_DEDUP_OUT)
