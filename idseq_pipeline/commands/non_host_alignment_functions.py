@@ -772,6 +772,7 @@ def call_hits_m8(input_m8, output_m8, output_summary):
             if n == 1:
                 read_to_hit_level[read_id] = i+1 # level id number
                 return read_to_hit_level
+        read_to_hit_level[read_id] = -1
         return read_to_hit_level
     # Deduplicate m8 and summarize hits
     read_ids = set(execute_command_with_output("grep -v '^#' %s | cut -f1" % input_m8).split("\n"))
@@ -786,7 +787,7 @@ def call_hits_m8(input_m8, output_m8, output_summary):
         for acc in accessions:
             hits = add_taxid_hits(acc, hits)
         read_to_hit_level = call_hit_level(read_id, hits, read_to_hit_level)
-        outf.write(first_line)
+        outf.write(first_line + "\n")
     outf.close()
     with open(output_summary, 'wb') as f:
         for read_id, hit_level in read_to_hit_level.iteritems():
