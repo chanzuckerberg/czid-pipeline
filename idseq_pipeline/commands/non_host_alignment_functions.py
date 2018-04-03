@@ -785,6 +785,7 @@ def call_hits_m8(input_m8, output_m8, output_summary):
     for read_id in read_ids:
         first_line = execute_command_with_output("grep '^%s' %s" % (read_id, sorted_input_m8)).split("\n")[0]
         accessions = execute_command_with_output("grep '^%s' %s | cut -f2" % (read_id, sorted_input_m8)).split("\n")
+        accessions = filter(None, accessions)
         hits = { "species": [], "genus": [], "family": [] }
         for acc in accessions:
             hits = add_taxid_hits(acc, hits)
