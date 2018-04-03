@@ -785,7 +785,7 @@ def call_hits_m8(input_m8, output_m8, output_summary):
     outf.close()
     with open(output_summary, 'wb') as f:
         for read_id, hit_level in read_to_hit_level.iteritems():
-        f.write("%s\t%d\n" % (read_id, hit_level))
+            f.write("%s\t%d\n" % (read_id, hit_level))
     f.close()
 
 def run_gsnapl_remotely(input_files, lazy_run):
