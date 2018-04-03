@@ -29,7 +29,7 @@ FILE_TYPE = os.environ.get('FILE_TYPE')
 OUTPUT_BUCKET = os.environ.get('OUTPUT_BUCKET')
 STAR_GENOME = os.environ.get('STAR_GENOME', 's3://czbiohub-infectious-disease/references/human/STAR_genome.tar')
 BOWTIE2_GENOME = os.environ.get('BOWTIE2_GENOME', 's3://czbiohub-infectious-disease/references/human/bowtie2_genome.tar')
-STAR_BOWTIE_VERSION_FILE_S3 = os.environ.get('STAR_BOWTIE_VERSION_FILE_S3', 's3://czbiohub-infectious-disease/references/{host}/{host}.version.txt'.format(host=os.path.basename(os.path.dirname(STAR_GENOME))))
+STAR_BOWTIE_VERSION_FILE_S3 = os.environ.get('STAR_BOWTIE_VERSION_FILE_S3')
 DB_SAMPLE_ID = os.environ['DB_SAMPLE_ID']
 AWS_BATCH_JOB_ID = os.environ.get('AWS_BATCH_JOB_ID', 'local')
 SAMPLE_S3_INPUT_PATH = INPUT_BUCKET.rstrip('/')
@@ -481,6 +481,11 @@ def run_bowtie2(input_fas):
 def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats):
     number_of_input_files = len(fastq_files)
     target_outputs = TARGET_OUTPUTS_PAIRED if number_of_input_files == 2 else TARGET_OUTPUTS_SINGLE
+    global STAR_BOWTIE_VERSION_FILE_S3
+    if not STAR_BOWTIE_VERSION_FILE_S3:
+        genome_dir = os.path.dirname(STAR_GENOME)
+        version_file = execute_command_with_output("aws s3 ls %s/ |grep version.txt" % genome_dir).rstrip().split(" ")[-1]
+        STAR_BOWTIE_VERSION_FILE_S3 = "%s/%s" % (genome_dir, version_file)
 
     # run STAR
     logparams = return_merged_dict(
