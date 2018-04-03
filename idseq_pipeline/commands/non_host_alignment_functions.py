@@ -64,6 +64,7 @@ LOGS_OUT_BASENAME = 'log'
 STATS_OUT = 'stats.json'
 VERSION_OUT = 'versions.json'
 MULTIHIT_GSNAPL_OUT = 'multihit.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
+SUMMARY_MULTIHIT_GSNAPL_OUT = 'summary.multihit.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.tab'
 
 # arguments from environment variables
 SKIP_DEUTERO_FILTER = int(os.environ.get('SKIP_DEUTERO_FILTER', 0))
@@ -783,7 +784,9 @@ def call_hits_m8(input_m8, output_m8, output_summary):
         outf.write(first_line)
     outf.close()
     with open(output_summary, 'wb') as f:
-        json.dump(read_to_hit_level, f)
+        for read_id, hit_level in read_to_hit_level.iteritems():
+        f.write("%s\t%d\n" % (read_id, hit_level))
+    f.close()
 
 def run_gsnapl_remotely(input_files, lazy_run):
     output_file = os.path.join(SAMPLE_S3_OUTPUT_PATH, GSNAPL_DEDUP_OUT)
@@ -823,8 +826,10 @@ def run_gsnapl_remotely(input_files, lazy_run):
         # Also copy multihit outputs
         multihit_chunk_output_files = [f.replace("dedup", "multihit") for f in chunk_output_files]
         concatenate_files(multihit_chunk_output_files, os.path.join(RESULT_DIR, MULTIHIT_GSNAPL_OUT))
-        execute_command("aws s3 cp --quiet %s/%s %s" % (RESULT_DIR, MULTIHIT_GSNAPL_OUT, os.path.join(SAMPLE_S3_OUTPUT_PATH, MULTIHIT_GSNAPL_OUT)))
-
+        execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, MULTIHIT_GSNAPL_OUT, SAMPLE_S3_OUTPUT_PATH))
+        multihit_chunk_summaries = [f.replace("multihit", "summary-multihit") for f in multihit_chunk_output_files]
+        concatenate_files(multihit_chunk_summaries, os.path.join(RESULT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT))
+        execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT, SAMPLE_S3_OUTPUT_PATH))
 
 
 def run_annotate_m8_with_taxids(input_m8, output_m8):
