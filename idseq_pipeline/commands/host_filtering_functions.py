@@ -29,7 +29,7 @@ FILE_TYPE = get_env_or_err('FILE_TYPE')
 OUTPUT_BUCKET = get_env_or_err('OUTPUT_BUCKET')
 STAR_GENOME = get_env_or_err('STAR_GENOME')
 BOWTIE2_GENOME = get_env_or_err('BOWTIE2_GENOME')
-STAR_BOWTIE_VERSION_FILE_S3 = get_env_or_err('STAR_BOWTIE_VERSION_FILE_S3')
+STAR_BOWTIE_VERSION_FILE_S3 = os.environ.get('STAR_BOWTIE_VERSION_FILE_S3', get_host_index_version_file(STAR_GENOME))
 DB_SAMPLE_ID = os.environ['DB_SAMPLE_ID']
 AWS_BATCH_JOB_ID = os.environ.get('AWS_BATCH_JOB_ID', 'local')
 SAMPLE_S3_INPUT_PATH = INPUT_BUCKET.rstrip('/')
@@ -341,8 +341,9 @@ def sync_pairs(fastq_files, max_discrepancies=0):
 
 
 def run_star(fastq_files):
-    star_outputs = [STAR_OUT1, STAR_OUT2, STAR_COUNTS_OUT]
+    star_outputs = [STAR_COUNTS_OUT, STAR_OUT1, STAR_OUT2]
     num_fastqs = len(fastq_files)
+    gene_count_output = None
     def unmapped_files_in(some_dir):
         return ["%s/Unmapped.out.mate%d" % (some_dir, i+1) for i in range(num_fastqs)]
     genome_dir = fetch_genome(STAR_GENOME)
@@ -350,30 +351,30 @@ def run_star(fastq_files):
     threading.Thread(target=fetch_genome, args=[BOWTIE2_GENOME]).start()
     # Check if parts.txt file exists, if so use the new version of (partitioned indices). Otherwise, stay put
     parts_file = os.path.join(genome_dir, "parts.txt")
-    if os.path.isfile(parts_file):
-        with open(parts_file, 'rb') as parts_f:
-            num_parts = int(parts_f.read())
-        unmapped = fastq_files
-        for part_idx in range(num_parts):
-            tmp_result_dir = "%s/star-part-%d" % (SCRATCH_DIR, part_idx)
-            genome_part = "%s/part-%d" % (genome_dir, part_idx)
-            count_genes = (part_idx == 0)
-            # run first part in gene-counting mode:
-            # (a) ERCCs are doped into first part and we want their counts
-            # (b) if there is only 1 part (e.g. human), the host gene counts also make sense
-            run_star_part(tmp_result_dir, genome_part, unmapped, count_genes)
-            result_files = sync_pairs(unmapped_files_in(tmp_result_dir))
-            if count_genes:
-                gene_count_file = os.path.join(tmp_result_dir, "ReadsPerGene.out.tab")
-                if os.path.isfile(gene_count_file):
-                    result_files += [gene_count_file]
-    else:
-        run_star_part(SCRATCH_DIR, genome_dir, fastq_files)
-        result_files = sync_pairs(unmapped_files_in(SCRATCH_DIR))
+
+    assert os.path.isfile(parts_file)
+    with open(parts_file, 'rb') as parts_f:
+        num_parts = int(parts_f.read())
+    unmapped = fastq_files
+    for part_idx in range(num_parts):
+        tmp_result_dir = "%s/star-part-%d" % (SCRATCH_DIR, part_idx)
+        genome_part = "%s/part-%d" % (genome_dir, part_idx)
+        run_star_part(tmp_result_dir, genome_part, unmapped, part_idx == 0)
+        unmapped = sync_pairs(unmapped_files_in(tmp_result_dir))
+        # run part 0 in gene-counting mode:
+        # (a) ERCCs are doped into part 0 and we want their counts
+        # (b) if there is only 1 part (e.g. human), the host gene counts also make sense
+        if part_idx == 0:
+            gene_count_file = os.path.join(tmp_result_dir, "ReadsPerGene.out.tab")
+            if os.path.isfile(gene_count_file):
+                gene_count_output = gene_count_file
+
+    result_files = [gene_count_output] + unmapped
     for i, f in enumerate(result_files):
-        output_i = os.path.join(RESULT_DIR, star_outputs[i])
-        execute_command("mv %s %s;" % (f, output_i))
-        execute_command("aws s3 cp --quiet %s %s/;" % (output_i, SAMPLE_S3_OUTPUT_PATH))
+        if f != None:
+            output_i = os.path.join(RESULT_DIR, star_outputs[i])
+            execute_command("mv %s %s;" % (f, output_i))
+            execute_command("aws s3 cp --quiet %s %s/;" % (output_i, SAMPLE_S3_OUTPUT_PATH))
     # cleanup
     execute_command("cd %s; rm -rf *" % SCRATCH_DIR)
     write_to_log("finished job")
@@ -476,6 +477,10 @@ def run_bowtie2(input_fas):
     if len(input_fas) == 2:
         execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
     execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3, SAMPLE_S3_OUTPUT_PATH))
+
+
+def get_host_filtering_version_s3_path():
+    return os.path.join(SAMPLE_S3_OUTPUT_PATH, VERSION_OUT)
 
 def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats):
     number_of_input_files = len(fastq_files)

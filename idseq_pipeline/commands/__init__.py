@@ -7,5 +7,6 @@ from .rapsearch_indexing import *
 from .lineages import *
 from .curate_accession2taxid import *
 from .curate_accessionid2seq import *
+from .push_reference_update import *
 from .accessionid2seq import *
 from .blacklist import *

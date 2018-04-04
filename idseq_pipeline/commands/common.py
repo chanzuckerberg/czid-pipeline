@@ -8,8 +8,9 @@ import json
 import gzip
 import os
 import traceback
+import re
 
-NCBITOOL_S3_PATH = "s3://czbiohub-infectious-disease/ncbitool" # S3 location of ncbitool executable
+NCBITOOL_S3_PATH = "s3://idseq-database/ncbitool" # S3 location of ncbitool executable
 VERSION_NONE = -1
 
 # data directories
@@ -219,7 +220,6 @@ def execute_command_realtime_stdout(command, progress_file=None):
             print "Command {}: {}".format(ct.id, command)
         with ProgressFile(progress_file):
             subprocess.check_call(command, shell=True)
-
 
 def execute_command(command, progress_file=None):
     execute_command_realtime_stdout(command, progress_file)
@@ -498,8 +498,9 @@ def upload_commit_sha(version):
     OUTPUT_VERSIONS.append({"name": "idseq-pipeline", "version": version, "commit-sha": commit_sha})
 
 def install_ncbitool_locally(local_work_dir):
-    execute_command("aws s3 cp --quiet %s %s/" % (NCBITOOL_S3_PATH, local_work_dir))
-    execute_command("chmod u+x %s/ncbitool" % local_work_dir)
+    if not os.path.isfile(local_work_dir + "/ncbitool"):
+        execute_command("aws s3 cp --quiet %s %s/" % (NCBITOOL_S3_PATH, local_work_dir))
+        execute_command("chmod u+x %s/ncbitool" % local_work_dir)
     return "%s/ncbitool" % local_work_dir
 
 def install_ncbitool(local_work_dir, remote_work_dir=None, key_path=None, remote_username=None, server_ip=None, sudo=False):
@@ -525,13 +526,12 @@ def download_reference_locally(ncbitool_path, input_fasta_ncbi_path, version_num
     execute_command(command)
     return os.path.join(destination_dir, os.path.basename(input_fasta_ncbi_path))
 
-def download_reference_locally_with_version_any_source_type(ref_file, dest_dir, ncbitool_dest_dir):
+def download_reference_locally_with_version_any_source_type(ref_file, dest_dir, ncbitool_dest_dir, auto_unzip=False):
     # Get input reference and version number.
     # If download does not use ncbitool (e.g. direct s3 link), indicate that there is no versioning.
     input_fasta_name = os.path.basename(ref_file)
     if ref_file.startswith("s3://"):
-        execute_command("aws s3 cp --quiet %s %s/" % (ref_file, dest_dir))
-        input_fasta_local = os.path.join(dest_dir, input_fasta_name)
+        input_fasta_local = fetch_from_s3(ref_file, dest_dir, auto_unzip, allow_s3mi=True)
         version_number = VERSION_NONE
     elif ref_file.startswith("ftp://"):
         execute_command("cd %s; wget %s" % (dest_dir, ref_file))
@@ -576,6 +576,26 @@ def download_reference_on_remote_with_version_any_source_type(
             key_path, remote_username, server_ip)
     return input_fasta_remote, version_number
 
+def get_host_index_version_file(star_genome):
+    genome_dir = os.path.dirname(star_genome)
+    version_file = execute_command_with_output("aws s3 ls %s/ |grep version.txt" % genome_dir).rstrip().split(" ")[-1]
+    return os.path.join(genome_dir, version_file)
+
+def big_version_change_from_last_run(pipeline_version, version_s3_path):
+    ''' Return True is there's a significant pipeline version chanage. i.e. 1.2.1 -> 1.3.0. False otherwise '''
+    try:
+        version_hash = json.loads(execute_command_with_output("aws s3 cp %s - " % version_s3_path))
+        for entry in version_hash:
+            if entry['name'] == 'idseq-pipeline':
+                prev_pipeline_version_sig = re.sub(r'\.\d+$', '', entry['version']);
+                pipeline_version_sig = re.sub(r'\.\d+$', '', pipeline_version)
+                return (prev_pipeline_version_sig != pipeline_version_sig)
+        return True # idseq-pipeline info is not
+    except:
+        # couldn't get the s3_version_file (no output most likely). Return True to indicate change from nothing
+        traceback.print_exc()
+        return True
+
 def upload_version_tracker(source_file, output_name, reference_version_number, output_path_s3, indexing_version):
     version_tracker_file = "%s.version.txt" % output_name
     version_json = {"name": output_name,
@@ -592,3 +612,6 @@ def get_env_or_err(key):
         raise NameError("%s not defined in env variables" % key)
     else:
         return os.environ.get(key)
+
+def env_set_if_blank(key, value):
+    os.environ[key] = os.environ.get(key, value)
