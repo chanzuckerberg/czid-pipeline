@@ -1,6 +1,7 @@
 """The push_reference_update command."""
 import json
 import os
+import threading
 
 from .base import Base
 from .common import env_set_if_blank, install_ncbitool_locally, execute_command_with_output, \
@@ -15,8 +16,6 @@ class Push_reference_update(Base):
         self.LOCAL_WORK_DIR = "idseq_pipeline_temp"
         self.nr = "/blast/db/FASTA/nr.gz"
         self.nt = "/blast/db/FASTA/nt.gz"
-        # self.nr = "/blast/db/FASTA/env_nr.gz"
-        # self.nt = "/blast/db/FASTA/pdbnt.gz"
         self.mapping_files = [
             "/pub/taxonomy/accession2taxid/nucl_est.accession2taxid.gz",
               "/pub/taxonomy/accession2taxid/nucl_gb.accession2taxid.gz",
@@ -45,10 +44,12 @@ class Push_reference_update(Base):
         tool_path = install_ncbitool_locally(self.LOCAL_WORK_DIR)
         input_files = [self.nr, self.nt] + self.mapping_files
         date = self.set_index_date(input_files, tool_path)
-        print("DATE: " + date)
-        # self.make_gsnap_index(date)
-        # self.make_rapsearch_index(date)
-        self.make_accession_mapping(date)
+        print("FOLDER DATETIME: " + date)
+
+        # Run index calls in parallel
+        for f in [self.make_gsnap_index, self.make_rapsearch_index, self.make_accession_mapping]:
+            t = threading.Thread(target=f, args=(date,))
+            t.start()
 
     def make_gsnap_index(self, date):
         dest = os.environ["DEST_PREFIX"] + "/alignment_indexes/" + date
@@ -76,10 +77,8 @@ class Push_reference_update(Base):
 
         os.environ["MAPPING_FILES"] = map_env
         prev_mapping = os.environ["PREV_ACC_MAPPING"]
-        # prev_mapping = "s3://czbiohub-ncbi-store/test/pdb.accession2taxid.gz"
         cmd = "idseq_pipeline curate_accession2taxid --mapping_files %s --nr_file %s --nt_file %s --output_s3_folder %s --previous_mapping %s" % (
             map_env, pre + self.nr, pre + self.nt, dest, prev_mapping)
-        print cmd
         os.system(cmd)
 
     def set_index_date(self, input_files, tool_path):
