@@ -8,6 +8,7 @@ import json
 import gzip
 import os
 import traceback
+import re
 
 NCBITOOL_S3_PATH = "s3://idseq-database/ncbitool" # S3 location of ncbitool executable
 ACCESSION2TAXID = 's3://czbiohub-infectious-disease/references/accession2taxid.db.gz'
@@ -576,6 +577,26 @@ def download_reference_on_remote_with_version_any_source_type(
             remote_ncbitool, ref_file, version_number, dest_dir,
             key_path, remote_username, server_ip)
     return input_fasta_remote, version_number
+
+def get_host_index_version_file(star_genome):
+    genome_dir = os.path.dirname(star_genome)
+    version_file = execute_command_with_output("aws s3 ls %s/ |grep version.txt" % genome_dir).rstrip().split(" ")[-1]
+    return os.path.join(genome_dir, version_file)
+
+def big_version_change_from_last_run(pipeline_version, version_s3_path):
+    ''' Return True is there's a significant pipeline version chanage. i.e. 1.2.1 -> 1.3.0. False otherwise '''
+    try:
+        version_hash = json.loads(execute_command_with_output("aws s3 cp %s - " % version_s3_path))
+        for entry in version_hash:
+            if entry['name'] == 'idseq-pipeline':
+                prev_pipeline_version_sig = re.sub(r'\.\d+$', '', entry['version']);
+                pipeline_version_sig = re.sub(r'\.\d+$', '', pipeline_version)
+                return (prev_pipeline_version_sig != pipeline_version_sig)
+        return True # idseq-pipeline info is not
+    except:
+        # couldn't get the s3_version_file (no output most likely). Return True to indicate change from nothing
+        traceback.print_exc()
+        return True
 
 def upload_version_tracker(source_file, output_name, reference_version_number, output_path_s3, indexing_version):
     version_tracker_file = "%s.version.txt" % output_name

@@ -939,6 +939,10 @@ def run_generate_unidentified_fasta(input_fa, output_fa):
     execute_command("aws s3 cp --quiet %s %s/" % (output_fa, SAMPLE_S3_OUTPUT_PATH))
 
 
+def get_alignment_version_s3_path():
+    return os.path.join(SAMPLE_S3_OUTPUT_PATH, VERSION_OUT)
+
+
 def run_stage2(lazy_run=True):
     # make local directories
     execute_command("mkdir -p %s %s %s %s %s" % (SAMPLE_DIR, FASTQ_DIR, RESULT_DIR, CHUNKS_RESULT_DIR, REF_DIR))
