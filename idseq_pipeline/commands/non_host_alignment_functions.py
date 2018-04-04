@@ -66,7 +66,7 @@ VERSION_OUT = 'versions.json'
 MULTIHIT_GSNAPL_OUT = 'multihit.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
 SUMMARY_MULTIHIT_GSNAPL_OUT = 'summary.multihit.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.tab'
 DEDUP_MULTIHIT_GSNAPL_OUT = 'dedup.multihit.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
-MULTIHIT_NT_JSON_OUT = 'multihit_idseq_web_sample.json'
+MULTIHIT_NT_JSON_OUT = 'nt_multihit_idseq_web_sample.json'
 
 # arguments from environment variables
 SKIP_DEUTERO_FILTER = int(os.environ.get('SKIP_DEUTERO_FILTER', 0))
