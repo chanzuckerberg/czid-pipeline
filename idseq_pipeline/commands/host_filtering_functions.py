@@ -242,7 +242,7 @@ def fetch_genome_work(s3genome):
                 else:
                     raise
         except:
-            execute_command("aws s3 cp --quiet {s3genome} - | tar xvfz - -C {refdir}".format(s3genome=s3genome, refdir=REF_DIR))
+            execute_command("aws s3 cp --quiet {s3genome} - | tar xvf - -C {refdir}".format(s3genome=s3genome, refdir=REF_DIR))
         write_to_log("downloaded index")
     assert os.path.isdir(genome_dir)
     return genome_dir
