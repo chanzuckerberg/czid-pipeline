@@ -1316,14 +1316,6 @@ def run_stage2(lazy_run=True):
             'log10',
             stats)
 
-
-        generate_taxon_count_json_from_m8(os.path.join(RESULT_DIR, DEDUP_MULTIHIT_GSNAPL_OUT),
-                                          os.path.join(RESULT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT),
-                                          'raw', 'NT', stats,
-                                          os.path.join(RESULT_DIR, MULTIHIT_NT_JSON_OUT))
-        execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, MULTIHIT_NT_JSON_OUT, SAMPLE_S3_OUTPUT_PATH))
-       
-
         logparams = return_merged_dict(
             DEFAULT_LOGPARAMS,
             {"title": "combine JSON outputs"})
