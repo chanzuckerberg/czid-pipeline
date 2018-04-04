@@ -297,7 +297,7 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
     hit_line = hit_f.readline()
     m8_line = m8_f.readline()
     while hit_line and m8_line:
-        hit_line_columns = hit_line.split("\t")
+        hit_line_columns = hit_line.rstrip("\n").split("\t")
         read_id = hit_line_columns[0]
         hit_level = hit_line_columns[1]
         hit_taxid = hit_line_columns[2]
