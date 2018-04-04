@@ -29,7 +29,7 @@ FILE_TYPE = os.environ.get('FILE_TYPE')
 OUTPUT_BUCKET = os.environ.get('OUTPUT_BUCKET')
 STAR_GENOME = os.environ.get('STAR_GENOME', 's3://czbiohub-infectious-disease/references/human/STAR_genome.tar')
 BOWTIE2_GENOME = os.environ.get('BOWTIE2_GENOME', 's3://czbiohub-infectious-disease/references/human/bowtie2_genome.tar')
-STAR_BOWTIE_VERSION_FILE_S3 = os.environ.get('STAR_BOWTIE_VERSION_FILE_S3')
+STAR_BOWTIE_VERSION_FILE_S3 = os.environ.get('STAR_BOWTIE_VERSION_FILE_S3', get_host_index_version_file(STAR_GENOME))
 DB_SAMPLE_ID = os.environ['DB_SAMPLE_ID']
 AWS_BATCH_JOB_ID = os.environ.get('AWS_BATCH_JOB_ID', 'local')
 SAMPLE_S3_INPUT_PATH = INPUT_BUCKET.rstrip('/')
@@ -478,10 +478,6 @@ def run_bowtie2(input_fas):
         execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
     execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3, SAMPLE_S3_OUTPUT_PATH))
 
-def get_host_index_version_file():
-    genome_dir = os.path.dirname(STAR_GENOME)
-    version_file = execute_command_with_output("aws s3 ls %s/ |grep version.txt" % genome_dir).rstrip().split(" ")[-1]
-    return os.path.join(genome_dir, version_file)
 
 def get_host_filtering_version_s3_path():
     return os.path.join(SAMPLE_S3_OUTPUT_PATH, VERSION_OUT)
@@ -567,13 +563,8 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats):
                       before_filetype="fasta_paired",
                       after_filename=os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1),
                       after_filetype="fasta_paired")
-def init_stage1():
-    global STAR_BOWTIE_VERSION_FILE_S3
-    if not STAR_BOWTIE_VERSION_FILE_S3:
-        STAR_BOWTIE_VERSION_FILE_S3 = get_host_index_version_file()
 
 def run_stage1(lazy_run=True):
-    init_stage1()
     execute_command("mkdir -p %s %s %s %s" % (SAMPLE_DIR, FASTQ_DIR, RESULT_DIR, SCRATCH_DIR))
     execute_command("mkdir -p %s " % REF_DIR)
 
