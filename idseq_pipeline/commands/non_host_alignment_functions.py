@@ -823,8 +823,8 @@ def call_hits_m8(input_m8, output_m8, output_summary):
         return hits
     def call_hit_level(read_id, hits):
         for i, level in enumerate(["species", "genus", "family"]):
-            taxids = set(hits[level])
-            n = len(taxids) # number of distinct taxids at this level
+            taxids = hits[level]
+            n = len(set(taxids)) # number of distinct taxids at this level
             if n == 1:
                 return i+1, taxids[0]
         return -1, -1
