@@ -1188,6 +1188,13 @@ def run_stage2(lazy_run=True):
                           after_filename=os.path.join(RESULT_DIR, GSNAPL_DEDUP_OUT),
                           after_filetype="m8")
 
+        # PRODUCE NEW MULTIHIT NT OUTPUT
+        generate_taxon_count_json_from_m8(os.path.join(RESULT_DIR, DEDUP_MULTIHIT_GSNAPL_OUT),
+                                          os.path.join(RESULT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT),
+                                          'raw', 'NT', stats,
+                                          os.path.join(RESULT_DIR, MULTIHIT_NT_JSON_OUT))
+        execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, MULTIHIT_NT_JSON_OUT, SAMPLE_S3_OUTPUT_PATH))
+
         # run_annotate_gsnapl_m8_with_taxids
         logparams = return_merged_dict(
             DEFAULT_LOGPARAMS,
@@ -1209,14 +1216,6 @@ def run_stage2(lazy_run=True):
             merged_fasta,
             os.path.join(RESULT_DIR, GENERATE_TAXID_ANNOTATED_FASTA_FROM_M8_OUT),
             'NT')
-
-        # PRODUCE NEW MULTIHIT NT OUTPUT
-        generate_taxon_count_json_from_m8(os.path.join(RESULT_DIR, DEDUP_MULTIHIT_GSNAPL_OUT),
-                                          os.path.join(RESULT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT),
-                                          'raw', 'NT', stats,
-                                          os.path.join(RESULT_DIR, MULTIHIT_NT_JSON_OUT))
-        execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, MULTIHIT_NT_JSON_OUT, SAMPLE_S3_OUTPUT_PATH))
-
 
         if SKIP_DEUTERO_FILTER:
             next_input = ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT
