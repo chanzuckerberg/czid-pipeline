@@ -308,8 +308,8 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
         m8_line_columns = m8_line.split("\t")
         assert m8_line_columns[0] == hit_line_columns[0]
         percent_identity = float(m8_line_columns[2])
-        alignment_length = float(line_columns[3])
-        e_value = float(line_columns[10])
+        alignment_length = float(m8_line_columns[3])
+        e_value = float(m8_line_columns[10])
         if e_value_type != 'log10':
             e_value = math.log10(e_value)       
         taxid_properties[hit_taxid] = taxid_properties.get(hit_taxid, {'hit_level': hit_level,
