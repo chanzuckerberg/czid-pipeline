@@ -297,6 +297,8 @@ def log_corrupt(is_corrupt, m8_file, line):
 
 
 def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, count_type, stats, output_file):
+    lineage_path = fetch_reference(LINEAGE_SHELF)
+    lineage_map = shelve.open(lineage_path)
     taxid_properties = {}
     hit_f = open(hit_level_file, 'rb')
     m8_f = open(m8_file, 'rb')
@@ -318,18 +320,18 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
         alignment_length = float(m8_line_columns[3])
         e_value = float(m8_line_columns[10])
         if e_value_type != 'log10':
-            e_value = math.log10(e_value)       
-        taxid_properties[hit_taxid] = taxid_properties.get(hit_taxid, {'hit_level': int(hit_level),
-                                                                       'count': 0,
-                                                                       'sum_percent_identity': 0,
-                                                                       'sum_alignment_length': 0,
-                                                                       'sum_e_value': 0})
-        taxid_properties[hit_taxid]['count'] += 1
-        taxid_properties[hit_taxid]['sum_percent_identity'] += percent_identity
-        taxid_properties[hit_taxid]['sum_alignment_length'] += alignment_length
-        taxid_properties[hit_taxid]['sum_e_value'] += e_value
-        print hit_taxid
-        print taxid_properties[hit_taxid]
+            e_value = math.log10(e_value)
+        hit_taxid_and_parents = lineage_map.get(hit_taxid, ("-100", "-200", "-300"))[(int(hit_level)-1):3]
+        for hit_taxid in hit_taxid_and_parents:
+            taxid_properties[hit_taxid] = taxid_properties.get(hit_taxid, {'hit_level': int(hit_level),
+                                                                           'count': 0,
+                                                                           'sum_percent_identity': 0,
+                                                                           'sum_alignment_length': 0,
+                                                                           'sum_e_value': 0})
+            taxid_properties[hit_taxid]['count'] += 1
+            taxid_properties[hit_taxid]['sum_percent_identity'] += percent_identity
+            taxid_properties[hit_taxid]['sum_alignment_length'] += alignment_length
+            taxid_properties[hit_taxid]['sum_e_value'] += e_value
         hit_line = hit_f.readline()
         m8_line = m8_f.readline()
 
