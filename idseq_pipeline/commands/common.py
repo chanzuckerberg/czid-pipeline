@@ -9,7 +9,7 @@ import gzip
 import os
 import traceback
 
-NCBITOOL_S3_PATH = "s3://czbiohub-infectious-disease/ncbitool" # S3 location of ncbitool executable
+NCBITOOL_S3_PATH = "s3://idseq-database/ncbitool" # S3 location of ncbitool executable
 ACCESSION2TAXID = 's3://czbiohub-infectious-disease/references/accession2taxid.db.gz'
 LINEAGE_SHELF = 's3://czbiohub-infectious-disease/references/taxid-lineages.db'
 VERSION_NONE = -1
@@ -221,7 +221,6 @@ def execute_command_realtime_stdout(command, progress_file=None):
             print "Command {}: {}".format(ct.id, command)
         with ProgressFile(progress_file):
             subprocess.check_call(command, shell=True)
-
 
 def execute_command(command, progress_file=None):
     execute_command_realtime_stdout(command, progress_file)
@@ -500,8 +499,9 @@ def upload_commit_sha(version):
     OUTPUT_VERSIONS.append({"name": "idseq-pipeline", "version": version, "commit-sha": commit_sha})
 
 def install_ncbitool_locally(local_work_dir):
-    execute_command("aws s3 cp --quiet %s %s/" % (NCBITOOL_S3_PATH, local_work_dir))
-    execute_command("chmod u+x %s/ncbitool" % local_work_dir)
+    if not os.path.isfile(local_work_dir + "/ncbitool"):
+        execute_command("aws s3 cp --quiet %s %s/" % (NCBITOOL_S3_PATH, local_work_dir))
+        execute_command("chmod u+x %s/ncbitool" % local_work_dir)
     return "%s/ncbitool" % local_work_dir
 
 def install_ncbitool(local_work_dir, remote_work_dir=None, key_path=None, remote_username=None, server_ip=None, sudo=False):
@@ -587,3 +587,6 @@ def upload_version_tracker(source_file, output_name, reference_version_number, o
     with open(version_tracker_file, 'wb') as f:
         json.dump(version_json, f)
     execute_command("aws s3 cp --quiet %s %s/" % (version_tracker_file, output_path_s3))
+
+def env_set_if_blank(key, value):
+    os.environ[key] = os.environ.get(key, value)
