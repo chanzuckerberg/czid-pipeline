@@ -1333,7 +1333,7 @@ def run_stage2(lazy_run=True):
                                      os.path.join(RESULT_DIR, MULTIHIT_NR_JSON_OUT),
                                      os.path.join(RESULT_DIR, MULTIHIT_COMBINED_JSON_OUT),
                                      stats)
-        execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, MULTIHIT_COMBINED_JSON_OUT, SAMPLE_S3_OUTPUT_PATH)
+        execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, MULTIHIT_COMBINED_JSON_OUT, SAMPLE_S3_OUTPUT_PATH))
 
 
 
