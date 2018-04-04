@@ -9,10 +9,10 @@ MAX_STAR_PART_SIZE = 3252010122
 DEST_DIR = ROOT_DIR + '/idseq/indexes' # generated indexes go here
 
 # arguments from environment variables
-INPUT_FASTA_S3 = os.environ.get('INPUT_FASTA_S3')
-INPUT_GTF_S3 = os.environ.get('INPUT_GTF_S3')
-OUTPUT_PATH_S3 = os.environ.get('OUTPUT_PATH_S3').rstrip('/')
-HOST_NAME = os.environ.get('HOST_NAME')
+INPUT_FASTA_S3 = get_env_or_err('INPUT_FASTA_S3')
+INPUT_GTF_S3 = get_env_or_err('INPUT_GTF_S3')
+OUTPUT_PATH_S3 = get_env_or_err('OUTPUT_PATH_S3').rstrip('/')
+HOST_NAME = get_env_or_err('HOST_NAME')
 
 # executables
 STAR = "STAR"

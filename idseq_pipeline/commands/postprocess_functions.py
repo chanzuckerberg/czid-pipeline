@@ -13,8 +13,10 @@ DEST_DIR = ROOT_DIR + '/idseq/data' # generated data go here
 TEMP_DIR = ROOT_DIR + '/tmp' # tmp directory with a lot of space for sorting large files
 
 # arguments from environment variables
-INPUT_BUCKET = os.environ.get('INPUT_BUCKET')
-OUTPUT_BUCKET = os.environ.get('OUTPUT_BUCKET')
+LINEAGE_SHELF = get_env_or_err('LINEAGE_SHELF')
+ACCESSION2TAXID = get_env_or_err('ACCESSION2TAXID')
+INPUT_BUCKET = get_env_or_err('INPUT_BUCKET')
+OUTPUT_BUCKET = get_env_or_err('OUTPUT_BUCKET')
 AWS_BATCH_JOB_ID = os.environ.get('AWS_BATCH_JOB_ID', 'local')
 SAMPLE_S3_INPUT_PATH = INPUT_BUCKET.rstrip('/')
 SAMPLE_S3_OUTPUT_PATH = OUTPUT_BUCKET.rstrip('/')
@@ -24,8 +26,8 @@ INPUT_DIR = SAMPLE_DIR + '/inputs'
 RESULT_DIR = SAMPLE_DIR + '/results'
 DEFAULT_LOGPARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH}
 
-NT_LOC_DB = os.environ.get('NT_LOC_DB', "s3://idseq-database/20170824/blast_db/nt_loc.db")
-NT_DB = os.environ.get('NT_DB', "s3://idseq-database/20170824/blast_db/nt")
+NT_LOC_DB = get_env_or_err('NT_LOC_DB')
+NT_DB = get_env_or_err('NT_DB')
 
 # input files
 ACCESSION_ANNOTATED_FASTA = 'taxids.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.fasta'

@@ -2,15 +2,15 @@ import os
 from .common import *
 
 # address and key of RAPSearch machine to use
-SERVER_IP = os.environ.get('SERVER_IP')
-KEY_S3_PATH = os.environ.get('KEY_S3_PATH')
+SERVER_IP = get_env_or_err('SERVER_IP')
+KEY_S3_PATH = get_env_or_err('KEY_S3_PATH')
 
 # output location and name
-OUTPUT_PATH_S3 = os.environ.get('OUTPUT_PATH_S3').rstrip('/')
-OUTPUT_NAME = os.environ.get('OUTPUT_NAME')
+OUTPUT_PATH_S3 = get_env_or_err('OUTPUT_PATH_S3').rstrip('/')
+OUTPUT_NAME = get_env_or_err('OUTPUT_NAME')
 
 # path to gzipped FASTA reference to index, relative to ftp://ftp.ncbi.nlm.nih.gov
-INPUT_FASTA_S3 = os.environ.get('INPUT_FASTA_S3')
+INPUT_FASTA_S3 = get_env_or_err('INPUT_FASTA_S3')
 
 # location of index builder executable
 PRE_RAPSEARCH_PATH = "/usr/local/bin/prerapsearch"

@@ -6,8 +6,8 @@ import sys
 from .common import *
 
 # arguments from environment variables
-INPUT_FASTA_S3 = os.environ.get('INPUT_FASTA_S3')
-ACCESSION2TAXID_DB_S3_PATH =  os.environ.get('ACCESSION2TAXID_DB_S3_PATH')
+INPUT_FASTA_S3 = get_env_or_err('INPUT_FASTA_S3')
+ACCESSION2TAXID_DB_S3_PATH = get_env_or_err('ACCESSION2TAXID_DB_S3_PATH')
 
 # data directories
 # from common import ROOT_DIR
