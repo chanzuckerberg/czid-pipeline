@@ -66,6 +66,7 @@ VERSION_OUT = 'versions.json'
 MULTIHIT_GSNAPL_OUT = 'multihit.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
 SUMMARY_MULTIHIT_GSNAPL_OUT = 'summary.multihit.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.tab'
 DEDUP_MULTIHIT_GSNAPL_OUT = 'dedup.multihit.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
+MULTIHIT_NT_JSON_OUT = 'multihit_idseq_web_sample.json'
 
 # arguments from environment variables
 SKIP_DEUTERO_FILTER = int(os.environ.get('SKIP_DEUTERO_FILTER', 0))
@@ -287,6 +288,60 @@ def log_corrupt(is_corrupt, m8_file, line):
         write_to_log(m8_file + " is corrupt at line:\n" + line + "\n----> delete it and its corrupt ancestors before restarting run")
         raise AssertionError
 
+
+def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, count_type, stats, output_file):
+    taxid_properties = {}
+    hit_f = open(hit_level_file, 'rb')
+    m8_f = open(m8_file, 'rb')
+    # lines in m8_file and hit_level_file correspond (same read_id)
+    hit_line = hit_f.readline()
+    m8_line = m8_f.readline()
+    while hit_line and m8_line:
+        hit_line_columns = hit_line.split("\t")
+        read_id = hit_line_columns[0]
+        hit_level = hit_line_columns[1]
+        hit_taxid = hit_line_columns[2]
+        if int(hit_level) < 0:
+            hit_line = hit_f.readline()
+            m8_line = m8_f.readline()
+            continue
+        m8_line_columns = m8_line.split("\t")
+        assert m8_line_columns[0] == hit_line_columns[0]
+        percent_identity = float(m8_line_columns[2])
+        alignment_length = float(line_columns[3])
+        e_value = float(line_columns[10])
+        if e_value_type != 'log10':
+            e_value = math.log10(e_value)       
+        taxid_properties[hit_taxid] = taxid_properties.get(hit_taxid, {'hit_level': hit_level,
+                                                                       'count': 0,
+                                                                       'sum_percent_identity': 0,
+                                                                       'sum_alignment_length': 0,
+                                                                       'sum_e_value': 0})
+        taxid_properties[hit_taxid]['count'] += 1
+        taxid_properties[hit_taxid]['sum_percent_identity'] += percent_identity
+        taxid_properties[hit_taxid]['sum_alignment_length'] += alignment_length
+        taxid_properties[hit_taxid]['sum_e_value'] += e_value
+        
+    taxon_counts_attributes = []
+    for hit_taxid, properties in taxid_properties.iteritems():
+        taxon_counts_attributes.append({"tax_id": hit_taxid,
+                                        "tax_level": properties['hit_level'],
+                                        "count": properties['count'],
+                                        "percent_identity": properties['sum_percent_identity'] / properties['count'],
+                                        "alignment_length": properties['sum_alignment_length'] / properties['count'],
+                                        "e_value": properties['sum_e_value'] / properties['count'],
+                                        "count_type": count_type})
+    total_reads = stats.get_total_reads()
+    remaining_reads = stats.get_remaining_reads()
+    output_dict = {
+        "pipeline_output": {
+            "total_reads": total_reads,
+            "remaining_reads": remaining_reads,
+            "taxon_counts_attributes": taxon_counts_attributes
+        }
+    }
+    with open(output_file, 'wb') as outf:
+        json.dump(output_dict, outf)
 
 def generate_tax_counts_from_m8(m8_file, e_value_type, output_file, lineage_map):
     taxid_count_map = {}
@@ -766,14 +821,13 @@ def call_hits_m8(input_m8, output_m8, output_summary):
         hits["genus"] += [genus_taxid]
         hits["family"] += [family_taxid]
         return hits
-    def call_hit_level(read_id, hits, read_to_hit_level):
+    def call_hit_level(read_id, hits):
         for i, level in enumerate(["species", "genus", "family"]):
-            n = len(set(hits[level])) # number of distinct taxids at this level
+            taxids = set(hits[level])
+            n = len(taxids) # number of distinct taxids at this level
             if n == 1:
-                read_to_hit_level[read_id] = i+1 # level id number
-                return read_to_hit_level
-        read_to_hit_level[read_id] = -1
-        return read_to_hit_level
+                return i+1, taxids[0]
+        return -1, -1
     # Deduplicate m8 and summarize hits
     read_ids = execute_command_with_output("grep -v '^#' %s | cut -f1" % input_m8).split("\n")
     read_ids = filter(None, read_ids)
@@ -781,7 +835,9 @@ def call_hits_m8(input_m8, output_m8, output_summary):
     sorted_input_m8 = input_m8 + "-sorted"
     execute_command("sort -k1 %s > %s" % (input_m8, sorted_input_m8))
     read_to_hit_level = {}
+    read_to_taxid = {}
     outf = open(output_m8, "wb")
+    outf_sum = open(output_summary, "wb")
     for read_id in read_ids:
         first_line = execute_command_with_output("grep '^%s' %s" % (read_id, sorted_input_m8)).split("\n")[0]
         accessions = execute_command_with_output("grep '^%s' %s | cut -f2" % (read_id, sorted_input_m8)).split("\n")
@@ -789,13 +845,12 @@ def call_hits_m8(input_m8, output_m8, output_summary):
         hits = { "species": [], "genus": [], "family": [] }
         for acc in accessions:
             hits = add_taxid_hits(acc, hits)
-        read_to_hit_level = call_hit_level(read_id, hits, read_to_hit_level)
+        hit_level, taxid = call_hit_level(read_id, hits)
         outf.write(first_line + "\n")
+        outf_sum.write("%s\t%d\t%d\n" % (read_id, hit_level, taxid))
     outf.close()
-    with open(output_summary, 'wb') as f:
-        for read_id, hit_level in read_to_hit_level.iteritems():
-            f.write("%s\t%d\n" % (read_id, hit_level))
-    f.close()
+    outf_sum.close()
+
 
 def run_gsnapl_remotely(input_files, lazy_run):
     output_file = os.path.join(SAMPLE_S3_OUTPUT_PATH, GSNAPL_DEDUP_OUT)
@@ -1155,6 +1210,14 @@ def run_stage2(lazy_run=True):
             os.path.join(RESULT_DIR, GENERATE_TAXID_ANNOTATED_FASTA_FROM_M8_OUT),
             'NT')
 
+        # PRODUCE NEW MULTIHIT NT OUTPUT
+        generate_taxon_count_json_from_m8(os.path.join(RESULT_DIR, DEDUP_MULTIHIT_GSNAPL_OUT),
+                                          os.path.join(RESULT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT),
+                                          'raw', 'NT', stats,
+                                          os.path.join(RESULT_DIR, MULTIHIT_NT_JSON_OUT))
+        execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, MULTIHIT_NT_JSON_OUT, SAMPLE_S3_OUTPUT_PATH))
+
+
         if SKIP_DEUTERO_FILTER:
             next_input = ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT
         else:
@@ -1252,6 +1315,14 @@ def run_stage2(lazy_run=True):
             'NR',
             'log10',
             stats)
+
+
+        generate_taxon_count_json_from_m8(os.path.join(RESULT_DIR, DEDUP_MULTIHIT_GSNAPL_OUT),
+                                          os.path.join(RESULT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT),
+                                          'raw', 'NT', stats,
+                                          os.path.join(RESULT_DIR, MULTIHIT_NT_JSON_OUT))
+        execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, MULTIHIT_NT_JSON_OUT, SAMPLE_S3_OUTPUT_PATH))
+       
 
         logparams = return_merged_dict(
             DEFAULT_LOGPARAMS,
