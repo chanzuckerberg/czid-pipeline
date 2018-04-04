@@ -1320,6 +1320,15 @@ def run_stage2(lazy_run=True):
             thread_success["rapsearch2"] = True
 
     def run_additional_steps():
+
+        # PRODUCE NEW MULTIHIT NR OUTPUT
+        generate_taxon_count_json_from_m8(os.path.join(RESULT_DIR, DEDUP_MULTIHIT_RAPSEARCH_OUT),
+                                          os.path.join(RESULT_DIR, SUMMARY_MULTIHIT_RAPSEARCH_OUT),
+                                          'log10', 'NR', stats,
+                                          os.path.join(RESULT_DIR, MULTIHIT_NR_JSON_OUT))
+        execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, MULTIHIT_NR_JSON_OUT, SAMPLE_S3_OUTPUT_PATH))
+
+
         # run_annotate_m8_with_taxids
         logparams = return_merged_dict(
             DEFAULT_LOGPARAMS,
