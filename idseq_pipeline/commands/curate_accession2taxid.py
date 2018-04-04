@@ -150,3 +150,7 @@ class Curate_accession2taxid(Base):
                                'accession2taxid',
                                mapping_version_numbers + [nt_version_number, nr_version_number],
                                output_s3_path, self.version)
+
+        # Upload input files
+        for f in [nt_file_local, nr_file_local] + mapping_files_local:
+            execute_command("aws s3 cp --quiet %s %s/" % (f, output_s3_path))

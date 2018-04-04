@@ -43,7 +43,7 @@ def make_index(version):
     # download reference and unzip
     input_fasta_zipped, version_number = download_reference_on_remote_with_version_any_source_type(INPUT_FASTA_S3, WORK_DIR,
         LOCAL_WORK_DIR, WORK_DIR, KEY_PATH, REMOTE_USERNAME, SERVER_IP, True)
-    input_fasta_unzipped = input_fasta_zipped[:-3]
+    input_fasta_unzipped = input_fasta_zipped[:-3]  # gunzip removes .gz
     command = "sudo gunzip -f %s" % input_fasta_zipped
     execute_command(remote_command(command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
@@ -54,6 +54,10 @@ def make_index(version):
 
     # upload index
     upload_command = "aws s3 cp --quiet %s/%s.tar %s/" % (GMAPDB_PATH, OUTPUT_NAME, OUTPUT_PATH_S3)
+    execute_command(remote_command(upload_command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
+
+    # upload input fasta unzipped
+    upload_command = "aws s3 cp --quiet %s %s/" % (input_fasta_unzipped, OUTPUT_PATH_S3)
     execute_command(remote_command(upload_command, KEY_PATH, REMOTE_USERNAME, SERVER_IP))
 
     # upload version tracker file
