@@ -321,7 +321,11 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
         taxid_properties[hit_taxid]['sum_percent_identity'] += percent_identity
         taxid_properties[hit_taxid]['sum_alignment_length'] += alignment_length
         taxid_properties[hit_taxid]['sum_e_value'] += e_value
-        
+        print hit_taxid
+        print taxid_properties[hit_taxid]
+        hit_line = hit_f.readline()
+        m8_line = m8_f.readline()
+
     taxon_counts_attributes = []
     for hit_taxid, properties in taxid_properties.iteritems():
         taxon_counts_attributes.append({"tax_id": hit_taxid,
