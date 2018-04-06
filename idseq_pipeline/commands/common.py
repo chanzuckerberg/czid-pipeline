@@ -481,9 +481,9 @@ def unbuffer_stdout():
     sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
     os.dup2(sys.stdout.fileno(), sys.stderr.fileno())
 
-def upload_commit_sha(version):
+def upload_commit_sha(version, s3_destination = None):
     sha_file = os.environ.get('COMMIT_SHA_FILE')
-    s3_destination = os.environ.get('OUTPUT_BUCKET')
+    s3_destination = s3_destination or os.environ.get('OUTPUT_BUCKET')
     if sha_file is None or s3_destination is None:
         return
     sha_file_parts = os.path.splitext(os.path.basename(sha_file))
