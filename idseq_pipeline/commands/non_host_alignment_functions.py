@@ -852,14 +852,21 @@ def call_hits_m8(input_m8, output_m8, output_summary):
     outf = open(output_m8, "wb")
     outf_sum = open(output_summary, "wb")
     for read_id in read_ids:
-        first_line = execute_command_with_output("grep '^%s' %s" % (read_id, sorted_input_m8)).split("\n")[0]
-        accessions = execute_command_with_output("grep '^%s' %s | cut -f2" % (read_id, sorted_input_m8)).split("\n")
-        accessions = filter(None, accessions)
+        m8_lines = execute_command_with_output("grep '^%s' %s" % (read_id, sorted_input_m8)).split("\n")
+        accessions_evalues_lines = [(line.split("\t")[1],
+                                     float(line.split("\t")[10]),
+                                     line) for line in m8_lines if line]
+        best_evalue = min([item[1] for item in accessions_evalues_lines])
+        best_accessions_evalues_lines = [item for item in accessions_evalues_lines if item[1] == best_evalue]
+        best_accessions = [item[0] for item in best_accessions_evalues_lines]
+
+        first_line = best_accessions_evalues_lines[0][2]
+        outf.write(first_line + "\n")
+
         hits = { "species": [], "genus": [], "family": [] }
         for acc in accessions:
             hits = add_taxid_hits(acc, hits)
         hit_level, taxid = call_hit_level(read_id, hits)
-        outf.write(first_line + "\n")
         outf_sum.write("%s\t%d\t%s\n" % (read_id, hit_level, taxid))
     outf.close()
     outf_sum.close()
