@@ -10,4 +10,6 @@ class Postprocess(Base):
         unbuffer_stdout()
         upload_commit_sha(self.version)
 
+        # TODO(yf): didn't do any pipeline version check. Revisit later
+
         run_stage3(lazy_run=False)

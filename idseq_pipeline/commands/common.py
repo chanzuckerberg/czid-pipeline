@@ -583,14 +583,18 @@ def get_host_index_version_file(star_genome):
     version_file = execute_command_with_output("aws s3 ls %s/ |grep version.txt" % genome_dir).rstrip().split(" ")[-1]
     return os.path.join(genome_dir, version_file)
 
+def major_version(version):
+    return re.sub(r'\.\d+$', '', version.rstrip())
+
+
 def big_version_change_from_last_run(pipeline_version, version_s3_path):
     ''' Return True is there's a significant pipeline version chanage. i.e. 1.2.1 -> 1.3.0. False otherwise '''
     try:
         version_hash = json.loads(execute_command_with_output("aws s3 cp %s - " % version_s3_path))
         for entry in version_hash:
             if entry['name'] == 'idseq-pipeline':
-                prev_pipeline_version_sig = re.sub(r'\.\d+$', '', entry['version']);
-                pipeline_version_sig = re.sub(r'\.\d+$', '', pipeline_version)
+                prev_pipeline_version_sig = major_version(entry['version']);
+                pipeline_version_sig = major_version(pipeline_version)
                 return (prev_pipeline_version_sig != pipeline_version_sig)
         return True # idseq-pipeline info is not
     except:
