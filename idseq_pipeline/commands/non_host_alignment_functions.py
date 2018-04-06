@@ -91,7 +91,7 @@ random.seed(hash(SAMPLE_NAME))
 ## For now, index updates are infrequent and we can get their versions from S3.
 ## If updates ever become frequent, we may want to check instead which version is actually on the
 ## machine taking the job, possibly out of sync with the newest version in S3.
-GSNAP_VERSION_FILE_S3 = 's3://czbiohub-infectious-disease/references/nt_k16.version.txt'
+GSNAP_VERSION_FILE_S3 = 's3://idseq-database/test/alignment_indexes/2018-04-01-utc-1522569777-unixtime__2018-04-03-utc-1522798336-unixtime/nt_k16.tar'
 RAPSEARCH_VERSION_FILE_S3 = 's3://czbiohub-infectious-disease/references/nr_rapsearch.version.txt'
 
 # target outputs by task
@@ -700,7 +700,7 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
         try_number = 1
         while min_column_number != correct_number_of_output_columns and try_number <= max_tries:
             write_to_log("waiting for gsnap server for chunk {}".format(chunk_id))
-            gsnapl_instance_ip = wait_for_server_ip('gsnap', key_path, remote_username, ENVIRONMENT, GSNAPL_MAX_CONCURRENT, chunk_id)
+            gsnapl_instance_ip = "34.215.44.147"
             write_to_log("starting alignment for chunk %s on machine %s" % (chunk_id, gsnapl_instance_ip))
             execute_command(remote_command(commands, key_path, remote_username, gsnapl_instance_ip))
             # check if every row has correct number of columns (12) in the output file on the remote machine
