@@ -584,8 +584,8 @@ def get_host_index_version_file(star_genome):
     return os.path.join(genome_dir, version_file)
 
 def major_version(version):
-    return re.sub(r'\.\d+$', '', version.rstrip())
-
+    m = re.match("(\d+\.\d+).*", version)
+    return m.group(1) if m else None
 
 def big_version_change_from_last_run(pipeline_version, version_s3_path):
     ''' Return True is there's a significant pipeline version chanage. i.e. 1.2.1 -> 1.3.0. False otherwise '''
