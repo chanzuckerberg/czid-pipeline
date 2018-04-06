@@ -771,8 +771,9 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
                          + [remote_work_dir+'/'+input_fa for input_fa in input_files]
                          + ['> '+remote_outfile, ';'])
     # Also produce gsnap output with mutliple hits per read
-    multihit_local_outfile = CHUNKS_RESULT_DIR + "/multihit-" + outfile_basename
-    multihit_remote_outfile = os.path.join(remote_work_dir, 'multihit-' + outfile_basename)
+    multihit_basename = "multihit-" + outfile_basename
+    multihit_local_outfile = os.path.join(CHUNKS_RESULT_DIR, multihit_basename)
+    multihit_remote_outfile = os.path.join(remote_work_dir, multihit_basename)
     commands += " ".join([remote_home_dir+'/bin/gsnapl',
                           '-A', 'm8', '--batch=0', '--use-shared-memory=0',
                           '--gmap-mode=none', '--npaths=1000', '--ordered',
@@ -782,7 +783,8 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
                          + [remote_work_dir+'/'+input_fa for input_fa in input_files]
                          + ['> ' + multihit_remote_outfile, ';'])
 
-    if not fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, dedup_outfile_basename), CHUNKS_RESULT_DIR) or not lazy_run:
+    if not lazy_run or not fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, dedup_outfile_basename), CHUNKS_RESULT_DIR)
+        or not fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, multihit_basename), CHUNKS_RESULT_DIR):
         correct_number_of_output_columns = 12
         min_column_number = 0
         max_tries = 2
@@ -984,8 +986,9 @@ def run_rapsearch_chunk(part_suffix, _remote_home_dir, remote_index_dir, remote_
                           '-o', output_path[:-3],
                           ';'])
     # Also produce rapsearch output with multiple hits per read
-    multihit_local_outfile = CHUNKS_RESULT_DIR + "/multihit-" + outfile_basename
-    multihit_remote_outfile = os.path.join(remote_work_dir, 'multihit-' + outfile_basename)
+    multihit_basename = "multihit-" + outfile_basename
+    multihit_local_outfile = os.path.join(CHUNKS_RESULT_DIR, multihit_basename)
+    multihit_remote_outfile = os.path.join(remote_work_dir, multihit_basename)
     commands += " ".join(['/usr/local/bin/rapsearch',
                           '-d', remote_index_dir+'/nr_rapsearch',
                           '-e', '-6',
@@ -998,7 +1001,8 @@ def run_rapsearch_chunk(part_suffix, _remote_home_dir, remote_index_dir, remote_
                           '-o', multihit_remote_outfile[:-3],
                           ';'])
 
-    if not fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, outfile_basename), CHUNKS_RESULT_DIR) or not lazy_run:
+    if not lazy_run or not fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, outfile_basename), CHUNKS_RESULT_DIR)
+        or not fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, multihit_basename), CHUNKS_RESULT_DIR):
         correct_number_of_output_columns = 12
         min_column_number = 0
         max_tries = 2
