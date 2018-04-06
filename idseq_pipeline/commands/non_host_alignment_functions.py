@@ -807,13 +807,15 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
         deduplicate_m8(os.path.join(CHUNKS_RESULT_DIR, outfile_basename), os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename))
         with iostream:
             execute_command("aws s3 cp --quiet %s/%s %s/" % (CHUNKS_RESULT_DIR, dedup_outfile_basename, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
-        # Deduplicate multihit m8 by using taxonomy info
-        multihit_summary_file = CHUNKS_RESULT_DIR + "/summary-multihit-" + outfile_basename
-        dedup_multihit_local_outfile = CHUNKS_RESULT_DIR + "/dedup-multihit-" + outfile_basename
-        call_hits_m8(multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file)
-        with iostream:
-            execute_command("aws s3 cp --quiet %s %s/" % (dedup_multihit_local_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
-            execute_command("aws s3 cp --quiet %s %s/" % (multihit_summary_file, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
+
+    # Deduplicate multihit m8 by using taxonomy info
+    multihit_summary_file = CHUNKS_RESULT_DIR + "/summary-multihit-" + outfile_basename
+    dedup_multihit_local_outfile = CHUNKS_RESULT_DIR + "/dedup-multihit-" + outfile_basename
+    call_hits_m8(multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file)
+    with iostream:
+        execute_command("aws s3 cp --quiet %s %s/" % (dedup_multihit_local_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
+        execute_command("aws s3 cp --quiet %s %s/" % (multihit_summary_file, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
+
     with iostream:
         execute_command("sed -i '$ {/^$/d;}' %s" % os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename)) # remove blank line from end of file
     write_to_log("finished alignment for chunk %s" % chunk_id)
@@ -1022,13 +1024,14 @@ def run_rapsearch_chunk(part_suffix, _remote_home_dir, remote_index_dir, remote_
             execute_command(scp(key_path, remote_username, instance_ip, output_path, CHUNKS_RESULT_DIR + "/" + outfile_basename))
             execute_command(scp(key_path, remote_username, instance_ip, multihit_remote_outfile, multihit_local_outfile))
 
-        # Deduplicate multihit m8 by using taxonomy info
-        multihit_summary_file = CHUNKS_RESULT_DIR + "/summary-multihit-" + outfile_basename
-        dedup_multihit_local_outfile = CHUNKS_RESULT_DIR + "/dedup-multihit-" + outfile_basename
-        call_hits_m8(multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file)
-        with iostream:
-            execute_command("aws s3 cp --quiet %s %s/" % (dedup_multihit_local_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
-            execute_command("aws s3 cp --quiet %s %s/" % (multihit_summary_file, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
+    # Deduplicate multihit m8 by using taxonomy info
+    multihit_summary_file = CHUNKS_RESULT_DIR + "/summary-multihit-" + outfile_basename
+    dedup_multihit_local_outfile = CHUNKS_RESULT_DIR + "/dedup-multihit-" + outfile_basename
+    call_hits_m8(multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file)
+    with iostream:
+        execute_command("aws s3 cp --quiet %s %s/" % (dedup_multihit_local_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
+        execute_command("aws s3 cp --quiet %s %s/" % (multihit_summary_file, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
+
     return os.path.join(CHUNKS_RESULT_DIR, outfile_basename)
 
 
