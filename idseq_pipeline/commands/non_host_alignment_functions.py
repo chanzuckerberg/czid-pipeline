@@ -322,8 +322,8 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
         if e_value_type != 'log10':
             e_value = math.log10(e_value)
         hit_taxid_and_parents = lineage_map.get(hit_taxid, ("-100", "-200", "-300"))[(int(hit_level)-1):3]
-        for hit_taxid in hit_taxid_and_parents:
-            taxid_properties[hit_taxid] = taxid_properties.get(hit_taxid, {'hit_level': int(hit_level),
+        for i, hit_taxid in enumerate(hit_taxid_and_parents):
+            taxid_properties[hit_taxid] = taxid_properties.get(hit_taxid, {'hit_level': int(hit_level) + i,
                                                                            'count': 0,
                                                                            'sum_percent_identity': 0,
                                                                            'sum_alignment_length': 0,
