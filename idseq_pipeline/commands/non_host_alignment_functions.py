@@ -868,7 +868,7 @@ def call_hits_m8(input_m8, output_m8, output_summary):
         outf.write(first_line + "\n")
 
         hits = { "species": [], "genus": [], "family": [] }
-        for acc in accessions:
+        for acc in best_accessions:
             hits = add_taxid_hits(acc, hits)
         hit_level, taxid = call_hit_level(read_id, hits)
         outf_sum.write("%s\t%d\t%s\n" % (read_id, hit_level, taxid))
