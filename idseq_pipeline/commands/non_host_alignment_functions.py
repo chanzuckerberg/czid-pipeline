@@ -91,7 +91,7 @@ random.seed(hash(SAMPLE_NAME))
 ## For now, index updates are infrequent and we can get their versions from S3.
 ## If updates ever become frequent, we may want to check instead which version is actually on the
 ## machine taking the job, possibly out of sync with the newest version in S3.
-GSNAP_VERSION_FILE_S3 = 's3://idseq-database/test/alignment_indexes/2018-04-01-utc-1522569777-unixtime__2018-04-03-utc-1522798336-unixtime/nt_k16.tar'
+GSNAP_VERSION_FILE_S3 = 's3://idseq-database/test/alignment_indexes/2018-04-01-utc-1522569777-unixtime__2018-04-03-utc-1522798336-unixtime/nt_k16.version.txt'
 RAPSEARCH_VERSION_FILE_S3 = 's3://czbiohub-infectious-disease/references/nr_rapsearch.version.txt'
 
 # target outputs by task
