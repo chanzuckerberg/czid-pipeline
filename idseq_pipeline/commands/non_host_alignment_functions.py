@@ -323,6 +323,13 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
             e_value = math.log10(e_value)
         hit_taxid_and_parents = lineage_map.get(hit_taxid, ("-100", "-200", "-300"))[(int(hit_level)-1):3]
         for i, hit_taxid in enumerate(hit_taxid_and_parents):
+            # TO DO: even if hit is only genus-level, still add a species-level entry for consistency.
+            # The species taxid should be negative to indicate it's not real.
+            # Challenge is to prevent duplicate entries (should be aggregated).
+            # Perhaps a better overall approach would be to record all the hits as before,
+            # but add a flag column to indicate whether the assignment at this level is actually to be trusted
+            # or not (e.g. "mapped to this species ID, but we have determined that the species-level assignment
+            # is meaningless"). Then consume the flag column in the web app to hide/aggregate the meaningless entries.
             taxid_properties[hit_taxid] = taxid_properties.get(hit_taxid, {'hit_level': int(hit_level) + i,
                                                                            'count': 0,
                                                                            'sum_percent_identity': 0,
@@ -863,6 +870,8 @@ def call_hits_m8(input_m8, output_m8, output_summary):
     outf = open(output_m8, "wb")
     outf_sum = open(output_summary, "wb")
     for read_id in read_ids:
+        # TO DO: remove inefficiency of calling grep on the entire file for each read_id.
+        # Lines with same read_id are contiguous (verify?), so just iterate line by line.
         m8_lines = execute_command_with_output("grep '^%s' %s" % (read_id, sorted_input_m8)).split("\n")
         accessions_evalues_lines = [(line.split("\t")[1],
                                      float(line.split("\t")[10]),
