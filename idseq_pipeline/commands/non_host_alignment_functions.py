@@ -335,6 +335,12 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
         hit_line = hit_f.readline()
         m8_line = m8_f.readline()
 
+    if not SKIP_DEUTERO_FILTER:
+        deuterostome_file = fetch_deuterostome_file()
+        taxids_toremove = read_file_into_set(deuterostome_file)
+        for taxid in taxids_toremove:
+            taxid_properties.pop(taxid, None)
+
     taxon_counts_attributes = []
     for hit_taxid, properties in taxid_properties.iteritems():
         taxon_counts_attributes.append({"tax_id": hit_taxid,
