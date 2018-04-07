@@ -489,7 +489,7 @@ def environment_for_aligners(_environment):
 
 def fetch_key(environment, mutex=threading.RLock()):
     with mutex:
-        key_s3_path = "s3://idseq-secrets/idseq-alpha.pem" % environment_for_aligners(environment)
+        key_s3_path = "s3://idseq-secrets/idseq-alpha.pem"
         key_name = os.path.basename(key_s3_path)
         key_path = REF_DIR +'/' + key_name
         if not os.path.exists(key_path):
