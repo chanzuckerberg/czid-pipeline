@@ -847,7 +847,7 @@ def call_hits_m8(input_m8, output_m8, output_summary):
     def call_hit_level(read_id, hits):
         for i, level in enumerate(["species", "genus", "family"]):
             taxids = hits[level]
-            taxids = [t for t in taxids if t >= 0] # do not consider unclassified hits. TO DO: decide if that's an improvement
+            taxids = [t for t in taxids if int(t) >= 0] # do not consider unclassified hits. TO DO: decide if that's an improvement
             n = len(set(taxids)) # number of distinct taxids at this level
             if n == 1:
                 return i+1, taxids[0]
