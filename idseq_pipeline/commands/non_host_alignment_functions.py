@@ -91,8 +91,11 @@ random.seed(hash(SAMPLE_NAME))
 ## For now, index updates are infrequent and we can get their versions from S3.
 ## If updates ever become frequent, we may want to check instead which version is actually on the
 ## machine taking the job, possibly out of sync with the newest version in S3.
-GSNAP_VERSION_FILE_S3 = 's3://czbiohub-infectious-disease/references/nt_k16.version.txt'
-RAPSEARCH_VERSION_FILE_S3 = 's3://czbiohub-infectious-disease/references/nr_rapsearch.version.txt'
+
+base_s3 = 's3://idseq-database/alignment_indexes'
+base_dt = '2018-02-15-utc-1518652800-unixtime__2018-02-15-utc-1518652800-unixtime'
+GSNAP_VERSION_FILE_S3 = ("%s/%s/nt_k16.version.txt" % (base_s3, base_dt))
+RAPSEARCH_VERSION_FILE_S3 = ("%s/%s/nr_rapsearch.version.txt" % (base_s3, base_dt))
 
 # target outputs by task
 TARGET_OUTPUTS = {"run_gsnapl_remotely": [os.path.join(RESULT_DIR, GSNAPL_DEDUP_OUT)],
@@ -116,7 +119,9 @@ RAPSEARCH_CHUNK_SIZE = 10000
 
 # references
 # from common import ACCESSION2TAXID
-DEUTEROSTOME_TAXIDS = 's3://czbiohub-infectious-disease/references/deuterostome_taxids.txt'
+base_s3 = 's3://idseq-database/taxonomy'
+base_dt = '2018-02-15-utc-1518652800-unixtime__2018-02-15-utc-1518652800-unixtime'
+DEUTEROSTOME_TAXIDS = ("%s/%s/deuterostome_taxids.txt" % (base_s3, base_dt))
 # from common import LINEAGE_SHELF
 
 # definitions for integration with web app
