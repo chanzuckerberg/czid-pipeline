@@ -489,7 +489,7 @@ def environment_for_aligners(_environment):
 
 def fetch_key(environment, mutex=threading.RLock()):
     with mutex:
-        key_s3_path = "s3://idseq-secrets/idseq-alpha.pem"
+        key_s3_path = "s3://idseq-secrets/idseq-%s.pem" % environment_for_aligners(environment)
         key_name = os.path.basename(key_s3_path)
         key_path = REF_DIR +'/' + key_name
         if not os.path.exists(key_path):
@@ -700,7 +700,7 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
         try_number = 1
         while min_column_number != correct_number_of_output_columns and try_number <= max_tries:
             write_to_log("waiting for gsnap server for chunk {}".format(chunk_id))
-            gsnapl_instance_ip = "34.215.44.147"
+            gsnapl_instance_ip = "34.218.51.57"
             write_to_log("starting alignment for chunk %s on machine %s" % (chunk_id, gsnapl_instance_ip))
             execute_command(remote_command(commands, key_path, remote_username, gsnapl_instance_ip))
             # check if every row has correct number of columns (12) in the output file on the remote machine
