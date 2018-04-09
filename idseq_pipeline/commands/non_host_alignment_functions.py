@@ -315,7 +315,8 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
             m8_line = m8_f.readline()
             continue
         m8_line_columns = m8_line.split("\t")
-        assert m8_line_columns[0] == hit_line_columns[0]
+        assert m8_line_columns[0] == hit_line_columns[0], "read_ids in %s and %s do not match: %s vs. %s" % (os.path.basename(m8_file),
+                                                            os.path.basename(hit_level_file), m8_line_columns[0], hit_line_columns[0])
         percent_identity = float(m8_line_columns[2])
         alignment_length = float(m8_line_columns[3])
         e_value = float(m8_line_columns[10])
