@@ -10,6 +10,8 @@ import os
 import traceback
 import re
 
+from idseq_pipeline import __version__ as PIPELINE_VERSION
+
 NCBITOOL_S3_PATH = "s3://idseq-database/ncbitool" # S3 location of ncbitool executable
 ACCESSION2TAXID = 's3://czbiohub-infectious-disease/references/accession2taxid.db.gz'
 LINEAGE_SHELF = 's3://czbiohub-infectious-disease/references/taxid-lineages.db'
