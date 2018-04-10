@@ -141,7 +141,7 @@ DEUTEROSTOME_TAXIDS = ("%s/%s/deuterostome_taxids.txt" % (base_s3, base_dt))
 TAX_LEVEL_SPECIES = 1
 TAX_LEVEL_GENUS = 2
 TAX_LEVEL_FAMILY = 3
-INVALID_CALL_BASE_ID = -1e8
+INVALID_CALL_BASE_ID = -1e8 # don't run into -2e9 limit. current largest taxid is around 2e6 so should be fine
 MISSING_GENUS_ID = -200
 MISSING_FAMILY_ID = -300
 
