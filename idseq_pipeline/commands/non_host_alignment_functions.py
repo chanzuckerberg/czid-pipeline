@@ -873,7 +873,7 @@ def call_hits_m8(input_m8, output_m8, output_summary):
     for read_id in read_ids:
         # TO DO: remove inefficiency of calling grep on the entire file for each read_id.
         # Lines with same read_id are contiguous (verify?), so just iterate line by line.
-        m8_lines = execute_command_with_output("grep '^%s' %s" % (read_id, sorted_input_m8)).split("\n")
+        m8_lines = execute_command_with_output("grep '^%s\t' %s" % (read_id, sorted_input_m8)).split("\n")
         accessions_evalues_lines = [(line.split("\t")[1],
                                      float(line.split("\t")[10]),
                                      line) for line in m8_lines if line]
