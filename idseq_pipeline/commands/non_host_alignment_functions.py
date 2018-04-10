@@ -141,7 +141,7 @@ DEUTEROSTOME_TAXIDS = ("%s/%s/deuterostome_taxids.txt" % (base_s3, base_dt))
 TAX_LEVEL_SPECIES = 1
 TAX_LEVEL_GENUS = 2
 TAX_LEVEL_FAMILY = 3
-FAKE_TAXID_BASE = -1e9
+INVALID_CALL_BASE_ID = -1e8
 MISSING_GENUS_ID = -200
 MISSING_FAMILY_ID = -300
 
@@ -338,7 +338,7 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
             taxid = hit_taxids_all_levels[i]
             tax_level = i+1
             if tax_level < int(hit_level):
-                taxid = str(tax_level*FAKE_TAXID_BASE - int(hit_taxid))
+                taxid = str(tax_level*INVALID_CALL_BASE_ID - int(hit_taxid))
             cleaned_hit_taxids_all_levels.append(taxid)
 
         # Aggregate each level
