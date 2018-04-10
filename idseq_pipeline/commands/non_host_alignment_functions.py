@@ -499,7 +499,8 @@ def fetch_key(environment, mutex=threading.RLock()):
 
 
 def get_server_ips_work(service_name, environment):
-    return ["54.203.4.52"]
+    if "gsnap" in service_name:
+        return ["54.203.4.52"]
 
     tag = "service"
     value = "%s-%s" % (service_name, environment_for_aligners(environment))
