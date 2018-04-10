@@ -499,6 +499,8 @@ def fetch_key(environment, mutex=threading.RLock()):
 
 
 def get_server_ips_work(service_name, environment):
+    return ["54.203.4.52"]
+
     tag = "service"
     value = "%s-%s" % (service_name, environment_for_aligners(environment))
     describe_json = json.loads(execute_command_with_output("aws ec2 describe-instances --filters 'Name=tag:%s,Values=%s' 'Name=instance-state-name,Values=running'" % (tag, value)))
@@ -700,7 +702,7 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
         try_number = 1
         while min_column_number != correct_number_of_output_columns and try_number <= max_tries:
             write_to_log("waiting for gsnap server for chunk {}".format(chunk_id))
-            gsnapl_instance_ip = "34.218.51.57"
+            gsnapl_instance_ip = wait_for_server_ip('gsnap', key_path, remote_username, ENVIRONMENT, GSNAPL_MAX_CONCURRENT, chunk_id)
             write_to_log("starting alignment for chunk %s on machine %s" % (chunk_id, gsnapl_instance_ip))
             execute_command(remote_command(commands, key_path, remote_username, gsnapl_instance_ip))
             # check if every row has correct number of columns (12) in the output file on the remote machine
