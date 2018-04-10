@@ -93,7 +93,7 @@ random.seed(hash(SAMPLE_NAME))
 ## machine taking the job, possibly out of sync with the newest version in S3.
 
 base_s3 = 's3://idseq-database/alignment_indexes'
-base_dt = '2018-02-15-utc-1518652800-unixtime__2018-02-15-utc-1518652800-unixtime'
+base_dt = '2018-04-01-utc-1522569777-unixtime__2018-04-04-utc-1522862260-unixtime'
 GSNAP_VERSION_FILE_S3 = ("%s/%s/nt_k16.version.txt" % (base_s3, base_dt))
 RAPSEARCH_VERSION_FILE_S3 = ("%s/%s/nr_rapsearch.version.txt" % (base_s3, base_dt))
 
@@ -693,7 +693,7 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
                           '-A', 'm8', '--batch=0', '--use-shared-memory=0',
                           '--gmap-mode=none', '--npaths=1', '--ordered',
                           '-t', '32',
-                          '--maxsearch=5', '--max-mismatches=40',
+                          '--max-mismatches=40',
                           '-D', remote_index_dir, '-d', 'nt_k16']
                          + [remote_work_dir+'/'+input_fa for input_fa in input_files]
                          + ['> '+remote_outfile, ';'])
