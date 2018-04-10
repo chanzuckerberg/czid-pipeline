@@ -140,6 +140,10 @@ DEUTEROSTOME_TAXIDS = ("%s/%s/deuterostome_taxids.txt" % (base_s3, base_dt))
 # definitions for integration with web app
 TAX_LEVEL_SPECIES = 1
 TAX_LEVEL_GENUS = 2
+TAX_LEVEL_FAMILY = 3
+FAKE_TAXID_BASE = -1e9
+MISSING_GENUS_ID = -200
+MISSING_FAMILY_ID = -300
 
 # convenience functions
 def count_lines_in_paired_files(input_files):
@@ -306,6 +310,8 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
     hit_line = hit_f.readline()
     m8_line = m8_f.readline()
     while hit_line and m8_line:
+
+        # Retrieve data values from files:
         hit_line_columns = hit_line.rstrip("\n").split("\t")
         read_id = hit_line_columns[0]
         hit_level = hit_line_columns[1]
@@ -322,37 +328,53 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
         e_value = float(m8_line_columns[10])
         if e_value_type != 'log10':
             e_value = math.log10(e_value)
-        hit_taxid_and_parents = lineage_map.get(hit_taxid, ("-100", "-200", "-300"))[(int(hit_level)-1):3]
-        for i, hit_taxid in enumerate(hit_taxid_and_parents):
-            # TO DO: even if hit is only genus-level, still add a species-level entry for consistency.
-            # The species taxid should be negative to indicate it's not real.
-            # Challenge is to prevent duplicate entries (should be aggregated).
-            # Perhaps a better overall approach would be to record all the hits as before,
-            # but add a flag column to indicate whether the assignment at this level is actually to be trusted
-            # or not (e.g. "mapped to this species ID, but we have determined that the species-level assignment
-            # is meaningless"). Then consume the flag column in the web app to hide/aggregate the meaningless entries.
-            taxid_properties[hit_taxid] = taxid_properties.get(hit_taxid, {'hit_level': int(hit_level) + i,
-                                                                           'count': 0,
-                                                                           'sum_percent_identity': 0,
-                                                                           'sum_alignment_length': 0,
-                                                                           'sum_e_value': 0})
-            taxid_properties[hit_taxid]['count'] += 1
-            taxid_properties[hit_taxid]['sum_percent_identity'] += percent_identity
-            taxid_properties[hit_taxid]['sum_alignment_length'] += alignment_length
-            taxid_properties[hit_taxid]['sum_e_value'] += e_value
+
+        # Retrieve the taxon lineage and mark meaningless calls with fake taxids.
+        # For each hit, the fake taxids below the meaningful hit level should depend
+        # only on: (a) the taxonomic level (b) the taxid of the meaningful hit
+        hit_taxids_all_levels = lineage_map.get(hit_taxid, ("-100", "-200", "-300"))
+        cleaned_hit_taxids_all_levels = []
+        for i in range(len(hit_taxids_all_levels)):
+            taxid = hit_taxids_all_levels[i]
+            tax_level = i+1
+            if tax_level < int(hit_level):
+                taxid = str(tax_level*FAKE_TAXID_BASE - hit_taxid)
+            cleaned_hit_taxids_all_levels.append(taxid)
+
+        # Aggregate each level
+        for i in range(len(cleaned_hit_taxids_all_levels)):
+            taxid = cleaned_hit_taxids_all_levels[i]
+            tax_level = i+1
+            genus_taxid = cleaned_hit_taxids_all_levels[TAX_LEVEL_GENUS-1] if tax_level <= TAX_LEVEL_GENUS else MISSING_GENUS_ID
+            family_taxid = cleaned_hit_taxids_all_levels[TAX_LEVEL_FAMILY-1] if tax_level <= TAX_LEVEL_FAMILY else MISSING_FAMILY_ID
+            taxid_properties[taxid] = taxid_properties.get(taxid, {'tax_level': tax_level,
+                                                                   'genus_taxid': genus_taxid,
+                                                                   'family_taxid': family_taxid,
+                                                                   'count': 0,
+                                                                   'sum_percent_identity': 0,
+                                                                   'sum_alignment_length': 0,
+                                                                   'sum_e_value': 0})
+            taxid_properties[taxid]['count'] += 1
+            taxid_properties[taxid]['sum_percent_identity'] += percent_identity
+            taxid_properties[taxid]['sum_alignment_length'] += alignment_length
+            taxid_properties[taxid]['sum_e_value'] += e_value
         hit_line = hit_f.readline()
         m8_line = m8_f.readline()
 
+    # Apply deuterostome filter
     if not SKIP_DEUTERO_FILTER:
         deuterostome_file = fetch_deuterostome_file()
         taxids_toremove = read_file_into_set(deuterostome_file)
         for taxid in taxids_toremove:
             taxid_properties.pop(taxid, None)
 
+    # Produce the final output
     taxon_counts_attributes = []
-    for hit_taxid, properties in taxid_properties.iteritems():
-        taxon_counts_attributes.append({"tax_id": hit_taxid,
-                                        "tax_level": properties['hit_level'],
+    for taxid, properties in taxid_properties.iteritems():
+        taxon_counts_attributes.append({"tax_id": taxid,
+                                        "tax_level": properties['tax_level'],
+                                        "genus_taxid": properties['genus_taxid'],
+                                        "family_taxid": properties['family_taxid'],
                                         "count": properties['count'],
                                         "percent_identity": properties['sum_percent_identity'] / properties['count'],
                                         "alignment_length": properties['sum_alignment_length'] / properties['count'],
