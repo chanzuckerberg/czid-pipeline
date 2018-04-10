@@ -12,4 +12,4 @@ class Non_host_alignment(Base):
         if stage1_version and major_version(self.version) != major_version(stage1_version):
             raise Exception("Stage 1 and 2 run on different version: %s vs %s" % (stage1_version, self.version))
 
-        run_stage2(True)
+        run_stage2(False)

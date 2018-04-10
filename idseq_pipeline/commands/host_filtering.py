@@ -11,4 +11,4 @@ class Host_filtering(Base):
         upload_commit_sha(self.version, SAMPLE_S3_OUTPUT_PATH)
         upload_pipeline_version_file()
 
-        run_stage1(True)
+        run_stage1(False)
