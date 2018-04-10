@@ -4,6 +4,7 @@ import json
 import threading
 import traceback
 import os
+from collections import defaultdict
 
 import subprocess
 try:
@@ -42,6 +43,39 @@ def parse_reads(annotated_fasta, db_type):
                             read2seq[ma.group(4).rstrip()] = [sequence.rstrip(), ma.group(1), ma.group(2), ma.group(3)]
     return read2seq
 
+def calculate_alignment_coverage(alignment_data):
+    ref_len = alignment_data['ref_seq_len']
+    coverage = defaultdict(lambda: 0) # implement it in a dumb way for now. change later
+    output = {
+        'ref_seq_len': ref_len,
+        'total_read_length': 0,
+        'total_aligned_length' : 0,
+        'total_mismatched_length' : 0,
+        'num_reads': 0,
+        'coverage': coverage
+    }
+    if ref_len == 0:
+        return output
+    reads = alignment_data['reads']
+    for read in reads:
+        seq = read[1]
+        m8_metrics = read[2]
+        ref_start = int(m8_metrics[-4])
+        ref_end = int(m8_metrics[-3])
+        if ref_start > ref_end: # SWAP
+            (ref_start, ref_end) = (ref_end, ref_start)
+        ref_start -= 1
+
+        output['total_read_length'] += len(seq)
+        output['total_aligned_length'] += (ref_end - ref_start)
+        output['total_mismatched_length'] += int(m8_metrics[2])
+        output['num_reads'] += 1
+        for bp in range(ref_start, ref_end):
+            coverage[bp] += 1
+
+    output['distinct_covered_length'] = len(coverage)
+
+    return output
 
 def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
                                 annotated_m8, annotated_fasta,
@@ -96,6 +130,8 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
     result_dict = {}
     to_be_deleted = []
     error_count = 0
+    for accession_id, ad in groups.iteritems():
+        ad['coverage_summary'] = calculate_alignment_coverage(ad)
     for accession_id, ad in groups.iteritems():
         try:
             tmp_file = 'accession-%s' % accession_id
