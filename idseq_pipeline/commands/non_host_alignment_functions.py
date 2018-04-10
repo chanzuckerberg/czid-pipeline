@@ -338,7 +338,7 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
             taxid = hit_taxids_all_levels[i]
             tax_level = i+1
             if tax_level < int(hit_level):
-                taxid = str(tax_level*FAKE_TAXID_BASE - hit_taxid)
+                taxid = str(tax_level*FAKE_TAXID_BASE - int(hit_taxid))
             cleaned_hit_taxids_all_levels.append(taxid)
 
         # Aggregate each level
