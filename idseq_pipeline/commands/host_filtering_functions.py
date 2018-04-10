@@ -22,18 +22,20 @@ EXTRACT_UNMAPPED_FROM_SAM_OUT3 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.u
 LOGS_OUT_BASENAME = 'log'
 STATS_OUT = 'stats.json'
 VERSION_OUT = 'versions.json'
+PIPELINE_VERSION_OUT = 'pipeline_version.txt'
 
 # arguments from environment variables
 INPUT_BUCKET = os.environ.get('INPUT_BUCKET')
 FILE_TYPE = os.environ.get('FILE_TYPE')
-OUTPUT_BUCKET = os.environ.get('OUTPUT_BUCKET')
+OUTPUT_BUCKET = os.environ.get('OUTPUT_BUCKET').rstrip('/')
 STAR_GENOME = os.environ.get('STAR_GENOME', 's3://czbiohub-infectious-disease/references/human/STAR_genome.tar')
 BOWTIE2_GENOME = os.environ.get('BOWTIE2_GENOME', 's3://czbiohub-infectious-disease/references/human/bowtie2_genome.tar')
 STAR_BOWTIE_VERSION_FILE_S3 = os.environ.get('STAR_BOWTIE_VERSION_FILE_S3', get_host_index_version_file(STAR_GENOME))
 DB_SAMPLE_ID = os.environ['DB_SAMPLE_ID']
 AWS_BATCH_JOB_ID = os.environ.get('AWS_BATCH_JOB_ID', 'local')
+SAMPLE_S3_OUTPUT_POSTFIX = "/%s" % major_version(PIPELINE_VERSION) if PIPELINE_VERSION else ""
 SAMPLE_S3_INPUT_PATH = INPUT_BUCKET.rstrip('/')
-SAMPLE_S3_OUTPUT_PATH = OUTPUT_BUCKET.rstrip('/')
+SAMPLE_S3_OUTPUT_PATH = OUTPUT_BUCKET+ SAMPLE_S3_OUTPUT_POSTFIX
 sample_name = SAMPLE_S3_INPUT_PATH[5:].rstrip('/').replace('/', '-')
 SAMPLE_DIR = DEST_DIR + '/' + sample_name
 FASTQ_DIR = SAMPLE_DIR + '/fastqs'
@@ -563,6 +565,11 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats):
                       before_filetype="fasta_paired",
                       after_filename=os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1),
                       after_filetype="fasta_paired")
+
+def upload_pipeline_version_file():
+    execute_command("echo %s > %s" % (PIPELINE_VERSION, PIPELINE_VERSION_OUT))
+    execute_command("aws s3 cp %s %s/" % (PIPELINE_VERSION_OUT, OUTPUT_BUCKET))
+
 
 def run_stage1(lazy_run=True):
     execute_command("mkdir -p %s %s %s %s" % (SAMPLE_DIR, FASTQ_DIR, RESULT_DIR, SCRATCH_DIR))

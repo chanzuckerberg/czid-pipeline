@@ -6,9 +6,10 @@ class Non_host_alignment(Base):
 
     def run(self):
         from .non_host_alignment_functions import *
-
         unbuffer_stdout()
-        lazy_run = not big_version_change_from_last_run(self.version, get_alignment_version_s3_path())
         upload_commit_sha(self.version)
+        stage1_version = os.environ.get('HOST_FILTER_PIPELINE_VERSION')
+        if stage1_version and major_version(self.version) != major_version(stage1_version):
+            raise Exception("Stage 1 and 2 run on different version: %s vs %s" % (stage1_version, self.version))
 
-        run_stage2(lazy_run)
+        run_stage2(True)

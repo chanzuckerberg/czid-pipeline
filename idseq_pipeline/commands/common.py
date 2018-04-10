@@ -10,6 +10,9 @@ import os
 import traceback
 import re
 
+
+
+from idseq_pipeline import __version__ as PIPELINE_VERSION
 bucket = "s3://idseq-database"
 NCBITOOL_S3_PATH = bucket + "/ncbitool" # S3 location of ncbitool executable
 base_dt = '2018-02-15-utc-1518652800-unixtime__2018-02-15-utc-1518652800-unixtime'
@@ -17,6 +20,7 @@ base_s3 = bucket + "/alignment_data"
 ACCESSION2TAXID = ("%s/%s/accession2taxid.db.gz" % (base_s3, base_dt))
 base_s3 = bucket + "/taxonomy"
 LINEAGE_SHELF = ("%s/%s/taxid-lineages.db" % (base_s3, base_dt))
+
 VERSION_NONE = -1
 
 # data directories
@@ -485,9 +489,9 @@ def unbuffer_stdout():
     sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
     os.dup2(sys.stdout.fileno(), sys.stderr.fileno())
 
-def upload_commit_sha(version):
+def upload_commit_sha(version, s3_destination = None):
     sha_file = os.environ.get('COMMIT_SHA_FILE')
-    s3_destination = os.environ.get('OUTPUT_BUCKET')
+    s3_destination = s3_destination or os.environ.get('OUTPUT_BUCKET')
     if sha_file is None or s3_destination is None:
         return
     sha_file_parts = os.path.splitext(os.path.basename(sha_file))
@@ -587,14 +591,18 @@ def get_host_index_version_file(star_genome):
     version_file = execute_command_with_output("aws s3 ls %s/ |grep version.txt" % genome_dir).rstrip().split(" ")[-1]
     return os.path.join(genome_dir, version_file)
 
+def major_version(version):
+    m = re.match("(\d+\.\d+).*", version)
+    return m.group(1) if m else None
+
 def big_version_change_from_last_run(pipeline_version, version_s3_path):
     ''' Return True is there's a significant pipeline version chanage. i.e. 1.2.1 -> 1.3.0. False otherwise '''
     try:
         version_hash = json.loads(execute_command_with_output("aws s3 cp %s - " % version_s3_path))
         for entry in version_hash:
             if entry['name'] == 'idseq-pipeline':
-                prev_pipeline_version_sig = re.sub(r'\.\d+$', '', entry['version']);
-                pipeline_version_sig = re.sub(r'\.\d+$', '', pipeline_version)
+                prev_pipeline_version_sig = major_version(entry['version']);
+                pipeline_version_sig = major_version(pipeline_version)
                 return (prev_pipeline_version_sig != pipeline_version_sig)
         return True # idseq-pipeline info is not
     except:
