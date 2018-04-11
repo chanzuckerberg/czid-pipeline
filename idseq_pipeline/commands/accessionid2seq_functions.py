@@ -54,7 +54,7 @@ def compress_coverage(coverage):
     val = coverage[start]
 
     for k in keys[1:]:
-        if (k-start) == 1 and coverage[k] == val:
+        if (k-current) == 1 and coverage[k] == val:
             current = k
         else:
             output["%d-%d" % (start, current)] = val
