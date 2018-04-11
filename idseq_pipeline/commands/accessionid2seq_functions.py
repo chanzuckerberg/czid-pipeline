@@ -47,6 +47,8 @@ def compress_coverage(coverage):
     keys = sorted(coverage.keys())
     if len(keys) <= 1:
         return coverage
+    output = {}
+
     start = keys[0]
     current = start
     val = coverage[start]
@@ -55,13 +57,13 @@ def compress_coverage(coverage):
         if (k-start) == 1 and coverage[k] == val:
             current = k
         else:
-            coverage["%d-%d" % (start, current)] = val
+            output["%d-%d" % (start, current)] = val
             start = k
             current = k
             val = coverage[k]
 
-    coverage["%d-%d" % (start, current)] = val
-    return coverage
+    output["%d-%d" % (start, current)] = val
+    return output
 
 
 def calculate_alignment_coverage(alignment_data):
