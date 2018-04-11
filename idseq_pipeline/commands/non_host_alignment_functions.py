@@ -45,16 +45,6 @@ REF_DIR = ROOT_DIR + '/idseq/ref' # referene genome / ref databases go here
 EXTRACT_UNMAPPED_FROM_SAM_OUT1 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.1.fasta'
 EXTRACT_UNMAPPED_FROM_SAM_OUT2 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.2.fasta'
 EXTRACT_UNMAPPED_FROM_SAM_OUT3 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.merged.fasta'
-ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT = 'taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
-GENERATE_TAXID_ANNOTATED_FASTA_FROM_M8_OUT = 'taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.fasta'
-FILTER_DEUTEROSTOMES_FROM_NT_M8_OUT = 'filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
-NT_M8_TO_TAXID_COUNTS_FILE_OUT = 'counts.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.csv'
-NT_TAXID_COUNTS_TO_JSON_OUT = 'counts.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.json'
-ANNOTATE_RAPSEARCH2_M8_WITH_TAXIDS_OUT = 'taxids.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
-GENERATE_TAXID_ANNOTATED_FASTA_FROM_RAPSEARCH2_M8_OUT = 'taxids.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.fasta'
-FILTER_DEUTEROSTOMES_FROM_NR_M8_OUT = 'filter.deuterostomes.taxids.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
-NR_M8_TO_TAXID_COUNTS_FILE_OUT = 'counts.filter.deuterostomes.taxids.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.csv'
-NR_TAXID_COUNTS_TO_JSON_OUT = 'counts.filter.deuterostomes.taxids.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.json'
 UNIDENTIFIED_FASTA_OUT = 'unidentified.fasta'
 COMBINED_JSON_OUT = 'idseq_web_sample.json'
 LOGS_OUT_BASENAME = 'log'
@@ -69,6 +59,7 @@ SUMMARY_MULTIHIT_RAPSEARCH_OUT = 'summary.multihit.rapsearch2.filter.deuterostom
 DEDUP_MULTIHIT_RAPSEARCH_OUT = 'dedup.multihit.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
 MULTIHIT_NR_JSON_OUT = 'nr_multihit_idseq_web_sample.json'
 MULTIHIT_COMBINED_JSON_OUT = 'multihit_idseq_web_sample.json'
+ACCESSION_ANNOTATED_FASTA = 'accessions.rapsearch2.gsnapl.fasta'
 
 # arguments from environment variables
 SKIP_DEUTERO_FILTER = int(os.environ.get('SKIP_DEUTERO_FILTER', 0))
@@ -106,17 +97,8 @@ RAPSEARCH_VERSION_FILE_S3 = ("%s/%s/nr_rapsearch.version.txt" % (base_s3, base_d
 # target outputs by task
 TARGET_OUTPUTS = {"run_gsnapl_remotely": [os.path.join(RESULT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT),
                                           os.path.join(RESULT_DIR, DEDUP_MULTIHIT_GSNAPL_OUT)],
-                  "run_annotate_m8_with_taxids__1": [os.path.join(RESULT_DIR, ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT)],
-                  "run_generate_taxid_annotated_fasta_from_m8__1": [os.path.join(RESULT_DIR, GENERATE_TAXID_ANNOTATED_FASTA_FROM_M8_OUT)],
-                  "run_filter_deuterostomes_from_m8__1": [os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NT_M8_OUT)],
-                  "run_generate_taxid_outputs_from_m8__1": [os.path.join(RESULT_DIR, NT_TAXID_COUNTS_TO_JSON_OUT)],
                   "run_rapsearch2_remotely": [os.path.join(RESULT_DIR, SUMMARY_MULTIHIT_RAPSEARCH_OUT),
                                               os.path.join(RESULT_DIR, DEDUP_MULTIHIT_RAPSEARCH_OUT)],
-                  "run_annotate_m8_with_taxids__2": [os.path.join(RESULT_DIR, ANNOTATE_RAPSEARCH2_M8_WITH_TAXIDS_OUT)],
-                  "run_generate_taxid_annotated_fasta_from_m8__2": [os.path.join(RESULT_DIR, GENERATE_TAXID_ANNOTATED_FASTA_FROM_RAPSEARCH2_M8_OUT)],
-                  "run_filter_deuterostomes_from_m8__2": [os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NR_M8_OUT)],
-                  "run_generate_taxid_outputs_from_m8__2": [os.path.join(RESULT_DIR, NR_TAXID_COUNTS_TO_JSON_OUT)],
-                  "run_combine_json_outputs": [os.path.join(RESULT_DIR, COMBINED_JSON_OUT)],
                   "run_generate_unidentified_fasta": [os.path.join(RESULT_DIR, UNIDENTIFIED_FASTA_OUT)]}
 
 # compute capacity
@@ -806,8 +788,7 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
                          + [remote_work_dir+'/'+input_fa for input_fa in input_files]
                          + ['> ' + multihit_remote_outfile, ';'])
 
-    multihit_output_present = fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, multihit_basename), CHUNKS_RESULT_DIR) # need to get the file even when lazy
-    if not lazy_run or not multihit_output_present:
+    if not lazy_run or not fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, multihit_basename), CHUNKS_RESULT_DIR):
         correct_number_of_output_columns = 12
         min_column_number = 0
         max_tries = 2
@@ -828,18 +809,15 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
             execute_command(scp(key_path, remote_username, gsnapl_instance_ip, multihit_remote_outfile, multihit_local_outfile))
 
         # Deduplicate multihit m8 by using taxonomy info
-        multihit_summary_file = CHUNKS_RESULT_DIR + "/summary-multihit-" + outfile_basename
-        dedup_multihit_local_outfile = CHUNKS_RESULT_DIR + "/dedup-multihit-" + outfile_basename
+        multihit_summary_file = CHUNKS_RESULT_DIR + "/summary-" + multihit_basename
+        dedup_multihit_local_outfile = CHUNKS_RESULT_DIR + "/dedup-" + multihit_basename
         call_hits_m8(multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file)
 
         # copy outputs to S3
         for f in [multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file]:
-            add_blank_line(f)
             with iostream:
                 execute_command("aws s3 cp --quiet %s %s/" % (f, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
 
-    for f in [multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file]:
-        remove_blank_line(f)
     write_to_log("finished alignment for chunk %s" % chunk_id)
     return dedup_multihit_local_outfile
 
@@ -930,7 +908,7 @@ def run_gsnapl_remotely(input_files, lazy_run):
         check_for_errors(mutex, chunk_output_files, input_chunks, "gsnap")
     assert None not in chunk_output_files
     # merge output chunks:
-    multihit_chunk_summaries = [f.replace("multihit", "summary-multihit") for f in multihit_chunk_output_files]
+    multihit_chunk_summaries = [f.replace("multihit", "summary-multihit") for f in chunk_output_files]
     multihit_chunk_dedup_m8s = [f.replace("summary-multihit", "dedup-multihit") for f in multihit_chunk_summaries]
     for output_item in [(chunk_output_files, MULTIHIT_GSNAPL_OUT),
                         (multihit_chunk_summaries, SUMMARY_MULTIHIT_GSNAPL_OUT),
@@ -988,21 +966,7 @@ def run_rapsearch_chunk(part_suffix, _remote_home_dir, remote_index_dir, remote_
     commands += "aws s3 cp --quiet %s/%s %s/ ; " % \
                  (SAMPLE_S3_OUTPUT_CHUNKS_PATH, input_fasta, remote_work_dir)
     input_path = remote_work_dir + '/' + input_fasta
-    outfile_basename = 'rapsearch2-out' + part_suffix + chunk_id + '.m8'
-    output_path = os.path.join(remote_work_dir, outfile_basename)
-    commands += " ".join(['/usr/local/bin/rapsearch',
-                          '-d', remote_index_dir+'/nr_rapsearch',
-                          '-e', '-6',
-                          '-l', '10',
-                          '-a', 'T',
-                          '-b', '0',
-                          '-v', '1',
-                          '-z', '24',
-                          '-q', input_path,
-                          '-o', output_path[:-3],
-                          ';'])
-    # Also produce rapsearch output with multiple hits per read
-    multihit_basename = "multihit-" + outfile_basename
+    multihit_basename = 'multihit-rapsearch2-out' + part_suffix + chunk_id + '.m8'
     multihit_local_outfile = os.path.join(CHUNKS_RESULT_DIR, multihit_basename)
     multihit_remote_outfile = os.path.join(remote_work_dir, multihit_basename)
     commands += " ".join(['/usr/local/bin/rapsearch',
@@ -1016,8 +980,7 @@ def run_rapsearch_chunk(part_suffix, _remote_home_dir, remote_index_dir, remote_
                           '-q', input_path,
                           '-o', multihit_remote_outfile[:-3],
                           ';'])
-    multihit_output_present = fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, multihit_basename), CHUNKS_RESULT_DIR) # need to get the file even when lazy
-    if not lazy_run or not fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, outfile_basename), CHUNKS_RESULT_DIR) or not multihit_output_present:
+    if not lazy_run or not fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, multihit_basename), CHUNKS_RESULT_DIR):
         correct_number_of_output_columns = 12
         min_column_number = 0
         max_tries = 2
@@ -1034,24 +997,22 @@ def run_rapsearch_chunk(part_suffix, _remote_home_dir, remote_index_dir, remote_
             min_column_number_string = execute_command_with_output(remote_command(verification_command, key_path, remote_username, instance_ip))
             min_column_number = interpret_min_column_number_string(min_column_number_string, correct_number_of_output_columns, try_number)
             try_number += 1
-        # move output from remote machine to s3
+        # move output from remote machine to local
         assert min_column_number == correct_number_of_output_columns, "Chunk %s output corrupt; not copying to S3. Re-start pipeline to try again." % chunk_id
-        upload_command = "aws s3 cp --quiet %s %s/;" % (output_path, SAMPLE_S3_OUTPUT_CHUNKS_PATH)
-        upload_command += "aws s3 cp --quiet %s %s/;" % (multihit_remote_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH)
-        execute_command(remote_command(upload_command, key_path, remote_username, instance_ip))
         with iostream:
-            execute_command(scp(key_path, remote_username, instance_ip, output_path, CHUNKS_RESULT_DIR + "/" + outfile_basename))
             execute_command(scp(key_path, remote_username, instance_ip, multihit_remote_outfile, multihit_local_outfile))
 
-    # Deduplicate multihit m8 by using taxonomy info
-    multihit_summary_file = CHUNKS_RESULT_DIR + "/summary-multihit-" + outfile_basename
-    dedup_multihit_local_outfile = CHUNKS_RESULT_DIR + "/dedup-multihit-" + outfile_basename
-    call_hits_m8(multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file)
-    with iostream:
-        execute_command("aws s3 cp --quiet %s %s/" % (dedup_multihit_local_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
-        execute_command("aws s3 cp --quiet %s %s/" % (multihit_summary_file, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
+        # Deduplicate multihit m8 by using taxonomy info
+        multihit_summary_file = CHUNKS_RESULT_DIR + "/summary-" + multihit_basename
+        dedup_multihit_local_outfile = CHUNKS_RESULT_DIR + "/dedup-" + multihit_basename
+        call_hits_m8(multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file)
 
-    return os.path.join(CHUNKS_RESULT_DIR, outfile_basename)
+        # copy outputs to S3
+        for f in [multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file]:
+            with iostream:
+                execute_command("aws s3 cp --quiet %s %s/" % (f, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
+
+    return multihit_local_outfile
 
 
 def run_chunk_wrapper(chunks_in_flight, chunk_output_files, n, mutex, target, args):
@@ -1110,21 +1071,16 @@ def run_rapsearch2_remotely(input_fasta, lazy_run):
         check_for_errors(mutex, chunk_output_files, input_chunks, "rapsearch")
     assert None not in chunk_output_files
     # merge output chunks:
-    with iostream:
-        concatenate_files(chunk_output_files, os.path.join(RESULT_DIR, RAPSEARCH2_OUT))
-        execute_command("aws s3 cp --quiet %s/%s %s" % (RESULT_DIR, RAPSEARCH2_OUT, output_file))
-        # Also copy multihit outputs
-        multihit_chunk_output_files = [f.replace("rapsearch2", "multihit-rapsearch2") for f in chunk_output_files]
-        concatenate_files(multihit_chunk_output_files, os.path.join(RESULT_DIR, MULTIHIT_RAPSEARCH_OUT))
-        execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, MULTIHIT_RAPSEARCH_OUT, SAMPLE_S3_OUTPUT_PATH))
-
-        multihit_chunk_summaries = [f.replace("multihit", "summary-multihit") for f in multihit_chunk_output_files]
-        concatenate_files(multihit_chunk_summaries, os.path.join(RESULT_DIR, SUMMARY_MULTIHIT_RAPSEARCH_OUT))
-        execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, SUMMARY_MULTIHIT_RAPSEARCH_OUT, SAMPLE_S3_OUTPUT_PATH))
-
-        multihit_chunk_dedup_m8s = [f.replace("summary-multihit", "dedup-multihit") for f in multihit_chunk_summaries]
-        concatenate_files(multihit_chunk_dedup_m8s, os.path.join(RESULT_DIR, DEDUP_MULTIHIT_RAPSEARCH_OUT))
-        execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, DEDUP_MULTIHIT_RAPSEARCH_OUT, SAMPLE_S3_OUTPUT_PATH))
+    multihit_chunk_summaries = [f.replace("multihit", "summary-multihit") for f in chunk_output_files]
+    multihit_chunk_dedup_m8s = [f.replace("summary-multihit", "dedup-multihit") for f in multihit_chunk_summaries]
+    for output_item in [(chunk_output_files, MULTIHIT_RAPSEARCH_OUT),
+                        (multihit_chunk_summaries, SUMMARY_MULTIHIT_RAPSEARCH_OUT),
+                        (multihit_chunk_dedup_m8s, DEDUP_MULTIHIT_RAPSEARCH_OUT)]:
+        chunk_files = output_item[0] 
+        concat_basename = output_item[1]
+        concatenate_files(chunk_files, os.path.join(RESULT_DIR, concat_basename))
+        with iostream:
+            execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, concat_basename, SAMPLE_S3_OUTPUT_PATH))
 
 def run_generate_taxid_outputs_from_m8(annotated_m8, taxon_counts_csv_file, taxon_counts_json_file,
                                        count_type, e_value_type, stats):
@@ -1293,7 +1249,7 @@ def run_stage2(lazy_run=True):
         stats.count_reads("run_rapsearch2_remotely",
                           before_filename=os.path.join(RESULT_DIR, merged_fasta),
                           before_filetype="fasta",
-                          after_filename=os.path.join(RESULT_DIR, RAPSEARCH2_OUT),
+                          after_filename=os.path.join(RESULT_DIR, DEDUP_MULTIHIT_RAPSEARCH2_OUT),
                           after_filetype="m8")
 
         with thread_success_lock:
@@ -1315,62 +1271,6 @@ def run_stage2(lazy_run=True):
                                      stats)
         execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, MULTIHIT_COMBINED_JSON_OUT, SAMPLE_S3_OUTPUT_PATH))
 
-
-
-        # run_annotate_m8_with_taxids
-        logparams = return_merged_dict(
-            DEFAULT_LOGPARAMS,
-            {"title": "annotate m8 with taxids"})
-        run_and_log_eager(
-            logparams,
-            TARGET_OUTPUTS["run_annotate_m8_with_taxids__2"],
-            run_annotate_m8_with_taxids,
-            os.path.join(RESULT_DIR, RAPSEARCH2_OUT),
-            os.path.join(RESULT_DIR, ANNOTATE_RAPSEARCH2_M8_WITH_TAXIDS_OUT))
-
-        if SKIP_DEUTERO_FILTER:
-            next_input = ANNOTATE_RAPSEARCH2_M8_WITH_TAXIDS_OUT
-        else:
-            logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "filter deuterostomes from m8"})
-            run_and_log_eager(
-                logparams,
-                TARGET_OUTPUTS["run_filter_deuterostomes_from_m8__2"],
-                run_filter_deuterostomes_from_m8,
-                os.path.join(RESULT_DIR, ANNOTATE_RAPSEARCH2_M8_WITH_TAXIDS_OUT),
-                os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NR_M8_OUT))
-            stats.count_reads("run_filter_deuterostomes_from_m8__2",
-                              before_filename=os.path.join(RESULT_DIR, ANNOTATE_RAPSEARCH2_M8_WITH_TAXIDS_OUT),
-                              before_filetype="fasta",
-                              after_filename=os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NR_M8_OUT),
-                              after_filetype="m8")
-            next_input = FILTER_DEUTEROSTOMES_FROM_NR_M8_OUT
-
-        logparams = return_merged_dict(
-            DEFAULT_LOGPARAMS,
-            {"title": "generate taxid outputs from m8"})
-        run_and_log_eager(
-            logparams,
-            TARGET_OUTPUTS["run_generate_taxid_outputs_from_m8__2"],
-            run_generate_taxid_outputs_from_m8,
-            os.path.join(RESULT_DIR, next_input),
-            os.path.join(RESULT_DIR, NR_M8_TO_TAXID_COUNTS_FILE_OUT),
-            os.path.join(RESULT_DIR, NR_TAXID_COUNTS_TO_JSON_OUT),
-            'NR',
-            'log10',
-            stats)
-
-        logparams = return_merged_dict(
-            DEFAULT_LOGPARAMS,
-            {"title": "combine JSON outputs"})
-        run_and_log_eager(
-            logparams,
-            TARGET_OUTPUTS["run_combine_json_outputs"],
-            run_combine_json_outputs,
-            RESULT_DIR + '/' + NT_TAXID_COUNTS_TO_JSON_OUT,
-            RESULT_DIR + '/' + NR_TAXID_COUNTS_TO_JSON_OUT,
-            RESULT_DIR + '/' + COMBINED_JSON_OUT,
-            stats)
-
         with thread_success_lock:
             thread_success["additional_steps"] = True
 
@@ -1383,19 +1283,6 @@ def run_stage2(lazy_run=True):
                                        os.path.join(RESULT_DIR, ACCESSION_ANNOTATED_FASTA))
 ##################################
 
-        # run_generate_taxid_annotated_fasta_from_m8
-        logparams = return_merged_dict(
-            DEFAULT_LOGPARAMS,
-            {"title": "generate taxid annotated fasta from m8"})
-        run_and_log_eager(
-            logparams,
-            TARGET_OUTPUTS["run_generate_taxid_annotated_fasta_from_m8__2"],
-            run_generate_taxid_annotated_fasta_from_m8,
-            RESULT_DIR + '/' + RAPSEARCH2_OUT,
-            RESULT_DIR + '/' + GENERATE_TAXID_ANNOTATED_FASTA_FROM_M8_OUT,
-            RESULT_DIR + '/' + GENERATE_TAXID_ANNOTATED_FASTA_FROM_RAPSEARCH2_M8_OUT,
-            'NR')
-
         logparams = return_merged_dict(
             DEFAULT_LOGPARAMS,
             {"title": "generate FASTA of unidentified reads"})
@@ -1403,10 +1290,10 @@ def run_stage2(lazy_run=True):
             logparams,
             TARGET_OUTPUTS["run_generate_unidentified_fasta"],
             run_generate_unidentified_fasta,
-            RESULT_DIR + '/' + GENERATE_TAXID_ANNOTATED_FASTA_FROM_RAPSEARCH2_M8_OUT,
+            RESULT_DIR + '/' + ACCESSION_ANNOTATED_FASTA,
             RESULT_DIR + '/' + UNIDENTIFIED_FASTA_OUT)
         stats.count_reads("run_generate_unidentified_fasta",
-                          before_filename=os.path.join(RESULT_DIR, GENERATE_TAXID_ANNOTATED_FASTA_FROM_RAPSEARCH2_M8_OUT),
+                          before_filename=os.path.join(RESULT_DIR, ACCESSION_ANNOTATED_FASTA),
                           before_filetype="fasta",
                           after_filename=os.path.join(RESULT_DIR, UNIDENTIFIED_FASTA_OUT),
                           after_filetype="fasta")
