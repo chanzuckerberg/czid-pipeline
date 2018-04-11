@@ -45,11 +45,8 @@ REF_DIR = ROOT_DIR + '/idseq/ref' # referene genome / ref databases go here
 EXTRACT_UNMAPPED_FROM_SAM_OUT1 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.1.fasta'
 EXTRACT_UNMAPPED_FROM_SAM_OUT2 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.2.fasta'
 EXTRACT_UNMAPPED_FROM_SAM_OUT3 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.merged.fasta'
-GSNAPL_OUT = 'gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
-GSNAPL_DEDUP_OUT = 'dedup.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
 ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT = 'taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
 GENERATE_TAXID_ANNOTATED_FASTA_FROM_M8_OUT = 'taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.fasta'
-RAPSEARCH2_OUT = 'rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
 FILTER_DEUTEROSTOMES_FROM_NT_M8_OUT = 'filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
 NT_M8_TO_TAXID_COUNTS_FILE_OUT = 'counts.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.csv'
 NT_TAXID_COUNTS_TO_JSON_OUT = 'counts.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.json'
@@ -107,15 +104,13 @@ GSNAP_VERSION_FILE_S3 = ("%s/%s/nt_k16.version.txt" % (base_s3, base_dt))
 RAPSEARCH_VERSION_FILE_S3 = ("%s/%s/nr_rapsearch.version.txt" % (base_s3, base_dt))
 
 # target outputs by task
-TARGET_OUTPUTS = {"run_gsnapl_remotely": [os.path.join(RESULT_DIR, GSNAPL_DEDUP_OUT),
-                                          os.path.join(RESULT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT),
+TARGET_OUTPUTS = {"run_gsnapl_remotely": [os.path.join(RESULT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT),
                                           os.path.join(RESULT_DIR, DEDUP_MULTIHIT_GSNAPL_OUT)],
                   "run_annotate_m8_with_taxids__1": [os.path.join(RESULT_DIR, ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT)],
                   "run_generate_taxid_annotated_fasta_from_m8__1": [os.path.join(RESULT_DIR, GENERATE_TAXID_ANNOTATED_FASTA_FROM_M8_OUT)],
                   "run_filter_deuterostomes_from_m8__1": [os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NT_M8_OUT)],
                   "run_generate_taxid_outputs_from_m8__1": [os.path.join(RESULT_DIR, NT_TAXID_COUNTS_TO_JSON_OUT)],
-                  "run_rapsearch2_remotely": [os.path.join(RESULT_DIR, RAPSEARCH2_OUT),
-                                              os.path.join(RESULT_DIR, SUMMARY_MULTIHIT_RAPSEARCH_OUT),
+                  "run_rapsearch2_remotely": [os.path.join(RESULT_DIR, SUMMARY_MULTIHIT_RAPSEARCH_OUT),
                                               os.path.join(RESULT_DIR, DEDUP_MULTIHIT_RAPSEARCH_OUT)],
                   "run_annotate_m8_with_taxids__2": [os.path.join(RESULT_DIR, ANNOTATE_RAPSEARCH2_M8_WITH_TAXIDS_OUT)],
                   "run_generate_taxid_annotated_fasta_from_m8__2": [os.path.join(RESULT_DIR, GENERATE_TAXID_ANNOTATED_FASTA_FROM_RAPSEARCH2_M8_OUT)],
@@ -786,28 +781,20 @@ def interpret_min_column_number_string(min_column_number_string, correct_number_
         min_column_number = correct_number_of_output_columns
     return min_column_number
 
+def add_blank_line(file_path):
+    execute_command("echo '' >> %s;" % file_path)
+
+def remove_blank_line(file_path):
+    execute_command("sed -i '$ {/^$/d;}' %s" % file_path)
 
 def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, remote_username,
                      input_files, key_path, lazy_run):
     chunk_id = input_files[0].split(part_suffix)[-1]
-    outfile_basename = 'gsnapl-out' + part_suffix + chunk_id
-    dedup_outfile_basename = 'dedup-' + outfile_basename
-    local_outfile = CHUNKS_RESULT_DIR + "/" + outfile_basename
-    remote_outfile = os.path.join(remote_work_dir, outfile_basename)
     commands = "mkdir -p %s;" % remote_work_dir
     for input_fa in input_files:
         commands += "aws s3 cp --quiet %s/%s %s/ ; " % \
                  (SAMPLE_S3_OUTPUT_CHUNKS_PATH, input_fa, remote_work_dir)
-    commands += " ".join([remote_home_dir+'/bin/gsnapl',
-                          '-A', 'm8', '--batch=0', '--use-shared-memory=0',
-                          '--gmap-mode=none', '--npaths=1', '--ordered',
-                          '-t', '32',
-                          '--maxsearch=5', '--max-mismatches=40',
-                          '-D', remote_index_dir, '-d', 'nt_k16']
-                         + [remote_work_dir+'/'+input_fa for input_fa in input_files]
-                         + ['> '+remote_outfile, ';'])
-    # Also produce gsnap output with mutliple hits per read
-    multihit_basename = "multihit-" + outfile_basename
+    multihit_basename = "multihit-gsnapl-out" + part_suffix + chunk_id
     multihit_local_outfile = os.path.join(CHUNKS_RESULT_DIR, multihit_basename)
     multihit_remote_outfile = os.path.join(remote_work_dir, multihit_basename)
     commands += " ".join([remote_home_dir+'/bin/gsnapl',
@@ -820,7 +807,7 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
                          + ['> ' + multihit_remote_outfile, ';'])
 
     multihit_output_present = fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, multihit_basename), CHUNKS_RESULT_DIR) # need to get the file even when lazy
-    if not lazy_run or not fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, dedup_outfile_basename), CHUNKS_RESULT_DIR) or not multihit_output_present:
+    if not lazy_run or not multihit_output_present:
         correct_number_of_output_columns = 12
         min_column_number = 0
         max_tries = 2
@@ -831,33 +818,30 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
             write_to_log("starting alignment for chunk %s on machine %s" % (chunk_id, gsnapl_instance_ip))
             execute_command(remote_command(commands, key_path, remote_username, gsnapl_instance_ip))
             # check if every row has correct number of columns (12) in the output file on the remote machine
-            verification_command = "awk '{print NF}' %s | sort -nu | head -n 1" % remote_outfile
+            verification_command = "awk '{print NF}' %s | sort -nu | head -n 1" % multihit_remote_outfile
             min_column_number_string = execute_command_with_output(remote_command(verification_command, key_path, remote_username, gsnapl_instance_ip))
             min_column_number = interpret_min_column_number_string(min_column_number_string, correct_number_of_output_columns, try_number)
             try_number += 1
-        # move output from remote machine to s3
+        # move output from remote machine to local
         assert min_column_number == correct_number_of_output_columns, "Chunk %s output corrupt; not copying to S3. Re-start pipeline to try again." % chunk_id
         with iostream:
-            execute_command(scp(key_path, remote_username, gsnapl_instance_ip, remote_outfile, local_outfile))
             execute_command(scp(key_path, remote_username, gsnapl_instance_ip, multihit_remote_outfile, multihit_local_outfile))
-        # Deduplicate m8 input. Sometimes GSNAPL outputs multiple consecutive lines for same original read and same accession id. Count functions expect only 1 (top hit).
-        execute_command("echo '' >> %s;" % local_outfile) # add a blank line at the end of the file so S3 copy doesn't fail if output is empty
-        deduplicate_m8(os.path.join(CHUNKS_RESULT_DIR, outfile_basename), os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename))
-        with iostream:
-            execute_command("aws s3 cp --quiet %s/%s %s/" % (CHUNKS_RESULT_DIR, dedup_outfile_basename, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
 
-    # Deduplicate multihit m8 by using taxonomy info
-    multihit_summary_file = CHUNKS_RESULT_DIR + "/summary-multihit-" + outfile_basename
-    dedup_multihit_local_outfile = CHUNKS_RESULT_DIR + "/dedup-multihit-" + outfile_basename
-    call_hits_m8(multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file)
-    with iostream:
-        execute_command("aws s3 cp --quiet %s %s/" % (dedup_multihit_local_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
-        execute_command("aws s3 cp --quiet %s %s/" % (multihit_summary_file, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
+        # Deduplicate multihit m8 by using taxonomy info
+        multihit_summary_file = CHUNKS_RESULT_DIR + "/summary-multihit-" + outfile_basename
+        dedup_multihit_local_outfile = CHUNKS_RESULT_DIR + "/dedup-multihit-" + outfile_basename
+        call_hits_m8(multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file)
 
-    with iostream:
-        execute_command("sed -i '$ {/^$/d;}' %s" % os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename)) # remove blank line from end of file
+        # copy outputs to S3
+        for f in [multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file]:
+            add_blank_line(f)
+            with iostream:
+                execute_command("aws s3 cp --quiet %s %s/" % (f, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
+
+    for f in [multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file]:
+        remove_blank_line(f)
     write_to_log("finished alignment for chunk %s" % chunk_id)
-    return os.path.join(CHUNKS_RESULT_DIR, dedup_outfile_basename)
+    return dedup_multihit_local_outfile
 
 
 def call_hits_m8(input_m8, output_m8, output_summary):
@@ -916,7 +900,6 @@ def call_hits_m8(input_m8, output_m8, output_summary):
 
 
 def run_gsnapl_remotely(input_files, lazy_run):
-    output_file = os.path.join(SAMPLE_S3_OUTPUT_PATH, GSNAPL_DEDUP_OUT)
     key_path = fetch_key(ENVIRONMENT)
     remote_username = "ubuntu"
     remote_home_dir = "/home/%s" % remote_username
@@ -948,9 +931,6 @@ def run_gsnapl_remotely(input_files, lazy_run):
     assert None not in chunk_output_files
     # merge output chunks:
     with iostream:
-        concatenate_files(chunk_output_files, os.path.join(RESULT_DIR, GSNAPL_DEDUP_OUT))
-        execute_command("aws s3 cp --quiet %s/%s %s" % (RESULT_DIR, GSNAPL_DEDUP_OUT, output_file))
-        # Also copy multihit outputs
         multihit_chunk_output_files = [f.replace("dedup", "multihit") for f in chunk_output_files]
         concatenate_files(multihit_chunk_output_files, os.path.join(RESULT_DIR, MULTIHIT_GSNAPL_OUT))
         execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, MULTIHIT_GSNAPL_OUT, SAMPLE_S3_OUTPUT_PATH))
@@ -1286,7 +1266,7 @@ def run_stage2(lazy_run=True):
         stats.count_reads("run_gsnapl_remotely",
                           before_filename=before_file_name_for_log,
                           before_filetype=before_file_type_for_log,
-                          after_filename=os.path.join(RESULT_DIR, GSNAPL_DEDUP_OUT),
+                          after_filename=os.path.join(RESULT_DIR, DEDUP_MULTIHIT_GSNAPL_OUT),
                           after_filetype="m8")
 
         # PRODUCE NEW MULTIHIT NT OUTPUT
