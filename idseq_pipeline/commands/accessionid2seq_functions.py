@@ -43,6 +43,27 @@ def parse_reads(annotated_fasta, db_type):
                             read2seq[ma.group(4).rstrip()] = [sequence.rstrip(), ma.group(1), ma.group(2), ma.group(3)]
     return read2seq
 
+def compress_coverage(coverage):
+    keys = sorted(coverage.keys())
+    if len(keys) <= 1:
+        return coverage
+    start = keys[0]
+    current = start
+    val = coverage[start]
+
+    for k in keys[1:]:
+        if (k-start) == 1 and coverage[k] == val:
+            current = k
+        else:
+            coverage["%d-%d" % (start, current)] = val
+            start = k
+            current = k
+            val = coverage[k]
+
+    coverage["%d-%d" % (start, current)] = val
+    return coverage
+
+
 def calculate_alignment_coverage(alignment_data):
     ref_len = alignment_data['ref_seq_len']
     coverage = defaultdict(lambda: 0) # implement it in a dumb way for now. change later
@@ -51,8 +72,7 @@ def calculate_alignment_coverage(alignment_data):
         'total_read_length': 0,
         'total_aligned_length' : 0,
         'total_mismatched_length' : 0,
-        'num_reads': 0,
-        'coverage': coverage
+        'num_reads': 0
     }
     if ref_len == 0:
         return output
@@ -72,6 +92,7 @@ def calculate_alignment_coverage(alignment_data):
         for bp in range(ref_start, ref_end):
             coverage[bp] += 1
     output['distinct_covered_length'] = len(coverage)
+    output['coverage'] = compress_coverage(coverage)
     return output
 
 def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
