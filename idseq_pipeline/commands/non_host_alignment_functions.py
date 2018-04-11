@@ -213,64 +213,6 @@ def concatenate_files(file_list, output_file):
             with open(f, 'rb') as fd:
                 shutil.copyfileobj(fd, outf)
 
-def remove_annotation(read_id):
-    result = re.sub(r'NT:(.*?):', '', read_id)
-    result = re.sub(r'NR:(.*?):', '', result)
-    return result
-
-def generate_taxid_annotated_fasta_from_m8(input_fasta_file, m8_file, output_fasta_file, annotation_prefix):
-    '''Tag reads based on the m8 output'''
-    # Example:  generate_annotated_fasta_from_m8('filter.unmapped.merged.fasta',
-    #  'bowtie.unmapped.star.gsnapl-nt-k16.m8', 'NT-filter.unmapped.merged.fasta', 'NT')
-    # Construct the m8_hash
-    read_to_accession_id = {}
-    with open(m8_file, 'rb') as m8f:
-        for line in m8f:
-            if line[0] == '#':
-                continue
-            parts = line.split("\t")
-            log_corrupt(len(parts) < 12, m8_file, line)
-            read_name = parts[0]
-            read_name_parts = read_name.split("/")
-            if len(read_name_parts) > 1:
-                output_read_name = read_name_parts[0] + '/' + read_name_parts[-1]
-            else:
-                output_read_name = read_name
-            accession_id = parts[1]
-            read_to_accession_id[output_read_name] = accession_id
-    # Go through the input_fasta_file to get the results and tag reads
-    input_fasta_f = open(input_fasta_file, 'rb')
-    output_fasta_f = open(output_fasta_file, 'wb')
-    sequence_name = input_fasta_f.readline()
-    sequence_data = input_fasta_f.readline()
-    while sequence_name and sequence_data:
-        read_id = sequence_name.rstrip().lstrip('>')
-        accession = read_to_accession_id.get(remove_annotation(read_id), '')
-        new_read_name = annotation_prefix + ':' + accession + ':' + read_id
-        output_fasta_f.write(">%s\n" % new_read_name)
-        output_fasta_f.write(sequence_data)
-        sequence_name = input_fasta_f.readline()
-        sequence_data = input_fasta_f.readline()
-    input_fasta_f.close()
-    output_fasta_f.close()
-
-
-def deduplicate_m8(input_m8, output_m8):
-    outf = open(output_m8, "wb")
-    previous_read_name = ''
-    with open(input_m8, "rb") as m8f:
-        for line in m8f:
-            if line[0] == '#':
-                continue
-            parts = line.split("\t")
-            read_name = parts[0] # Example: HWI-ST640:828:H917FADXX:2:1108:8883:88679/1/1'
-            if read_name == previous_read_name:
-                continue
-            outf.write(line)
-            previous_read_name = read_name
-    outf.close()
-
-
 def log_corrupt(is_corrupt, m8_file, line):
     if is_corrupt:
         write_to_log(m8_file + " is corrupt at line:\n" + line + "\n----> delete it and its corrupt ancestors before restarting run")
