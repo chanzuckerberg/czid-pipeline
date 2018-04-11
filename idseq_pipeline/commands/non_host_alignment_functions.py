@@ -919,18 +919,6 @@ def run_gsnapl_remotely(input_files, lazy_run):
         with iostream:
             execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, concat_basename, SAMPLE_S3_OUTPUT_PATH))
 
-def run_annotate_m8_with_taxids(input_m8, output_m8):
-    accession2taxid_path = fetch_reference(ACCESSION2TAXID)
-    p = multiprocessing.Process(target=generate_taxid_annotated_m8, args=[input_m8, output_m8, accession2taxid_path])
-    p.start()
-    p.join()
-    if p.exitcode != 0:
-        raise Exception("Failed generate_taxid_annotated_m8 on {}".format(input_m8))
-    write_to_log("finished annotation")
-    # move the output back to S3
-    execute_command("aws s3 cp --quiet %s %s/" % (output_m8, SAMPLE_S3_OUTPUT_PATH))
-
-
 def fetch_deuterostome_file(lock=threading.RLock()):  #pylint: disable=dangerous-default-value
     with lock:
         deuterostome_file_basename = os.path.basename(DEUTEROSTOME_TAXIDS)
@@ -939,25 +927,6 @@ def fetch_deuterostome_file(lock=threading.RLock()):  #pylint: disable=dangerous
             execute_command("aws s3 cp --quiet %s %s/" % (DEUTEROSTOME_TAXIDS, REF_DIR))
             write_to_log("downloaded deuterostome list")
         return deuterostome_file
-
-
-def run_filter_deuterostomes_from_m8(input_m8, output_m8):
-    deuterostome_file = fetch_deuterostome_file()
-    filter_deuterostomes_from_m8(input_m8, output_m8, deuterostome_file)
-    write_to_log("finished job")
-    # move the output back to S3
-    execute_command("aws s3 cp --quiet %s %s/" % (output_m8, SAMPLE_S3_OUTPUT_PATH))
-
-
-def run_generate_taxid_annotated_fasta_from_m8(input_m8, input_fasta,
-                                               output_fasta, annotation_prefix):
-    generate_taxid_annotated_fasta_from_m8(input_fasta, input_m8, output_fasta, annotation_prefix)
-    write_to_log("finished job")
-    # move the output back to S3
-    execute_command("aws s3 cp --quiet %s %s/" % (output_fasta, SAMPLE_S3_OUTPUT_PATH))
-
-
-
 
 def run_rapsearch_chunk(part_suffix, _remote_home_dir, remote_index_dir, remote_work_dir, remote_username,
                         input_fasta, key_path, lazy_run):
@@ -1081,28 +1050,6 @@ def run_rapsearch2_remotely(input_fasta, lazy_run):
         concatenate_files(chunk_files, os.path.join(RESULT_DIR, concat_basename))
         with iostream:
             execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, concat_basename, SAMPLE_S3_OUTPUT_PATH))
-
-def run_generate_taxid_outputs_from_m8(annotated_m8, taxon_counts_csv_file, taxon_counts_json_file,
-                                       count_type, e_value_type, stats):
-
-    lineage_path = fetch_reference(LINEAGE_SHELF)
-    lineage_map = shelve.open(lineage_path)
-
-    species_concordant, genus_concordant, family_concordant = generate_tax_counts_from_m8(annotated_m8, e_value_type,
-                                                                                          taxon_counts_csv_file, lineage_map)
-    write_to_log("generated taxon counts from m8")
-    generate_json_from_taxid_counts(taxon_counts_csv_file, taxon_counts_json_file, count_type,
-                                    lineage_map, species_concordant, genus_concordant, family_concordant, stats)
-    write_to_log("generated JSON file from taxon counts")
-    # move the output back to S3
-    execute_command("aws s3 cp --quiet %s %s/" % (taxon_counts_csv_file, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp --quiet %s %s/" % (taxon_counts_json_file, SAMPLE_S3_OUTPUT_PATH))
-
-def run_combine_json_outputs(input_json_1, input_json_2, output_json, stats):
-    combine_pipeline_output_json(input_json_1, input_json_2, output_json, stats)
-    write_to_log("finished job")
-    # move it the output back to S3
-    execute_command("aws s3 cp --quiet %s %s/" % (output_json, SAMPLE_S3_OUTPUT_PATH))
 
 
 def run_generate_unidentified_fasta(input_fa, output_fa):
