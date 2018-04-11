@@ -867,7 +867,7 @@ def call_hits_m8(input_m8, output_m8, output_summary):
                 return i+1, taxids[0]
         return -1, -1
     # Deduplicate m8 and summarize hits
-    read_ids = execute_command_with_output("grep -v '^#' %s | cut -f1" % input_m8).split("\n")
+    read_ids = subprocess.check_output("grep -v '^#' %s | cut -f1" % input_m8, shell="true").split("\n")
     read_ids = filter(None, read_ids)
     read_ids = set(read_ids)
     sorted_input_m8 = input_m8 + "-sorted"
@@ -879,7 +879,7 @@ def call_hits_m8(input_m8, output_m8, output_summary):
     for read_id in read_ids:
         # TO DO: remove inefficiency of calling grep on the entire file for each read_id.
         # Lines with same read_id are contiguous (verify?), so just iterate line by line.
-        m8_lines = execute_command_with_output("grep '^%s\t' %s" % (read_id, sorted_input_m8)).split("\n")
+        m8_lines = subprocess.check_output("grep '^%s\t' %s" % (read_id, sorted_input_m8), shell="true").split("\n")
         accessions_evalues_lines = [(line.split("\t")[1],
                                      float(line.split("\t")[10]),
                                      line) for line in m8_lines if line]
@@ -930,19 +930,16 @@ def run_gsnapl_remotely(input_files, lazy_run):
         check_for_errors(mutex, chunk_output_files, input_chunks, "gsnap")
     assert None not in chunk_output_files
     # merge output chunks:
-    with iostream:
-        multihit_chunk_output_files = [f.replace("dedup", "multihit") for f in chunk_output_files]
-        concatenate_files(multihit_chunk_output_files, os.path.join(RESULT_DIR, MULTIHIT_GSNAPL_OUT))
-        execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, MULTIHIT_GSNAPL_OUT, SAMPLE_S3_OUTPUT_PATH))
-
-        multihit_chunk_summaries = [f.replace("multihit", "summary-multihit") for f in multihit_chunk_output_files]
-        concatenate_files(multihit_chunk_summaries, os.path.join(RESULT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT))
-        execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT, SAMPLE_S3_OUTPUT_PATH))
-
-        multihit_chunk_dedup_m8s = [f.replace("summary-multihit", "dedup-multihit") for f in multihit_chunk_summaries]
-        concatenate_files(multihit_chunk_dedup_m8s, os.path.join(RESULT_DIR, DEDUP_MULTIHIT_GSNAPL_OUT))
-        execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, DEDUP_MULTIHIT_GSNAPL_OUT, SAMPLE_S3_OUTPUT_PATH))
-
+    multihit_chunk_summaries = [f.replace("multihit", "summary-multihit") for f in multihit_chunk_output_files]
+    multihit_chunk_dedup_m8s = [f.replace("summary-multihit", "dedup-multihit") for f in multihit_chunk_summaries]
+    for output_item in [(chunk_output_files, MULTIHIT_GSNAPL_OUT),
+                        (multihit_chunk_summaries, SUMMARY_MULTIHIT_GSNAPL_OUT),
+                        (multihit_chunk_dedup_m8s, DEDUP_MULTIHIT_GSNAPL_OUT)]:
+        chunk_files = output_item[0] 
+        concat_basename = output_item[1]
+        concatenate_files(chunk_files, os.path.join(RESULT_DIR, concat_basename))
+        with iostream:
+            execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, concat_basename, SAMPLE_S3_OUTPUT_PATH))
 
 def run_annotate_m8_with_taxids(input_m8, output_m8):
     accession2taxid_path = fetch_reference(ACCESSION2TAXID)
@@ -1276,60 +1273,9 @@ def run_stage2(lazy_run=True):
                                           os.path.join(RESULT_DIR, MULTIHIT_NT_JSON_OUT))
         execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, MULTIHIT_NT_JSON_OUT, SAMPLE_S3_OUTPUT_PATH))
 
-        # run_annotate_gsnapl_m8_with_taxids
-        logparams = return_merged_dict(
-            DEFAULT_LOGPARAMS,
-            {"title": "annotate gsnapl m8 with taxids"})
-        run_and_log_eager(
-            logparams,
-            TARGET_OUTPUTS["run_annotate_m8_with_taxids__1"],
-            run_annotate_m8_with_taxids,
-            os.path.join(RESULT_DIR, GSNAPL_DEDUP_OUT),
-            os.path.join(RESULT_DIR, ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT))
-
-        # run_generate_taxid_annotated_fasta_from_m8
-        logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "generate taxid annotated fasta from m8"})
-        run_and_log_eager(
-            logparams,
-            TARGET_OUTPUTS["run_generate_taxid_annotated_fasta_from_m8__1"],
-            run_generate_taxid_annotated_fasta_from_m8,
-            os.path.join(RESULT_DIR, GSNAPL_DEDUP_OUT),
-            merged_fasta,
-            os.path.join(RESULT_DIR, GENERATE_TAXID_ANNOTATED_FASTA_FROM_M8_OUT),
-            'NT')
-
-        if SKIP_DEUTERO_FILTER:
-            next_input = ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT
-        else:
-            logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "filter deuterostomes from m8__1"})
-            run_and_log_eager(
-                logparams, TARGET_OUTPUTS["run_filter_deuterostomes_from_m8__1"],
-                run_filter_deuterostomes_from_m8,
-                os.path.join(RESULT_DIR, ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT),
-                os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NT_M8_OUT))
-            stats.count_reads("run_filter_deuterostomes_from_m8__1",
-                              before_filename=os.path.join(RESULT_DIR, ANNOTATE_GSNAPL_M8_WITH_TAXIDS_OUT),
-                              before_filetype="m8",
-                              after_filename=os.path.join(RESULT_DIR, FILTER_DEUTEROSTOMES_FROM_NT_M8_OUT),
-                              after_filetype="m8")
-            next_input = FILTER_DEUTEROSTOMES_FROM_NT_M8_OUT
-
-
-        logparams = return_merged_dict(
-            DEFAULT_LOGPARAMS,
-            {"title": "generate taxid outputs from m8"})
-        run_and_log_eager(
-            logparams, TARGET_OUTPUTS["run_generate_taxid_outputs_from_m8__1"],
-            run_generate_taxid_outputs_from_m8,
-            os.path.join(RESULT_DIR, next_input),
-            os.path.join(RESULT_DIR, NT_M8_TO_TAXID_COUNTS_FILE_OUT),
-            os.path.join(RESULT_DIR, NT_TAXID_COUNTS_TO_JSON_OUT),
-            'NT',
-            'raw',
-            stats)
-
         with thread_success_lock:
             thread_success["gsnap"] = True
+
 
     def run_rapsearch2():
         logparams = return_merged_dict(
@@ -1429,6 +1375,14 @@ def run_stage2(lazy_run=True):
             thread_success["additional_steps"] = True
 
     def run_annotation_steps():
+
+##################################
+        # Annotate fasta with accessions
+        annotate_fasta_with_accessions(os.path.join(RESULT_DIR, GSNAPL_DEDUP_OUT),
+                                       merged_fasta,
+                                       os.path.join(RESULT_DIR, ACCESSION_ANNOTATED_FASTA))
+##################################
+
         # run_generate_taxid_annotated_fasta_from_m8
         logparams = return_merged_dict(
             DEFAULT_LOGPARAMS,
