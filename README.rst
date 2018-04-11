@@ -18,6 +18,10 @@ To install after cloning:
     $ pip install -e .
 
 
+Developers
+----------
+
+
 When merging a commit to master, you need to increase the version number in `idseq_pipeline/version/__init__.py`:
   - if results are expected to change, increase the 2nd number
   - if results are not expected to change, increase the 3rd number.
@@ -25,6 +29,9 @@ When merging a commit to master, you need to increase the version number in `ids
 
 Release notes
 -------------
+
+- 1.4.0
+    - Version result folder.
 
 - 1.3.0   
     - Fix bug causing alignment to run before host subtraction in samples
