@@ -65,16 +65,13 @@ def calculate_alignment_coverage(alignment_data):
         if ref_start > ref_end: # SWAP
             (ref_start, ref_end) = (ref_end, ref_start)
         ref_start -= 1
-
         output['total_read_length'] += len(seq)
         output['total_aligned_length'] += (ref_end - ref_start)
         output['total_mismatched_length'] += int(m8_metrics[2])
         output['num_reads'] += 1
         for bp in range(ref_start, ref_end):
             coverage[bp] += 1
-
     output['distinct_covered_length'] = len(coverage)
-
     return output
 
 def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
