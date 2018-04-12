@@ -615,6 +615,8 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
                          + [remote_work_dir+'/'+input_fa for input_fa in input_files]
                          + ['> ' + multihit_remote_outfile, ';'])
 
+    multihit_summary_file = CHUNKS_RESULT_DIR + "/summary-" + multihit_basename
+    dedup_multihit_local_outfile = CHUNKS_RESULT_DIR + "/dedup-" + multihit_basename
     if not lazy_run or not fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, multihit_basename), CHUNKS_RESULT_DIR):
         correct_number_of_output_columns = 12
         min_column_number = 0
@@ -636,8 +638,6 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
             execute_command(scp(key_path, remote_username, gsnapl_instance_ip, multihit_remote_outfile, multihit_local_outfile))
 
         # Deduplicate multihit m8 by using taxonomy info
-        multihit_summary_file = CHUNKS_RESULT_DIR + "/summary-" + multihit_basename
-        dedup_multihit_local_outfile = CHUNKS_RESULT_DIR + "/dedup-" + multihit_basename
         call_hits_m8(multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file)
 
         # copy outputs to S3
@@ -776,6 +776,8 @@ def run_rapsearch_chunk(part_suffix, _remote_home_dir, remote_index_dir, remote_
                           '-q', input_path,
                           '-o', multihit_remote_outfile[:-3],
                           ';'])
+    multihit_summary_file = CHUNKS_RESULT_DIR + "/summary-" + multihit_basename
+    dedup_multihit_local_outfile = CHUNKS_RESULT_DIR + "/dedup-" + multihit_basename
     if not lazy_run or not fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, multihit_basename), CHUNKS_RESULT_DIR):
         correct_number_of_output_columns = 12
         min_column_number = 0
@@ -799,8 +801,6 @@ def run_rapsearch_chunk(part_suffix, _remote_home_dir, remote_index_dir, remote_
             execute_command(scp(key_path, remote_username, instance_ip, multihit_remote_outfile, multihit_local_outfile))
 
         # Deduplicate multihit m8 by using taxonomy info
-        multihit_summary_file = CHUNKS_RESULT_DIR + "/summary-" + multihit_basename
-        dedup_multihit_local_outfile = CHUNKS_RESULT_DIR + "/dedup-" + multihit_basename
         call_hits_m8(multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file)
 
         # copy outputs to S3
