@@ -20,7 +20,7 @@ base_s3 = bucket + "/alignment_data"
 ACCESSION2TAXID = ("%s/%s/accession2taxid.db.gz" % (base_s3, base_dt))
 base_s3 = bucket + "/taxonomy"
 LINEAGE_SHELF = ("%s/%s/taxid-lineages.db" % (base_s3, base_dt))
-INVALID_CALL_BASE_ID = -1e8 # don't run into -2e9 limit. current largest taxid is around 2e6 so should be fine
+INVALID_CALL_BASE_ID = -(10**8) # don't run into -2e9 limit of mysql database. current largest taxid is around 2e6 so should be fine
 
 VERSION_NONE = -1
 
