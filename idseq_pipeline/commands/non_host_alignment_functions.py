@@ -834,7 +834,6 @@ def check_for_errors(mutex, chunk_output_files, input_chunks, what):
 
 
 def run_rapsearch2_remotely(input_fasta, lazy_run):
-    output_file = os.path.join(SAMPLE_S3_OUTPUT_PATH, RAPSEARCH2_OUT)
     key_path = fetch_key(ENVIRONMENT)
     remote_username = "ec2-user"
     remote_home_dir = "/home/%s" % remote_username
