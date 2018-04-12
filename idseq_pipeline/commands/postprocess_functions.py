@@ -28,8 +28,8 @@ NT_LOC_DB = os.environ.get('NT_LOC_DB', "s3://idseq-database/20170824/blast_db/n
 NT_DB = os.environ.get('NT_DB', "s3://idseq-database/20170824/blast_db/nt")
 
 # input files
-ACCESSION_ANNOTATED_FASTA = 'taxids.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.fasta'
-GSNAP_M8_FILE = 'taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
+ACCESSION_ANNOTATED_FASTA = 'accessions.rapsearch2.gsnapl.fasta'
+GSNAP_M8_FILE = 'dedup.multihit.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
 
 # output files
 TAXID_ANNOT_FASTA = 'taxid_annot.fasta'
