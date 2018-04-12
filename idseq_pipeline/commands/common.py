@@ -20,6 +20,7 @@ base_s3 = bucket + "/alignment_data"
 ACCESSION2TAXID = ("%s/%s/accession2taxid.db.gz" % (base_s3, base_dt))
 base_s3 = bucket + "/taxonomy"
 LINEAGE_SHELF = ("%s/%s/taxid-lineages.db" % (base_s3, base_dt))
+INVALID_CALL_BASE_ID = -1e8 # don't run into -2e9 limit. current largest taxid is around 2e6 so should be fine
 
 VERSION_NONE = -1
 
@@ -608,3 +609,16 @@ def upload_version_tracker(source_file, output_name, reference_version_number, o
 
 def env_set_if_blank(key, value):
     os.environ[key] = os.environ.get(key, value)
+
+def validate_taxid_lineage(taxid_lineage, hit_taxid, hit_level):
+    # Take the taxon lineage and mark meaningless calls with fake taxids.
+    # For each hit, the fake taxids below the meaningful hit level should depend
+    # only on: (a) the taxonomic level (b) the taxid of the meaningful hit
+    cleaned_taxid_lineage = []
+    for i in range(len(taxid_lineage)):
+        taxid = taxid_lineage[i]
+        tax_level = i+1
+        if tax_level < int(hit_level):
+            taxid = str(tax_level*INVALID_CALL_BASE_ID - int(hit_taxid))
+        cleaned_taxid_lineage.append(taxid)
+    return cleaned_taxid_lineage

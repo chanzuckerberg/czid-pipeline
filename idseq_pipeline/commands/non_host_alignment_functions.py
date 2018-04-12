@@ -118,7 +118,6 @@ DEUTEROSTOME_TAXIDS = ("%s/%s/deuterostome_taxids.txt" % (base_s3, base_dt))
 TAX_LEVEL_SPECIES = 1
 TAX_LEVEL_GENUS = 2
 TAX_LEVEL_FAMILY = 3
-INVALID_CALL_BASE_ID = -1e8 # don't run into -2e9 limit. current largest taxid is around 2e6 so should be fine
 MISSING_GENUS_ID = -200
 MISSING_FAMILY_ID = -300
 
@@ -287,16 +286,8 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
             e_value = math.log10(e_value)
 
         # Retrieve the taxon lineage and mark meaningless calls with fake taxids.
-        # For each hit, the fake taxids below the meaningful hit level should depend
-        # only on: (a) the taxonomic level (b) the taxid of the meaningful hit
         hit_taxids_all_levels = lineage_map.get(hit_taxid, ("-100", "-200", "-300"))
-        cleaned_hit_taxids_all_levels = []
-        for i in range(len(hit_taxids_all_levels)):
-            taxid = hit_taxids_all_levels[i]
-            tax_level = i+1
-            if tax_level < int(hit_level):
-                taxid = str(tax_level*INVALID_CALL_BASE_ID - int(hit_taxid))
-            cleaned_hit_taxids_all_levels.append(taxid)
+        cleaned_hit_taxids_all_levels = validate_taxid_lineage(hit_taxids_all_levels, hit_taxid, hit_level)
 
         # Aggregate each level
         for i in range(len(cleaned_hit_taxids_all_levels)):

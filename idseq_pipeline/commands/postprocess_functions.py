@@ -30,6 +30,8 @@ NT_DB = os.environ.get('NT_DB', "s3://idseq-database/20170824/blast_db/nt")
 # input files
 ACCESSION_ANNOTATED_FASTA = 'accessions.rapsearch2.gsnapl.fasta'
 GSNAP_M8_FILE = 'dedup.multihit.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
+SUMMARY_MULTIHIT_GSNAPL_OUT = 'summary.multihit.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.tab'
+SUMMARY_MULTIHIT_RAPSEARCH_OUT = 'summary.multihit.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.tab'
 
 # output files
 TAXID_ANNOT_FASTA = 'taxid_annot.fasta'
@@ -77,17 +79,32 @@ def accession2taxid(read_id, accession2taxid_dict, hit_type, lineage_map):
     species_taxid, genus_taxid, family_taxid = lineage_map.get(taxid, ("-100", "-200", "-300"))
     return species_taxid, genus_taxid, family_taxid
 
-def generate_taxid_fasta_from_accid(input_fasta_file, accession2taxid_path, lineagePath, output_fasta_file):
+def generate_taxid_fasta_from_accid(input_fasta_file, hit_summary_files, accession2taxid_path, lineagePath, output_fasta_file):
     accession2taxid_dict = shelve.open(accession2taxid_path)
     lineage_map = shelve.open(lineagePath)
+    nt_hit_summary_file = hit_summary_files[0]
+    nr_hit_summary_file = hit_summary_files[1]
+    def get_valid_hit(read_id, hit_summary_file):
+        hit_summary = subprocess.check_output("grep '^%s\t' %s" % (read_id, hit_summary_file), shell="true").split("\n")
+        assert len(hit_summary) == 1, "More than 1 line for %s in %s" % (read_id, hit_summary_file)
+        hit_line_columns = hit_summary[0].split("\t")
+        hit_level = hit_line_columns[1]
+        hit_taxid = hit_line_columns[2]
+        return hit_taxid, hit_level
+    def get_valid_lineage(read_id, count_type, hit_summary_file):
+        taxid_lineage = accession2taxid(read_id, accession2taxid_dict, count_type, lineage_map)
+        hit_taxid, hit_level = get_valid_hit(read_id, hit_summary_file)
+        return tuple(validate_taxid_lineage(taxid_lineage, hit_taxid, hit_level))
     input_fasta_f = open(input_fasta_file, 'rb')
     output_fasta_f = open(output_fasta_file, 'wb')
     sequence_name = input_fasta_f.readline()
     sequence_data = input_fasta_f.readline()
     while len(sequence_name) > 0 and len(sequence_data) > 0:
         read_id = sequence_name.rstrip().lstrip('>') # example read_id: "NR::NT:CP010376.2:NB501961:14:HM7TLBGX2:1:23109:12720:8743/2"
-        nr_taxid_species, nr_taxid_genus, nr_taxid_family = accession2taxid(read_id, accession2taxid_dict, 'NR', lineage_map)
-        nt_taxid_species, nt_taxid_genus, nt_taxid_family = accession2taxid(read_id, accession2taxid_dict, 'NT', lineage_map)
+
+        nr_taxid_species, nr_taxid_genus, nr_taxid_family = get_valid_lineage(read_id, 'NR', nr_hit_summary_file)
+        nt_taxid_species, nt_taxid_genus, nt_taxid_family = get_valid_lineage(read_id, 'NT', nt_hit_summary_file)
+
         new_read_name = ('family_nr:' + nr_taxid_family + ':family_nt:' + nt_taxid_family
                          + ':genus_nr:' + nr_taxid_genus + ':genus_nt:' + nt_taxid_genus
                          + ':species_nr:' + nr_taxid_species + ':species_nt:' + nt_taxid_species
@@ -167,10 +184,10 @@ def run_generate_align_viz(input_fasta, input_m8, output_dir):
     execute_command("aws s3 cp --quiet %s %s/align_viz --recursive" % (output_dir, SAMPLE_S3_OUTPUT_PATH))
     execute_command("aws s3 cp --quiet %s %s/" % (summary_file_name, SAMPLE_S3_OUTPUT_PATH))
 
-def run_generate_taxid_fasta_from_accid(input_fasta, output_fasta):
+def run_generate_taxid_fasta_from_accid(input_fasta, hit_summary_files, output_fasta):
     accession2taxid_path = fetch_reference(ACCESSION2TAXID)
     lineage_path = fetch_reference(LINEAGE_SHELF)
-    generate_taxid_fasta_from_accid(input_fasta, accession2taxid_path, lineage_path, output_fasta)
+    generate_taxid_fasta_from_accid(input_fasta, hit_summary_files, accession2taxid_path, lineage_path, output_fasta)
     logging.getLogger().info("finished job")
     execute_command("aws s3 cp --quiet %s %s/" % (output_fasta, SAMPLE_S3_OUTPUT_PATH))
 
@@ -204,6 +221,12 @@ def run_stage3(lazy_run=False):
     execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, GSNAP_M8_FILE, INPUT_DIR))
     input_m8 = os.path.join(INPUT_DIR, GSNAP_M8_FILE)
 
+    # download hit level files
+    hit_summary_files = []
+    for s3_file in [SUMMARY_MULTIHIT_GSNAPL_OUT, SUMMARY_MULTIHIT_RAPSEARCH_OUT] :
+        execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, s3_file, INPUT_DIR))
+        hit_summary_files.append(os.path.join(INPUT_DIR, s3_file))
+
     # generate taxid fasta
     logparams = return_merged_dict(
         DEFAULT_LOGPARAMS,
@@ -213,6 +236,7 @@ def run_stage3(lazy_run=False):
         TARGET_OUTPUTS["run_generate_taxid_fasta_from_accid"],
         False,
         run_generate_taxid_fasta_from_accid, input_file,
+        hit_summary_files,
         os.path.join(RESULT_DIR, TAXID_ANNOT_FASTA))
 
     # SPECIES level
