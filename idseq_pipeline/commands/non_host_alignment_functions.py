@@ -242,7 +242,7 @@ def annotate_fasta_with_accessions(input_fasta, nt_m8, nr_m8, output_fasta):
         while sequence_name and sequence_data:
             read_id = sequence_name.rstrip().lstrip('>')
             new_read_name = read_id
-            for hit_type, read_to_accession_id in read_to_accession_id_maps:
+            for hit_type, read_to_accession_id in read_to_accession_id_maps.iteritems():
                 accession = read_to_accession_id.get(read_id, '')
                 new_read_name = hit_type + ':' + accession + ':' + new_read_name
             output_fasta_f.write(">%s\n" % new_read_name)
