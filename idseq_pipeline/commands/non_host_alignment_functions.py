@@ -1023,7 +1023,7 @@ def run_stage2(lazy_run=True):
         stats.count_reads("run_rapsearch2_remotely",
                           before_filename=os.path.join(RESULT_DIR, merged_fasta),
                           before_filetype="fasta",
-                          after_filename=os.path.join(RESULT_DIR, DEDUP_MULTIHIT_RAPSEARCH2_OUT),
+                          after_filename=os.path.join(RESULT_DIR, DEDUP_MULTIHIT_RAPSEARCH_OUT),
                           after_filetype="m8")
 
         with thread_success_lock:
