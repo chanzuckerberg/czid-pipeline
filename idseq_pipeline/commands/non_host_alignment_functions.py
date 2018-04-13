@@ -651,7 +651,7 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
                 execute_command("aws s3 cp --quiet %s %s/" % (f, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
 
     write_to_log("finished alignment for chunk %s" % chunk_id)
-    return dedup_multihit_local_outfile
+    return multihit_local_outfile
 
 
 def call_hits_m8(input_m8, output_m8, output_summary):
