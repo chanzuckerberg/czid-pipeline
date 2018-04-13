@@ -73,6 +73,11 @@ TARGET_OUTPUTS = {"run_generate_taxid_fasta_from_accid": [os.path.join(RESULT_DI
 # from common import ACCESSION2TAXID
 
 # processing functions
+def remove_annotation(read_id):
+    result = re.sub(r'NT:(.*?):', '', read_id)
+    result = re.sub(r'NR:(.*?):', '', result)
+    return result
+
 def accession2taxid(read_id, accession2taxid_dict, hit_type, lineage_map):
     accid_short = ((read_id.split(hit_type+':'))[1].split(":")[0]).split(".")[0]
     taxid = accession2taxid_dict.get(accid_short, "NA")
@@ -102,8 +107,8 @@ def generate_taxid_fasta_from_accid(input_fasta_file, hit_summary_files, accessi
     while len(sequence_name) > 0 and len(sequence_data) > 0:
         read_id = sequence_name.rstrip().lstrip('>') # example read_id: "NR::NT:CP010376.2:NB501961:14:HM7TLBGX2:1:23109:12720:8743/2"
 
-        nr_taxid_species, nr_taxid_genus, nr_taxid_family = get_valid_lineage(read_id, 'NR', nr_hit_summary_file)
-        nt_taxid_species, nt_taxid_genus, nt_taxid_family = get_valid_lineage(read_id, 'NT', nt_hit_summary_file)
+        nr_taxid_species, nr_taxid_genus, nr_taxid_family = get_valid_lineage(remove_annotation(read_id), 'NR', nr_hit_summary_file)
+        nt_taxid_species, nt_taxid_genus, nt_taxid_family = get_valid_lineage(remove_annotation(read_id), 'NT', nt_hit_summary_file)
 
         new_read_name = ('family_nr:' + nr_taxid_family + ':family_nt:' + nt_taxid_family
                          + ':genus_nr:' + nr_taxid_genus + ':genus_nt:' + nt_taxid_genus
