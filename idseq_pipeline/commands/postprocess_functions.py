@@ -90,7 +90,10 @@ def generate_taxid_fasta_from_accid(input_fasta_file, hit_summary_files, accessi
     nt_hit_summary_file = hit_summary_files[0]
     nr_hit_summary_file = hit_summary_files[1]
     def get_valid_hit(read_id, hit_summary_file):
-        hit_summary = subprocess.check_output("grep '^%s\t' %s" % (read_id, hit_summary_file), shell="true").rstrip("\n").split("\n")
+        hit_summary = filter(None, subprocess.check_output("grep '^%s\t || exit 0' %s" % (read_id, hit_summary_file), shell="true").rstrip("\n").split("\n"))
+        if len(hit_summary) == 0:
+            # read did not have any hit
+            return None, None
         assert len(hit_summary) == 1, "More than 1 line for %s in %s" % (read_id, hit_summary_file)
         hit_line_columns = hit_summary[0].split("\t")
         hit_level = hit_line_columns[1]
@@ -99,7 +102,10 @@ def generate_taxid_fasta_from_accid(input_fasta_file, hit_summary_files, accessi
     def get_valid_lineage(read_id, count_type, hit_summary_file):
         taxid_lineage = accession2taxid(read_id, accession2taxid_dict, count_type, lineage_map)
         hit_taxid, hit_level = get_valid_hit(remove_annotation(read_id), hit_summary_file)
-        return tuple(validate_taxid_lineage(taxid_lineage, hit_taxid, hit_level))
+        if hit_taxid is None and hit_level is None:
+            return taxid_lineage
+        else:
+            return tuple(validate_taxid_lineage(taxid_lineage, hit_taxid, hit_level))
     input_fasta_f = open(input_fasta_file, 'rb')
     output_fasta_f = open(output_fasta_file, 'wb')
     sequence_name = input_fasta_f.readline()
