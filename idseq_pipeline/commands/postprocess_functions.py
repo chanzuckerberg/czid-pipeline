@@ -90,7 +90,7 @@ def generate_taxid_fasta_from_accid(input_fasta_file, hit_summary_files, accessi
     nt_hit_summary_file = hit_summary_files[0]
     nr_hit_summary_file = hit_summary_files[1]
     def get_valid_hit(read_id, hit_summary_file):
-        hit_summary = subprocess.check_output("grep '^%s\t' %s" % (read_id, hit_summary_file), shell="true").split("\n")
+        hit_summary = subprocess.check_output("grep '^%s\t' %s" % (read_id, hit_summary_file), shell="true").rstrip("\n").split("\n")
         assert len(hit_summary) == 1, "More than 1 line for %s in %s" % (read_id, hit_summary_file)
         hit_line_columns = hit_summary[0].split("\t")
         hit_level = hit_line_columns[1]
