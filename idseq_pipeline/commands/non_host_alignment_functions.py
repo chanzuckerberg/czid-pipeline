@@ -9,7 +9,6 @@ import threading
 import shutil
 import traceback
 import random
-import multiprocessing
 from itertools import ifilter
 from .common import * #pylint: disable=wildcard-import
 
@@ -258,8 +257,10 @@ def annotate_fasta_with_accessions(input_fasta, nt_m8, nr_m8, output_fasta):
         input_fasta_f.close()
         output_fasta_f.close()
 
-    read_to_accession_id_maps = { "NT": get_map(nt_m8),
-                                  "NR": get_map(nr_m8) }
+    read_to_accession_id_maps = {
+        "NT": get_map(nt_m8),
+        "NR": get_map(nr_m8)
+    }
     hit_types_in_order = ["NT", "NR"] # need to preserve order of annotation for alignment viz
     annotate(input_fasta, read_to_accession_id_maps, hit_types_in_order, output_fasta)
 
@@ -271,10 +272,9 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
     hit_line = hit_f.readline()
     m8_line = m8_f.readline()
     while hit_line and m8_line:
-
         # Retrieve data values from files:
         hit_line_columns = hit_line.rstrip("\n").split("\t")
-        read_id = hit_line_columns[0]
+        _read_id = hit_line_columns[0]
         hit_level = hit_line_columns[1]
         hit_taxid = hit_line_columns[2]
         if int(hit_level) < 0:
@@ -282,8 +282,7 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
             m8_line = m8_f.readline()
             continue
         m8_line_columns = m8_line.split("\t")
-        assert m8_line_columns[0] == hit_line_columns[0], "read_ids in %s and %s do not match: %s vs. %s" % (os.path.basename(m8_file),
-                                                            os.path.basename(hit_level_file), m8_line_columns[0], hit_line_columns[0])
+        assert m8_line_columns[0] == hit_line_columns[0], "read_ids in %s and %s do not match: %s vs. %s" % (os.path.basename(m8_file), os.path.basename(hit_level_file), m8_line_columns[0], hit_line_columns[0])
         percent_identity = float(m8_line_columns[2])
         alignment_length = float(m8_line_columns[3])
         e_value = float(m8_line_columns[10])
@@ -295,9 +294,7 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
         cleaned_hit_taxids_all_levels = validate_taxid_lineage(hit_taxids_all_levels, hit_taxid, hit_level)
 
         # Aggregate each level
-        for i in range(len(cleaned_hit_taxids_all_levels)):
-            taxid = cleaned_hit_taxids_all_levels[i]
-            tax_level = i+1
+        for tax_level, taxid in enumerate(cleaned_hit_taxids_all_levels, 1):
             genus_taxid = cleaned_hit_taxids_all_levels[TAX_LEVEL_GENUS-1] if tax_level <= TAX_LEVEL_GENUS else MISSING_GENUS_ID
             family_taxid = cleaned_hit_taxids_all_levels[TAX_LEVEL_FAMILY-1] if tax_level <= TAX_LEVEL_FAMILY else MISSING_FAMILY_ID
             taxid_properties[taxid] = taxid_properties.get(taxid, {'tax_level': tax_level,
@@ -650,7 +647,7 @@ def call_hits_m8(input_m8, lineage_map, accession2taxid_dict, output_m8, output_
         hits["genus"] += [genus_taxid]
         hits["family"] += [family_taxid]
         return hits
-    def call_hit_level(read_id, hits):
+    def call_hit_level(hits):
         for level, level_str in enumerate(["species", "genus", "family"], 1):
             taxids = hits[level_str]
             taxids = [t for t in taxids if int(t) >= 0] # do not consider unclassified hits. TO DO: decide if that's an improvement
@@ -663,8 +660,6 @@ def call_hits_m8(input_m8, lineage_map, accession2taxid_dict, output_m8, output_
     read_ids = set(ifilter(None, read_ids))
     sorted_input_m8 = input_m8 + "-sorted"
     execute_command("sort -k1 %s > %s" % (input_m8, sorted_input_m8))
-    read_to_hit_level = {}
-    read_to_taxid = {}
     with open(output_m8, "wb") as outf:
         with open(output_summary, "wb") as outf_sum:
             for read_id in read_ids:
@@ -680,11 +675,14 @@ def call_hits_m8(input_m8, lineage_map, accession2taxid_dict, output_m8, output_
 
                 first_line = best_accessions_evalues_lines[0][2]
                 outf.write(first_line + "\n")
-
-                hits = { "species": [], "genus": [], "family": [] }
+                hits = {
+                    "species": [],
+                    "genus": [],
+                    "family": []
+                }
                 for acc in best_accessions:
                     hits = add_taxid_hits(acc, hits)
-                hit_level, taxid = call_hit_level(read_id, hits)
+                hit_level, taxid = call_hit_level(hits)
                 outf_sum.write("%s\t%d\t%s\n" % (read_id, hit_level, taxid))
 
 
@@ -740,7 +738,7 @@ def fetch_deuterostome_file(lock=threading.RLock()):  #pylint: disable=dangerous
         return deuterostome_file
 
 def run_rapsearch_chunk(part_suffix, _remote_home_dir, remote_index_dir, remote_work_dir, remote_username,
-                        input_fasta, key_path, lazy_run):
+                        input_fasta, lineage_map, accession2taxid_dict, key_path, lazy_run):
     chunk_id = input_fasta.split(part_suffix)[-1]
     commands = "mkdir -p %s;" % remote_work_dir
     commands += "aws s3 cp --quiet %s/%s %s/ ; " % \

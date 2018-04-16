@@ -31,9 +31,8 @@ Release notes
 -------------
 
 - 1.5.0
-    - Identify hits that have poor affinity to a species but map well into their genus
-      as "non species specific" hits.  Previously those hits were assigned arbitrary
-      species within the genus.
+    - Identify hits that match multiple species within the same genus as
+      "non species specific" hits to the genus.
 
 - 1.4.0
     - Version result folder.
