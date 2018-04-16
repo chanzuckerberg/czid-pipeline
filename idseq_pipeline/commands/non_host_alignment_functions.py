@@ -597,7 +597,7 @@ def remove_blank_line(file_path):
     execute_command("sed -i '$ {/^$/d;}' %s" % file_path)
 
 def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, remote_username,
-                     input_files, key_path, lazy_run):
+                     input_files, lineage_map, accession2taxid_dict, key_path, lazy_run):
     chunk_id = input_files[0].split(part_suffix)[-1]
     commands = "mkdir -p %s;" % remote_work_dir
     for input_fa in input_files:
@@ -643,7 +643,7 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
             execute_command(scp(key_path, remote_username, gsnapl_instance_ip, multihit_remote_outfile, multihit_local_outfile))
 
         # Deduplicate multihit m8 by using taxonomy info
-        call_hits_m8(multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file)
+        call_hits_m8(multihit_local_outfile, lineage_map, accession2taxid_dict, dedup_multihit_local_outfile, multihit_summary_file)
 
         # copy outputs to S3
         for f in [multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file]:
@@ -654,7 +654,7 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
     return multihit_local_outfile
 
 
-def call_hits_m8(input_m8, output_m8, output_summary):
+def call_hits_m8(input_m8, lineage_map, accession2taxid_dict, output_m8, output_summary):
     # Get lineage info
     lineage_path = fetch_reference(LINEAGE_SHELF)
     lineage_map = shelve.open(lineage_path)
@@ -710,6 +710,10 @@ def call_hits_m8(input_m8, output_m8, output_summary):
 
 
 def run_gsnapl_remotely(input_files, lazy_run):
+    lineage_path = fetch_reference(LINEAGE_SHELF)
+    lineage_map = shelve.open(lineage_path)
+    accession2taxid_path = fetch_reference(ACCESSION2TAXID)
+    accession2taxid_dict = shelve.open(accession2taxid_path)
     key_path = fetch_key(ENVIRONMENT)
     remote_username = "ubuntu"
     remote_home_dir = "/home/%s" % remote_username
@@ -732,7 +736,7 @@ def run_gsnapl_remotely(input_files, lazy_run):
             target=run_chunk_wrapper,
             args=[chunks_in_flight, chunk_output_files, n, mutex, run_gsnapl_chunk,
                   [part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, remote_username,
-                   chunk_input_files, key_path, lazy_run]])
+                   chunk_input_files, lineage_map, accession2taxid_dict, key_path, lazy_run]])
         t.start()
         chunk_threads.append(t)
     for ct in chunk_threads:
@@ -811,7 +815,7 @@ def run_rapsearch_chunk(part_suffix, _remote_home_dir, remote_index_dir, remote_
             execute_command(scp(key_path, remote_username, instance_ip, multihit_remote_outfile, multihit_local_outfile))
 
         # Deduplicate multihit m8 by using taxonomy info
-        call_hits_m8(multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file)
+        call_hits_m8(multihit_local_outfile, lineage_map, accession2taxid_dict, dedup_multihit_local_outfile, multihit_summary_file)
 
         # copy outputs to S3
         for f in [multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file]:
@@ -844,6 +848,10 @@ def check_for_errors(mutex, chunk_output_files, input_chunks, what):
 
 
 def run_rapsearch2_remotely(input_fasta, lazy_run):
+    lineage_path = fetch_reference(LINEAGE_SHELF)
+    lineage_map = shelve.open(lineage_path)
+    accession2taxid_path = fetch_reference(ACCESSION2TAXID)
+    accession2taxid_dict = shelve.open(accession2taxid_path)
     key_path = fetch_key(ENVIRONMENT)
     remote_username = "ec2-user"
     remote_home_dir = "/home/%s" % remote_username
@@ -867,7 +875,7 @@ def run_rapsearch2_remotely(input_fasta, lazy_run):
             args=[chunks_in_flight, chunk_output_files, n, mutex, run_rapsearch_chunk,
                   # Arguments passed to run_rapsearch_chunk
                   [part_suffix, remote_home_dir, remote_index_dir, remote_work_dir,
-                   remote_username, chunk_input_files[0], key_path, lazy_run]]
+                   remote_username, chunk_input_files[0], lineage_map, accession2taxid_dict, key_path, lazy_run]]
         )
         t.start()
         chunk_threads.append(t)
