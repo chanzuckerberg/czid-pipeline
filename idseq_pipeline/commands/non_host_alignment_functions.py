@@ -256,9 +256,7 @@ def annotate_fasta_with_accessions(input_fasta, nt_m8, nr_m8, output_fasta):
                                   "NR": get_map(nr_m8) }
     annotate(input_fasta, read_to_accession_id_maps, output_fasta)
 
-def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, count_type, stats, output_file):
-    lineage_path = fetch_reference(LINEAGE_SHELF)
-    lineage_map = shelve.open(lineage_path)
+def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, count_type, stats, lineage_map, output_file):
     taxid_properties = {}
     hit_f = open(hit_level_file, 'rb')
     m8_f = open(m8_file, 'rb')
@@ -1016,7 +1014,7 @@ def run_stage2(lazy_run=True):
         # PRODUCE NEW MULTIHIT NT OUTPUT
         generate_taxon_count_json_from_m8(os.path.join(RESULT_DIR, DEDUP_MULTIHIT_GSNAPL_OUT),
                                           os.path.join(RESULT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT),
-                                          'raw', 'NT', stats,
+                                          'raw', 'NT', stats, lineage_map,
                                           os.path.join(RESULT_DIR, MULTIHIT_NT_JSON_OUT))
         execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, MULTIHIT_NT_JSON_OUT, SAMPLE_S3_OUTPUT_PATH))
 
@@ -1053,7 +1051,7 @@ def run_stage2(lazy_run=True):
         # PRODUCE NEW MULTIHIT NR OUTPUT
         generate_taxon_count_json_from_m8(os.path.join(RESULT_DIR, DEDUP_MULTIHIT_RAPSEARCH_OUT),
                                           os.path.join(RESULT_DIR, SUMMARY_MULTIHIT_RAPSEARCH_OUT),
-                                          'log10', 'NR', stats,
+                                          'log10', 'NR', stats, lineage_map,
                                           os.path.join(RESULT_DIR, MULTIHIT_NR_JSON_OUT))
         execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, MULTIHIT_NR_JSON_OUT, SAMPLE_S3_OUTPUT_PATH))
 
