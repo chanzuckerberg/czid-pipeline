@@ -234,7 +234,7 @@ def annotate_fasta_with_accessions(input_fasta, nt_m8, nr_m8, output_fasta):
                 read_to_accession_id[output_read_name] = accession_id
         return read_to_accession_id
 
-    def annotate(input_fasta_file, read_to_accession_id_maps, output_fasta_file):
+    def annotate(input_fasta_file, read_to_accession_id_maps, hit_types_in_order, output_fasta_file):
         input_fasta_f = open(input_fasta_file, 'rb')
         output_fasta_f = open(output_fasta_file, 'wb')
         sequence_name = input_fasta_f.readline()
@@ -242,7 +242,8 @@ def annotate_fasta_with_accessions(input_fasta, nt_m8, nr_m8, output_fasta):
         while sequence_name and sequence_data:
             read_id = sequence_name.rstrip().lstrip('>')
             new_read_name = read_id
-            for hit_type, read_to_accession_id in read_to_accession_id_maps.iteritems():
+            for hit_type in hit_types_in_order:
+                read_to_accession_id = read_to_accession_id_maps[hit_type]
                 accession = read_to_accession_id.get(read_id, '')
                 new_read_name = hit_type + ':' + accession + ':' + new_read_name
             output_fasta_f.write(">%s\n" % new_read_name)
@@ -254,7 +255,8 @@ def annotate_fasta_with_accessions(input_fasta, nt_m8, nr_m8, output_fasta):
 
     read_to_accession_id_maps = { "NT": get_map(nt_m8),
                                   "NR": get_map(nr_m8) }
-    annotate(input_fasta, read_to_accession_id_maps, output_fasta)
+    hit_types_in_order = ["NT", "NR"] # need to preserve order of annotation for alignment viz
+    annotate(input_fasta, read_to_accession_id_maps, hit_types_in_order, output_fasta)
 
 def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, count_type, stats, lineage_map, output_file):
     taxid_properties = {}
