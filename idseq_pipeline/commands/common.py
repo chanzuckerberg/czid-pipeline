@@ -615,8 +615,7 @@ def validate_taxid_lineage(taxid_lineage, hit_taxid, hit_level):
     # For each hit, the fake taxids below the meaningful hit level should depend
     # only on: (a) the taxonomic level (b) the taxid of the meaningful hit
     cleaned_taxid_lineage = []
-    for i in range(len(taxid_lineage)):
-        taxid = taxid_lineage[i]
+    for i, taxid in enumerate(taxid_lineage):
         tax_level = i+1
         if tax_level < int(hit_level):
             taxid = str(tax_level*INVALID_CALL_BASE_ID - int(hit_taxid))
