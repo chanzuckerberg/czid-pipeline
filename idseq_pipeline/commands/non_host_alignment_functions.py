@@ -677,7 +677,7 @@ def call_hits_m8(input_m8, output_m8, output_summary):
                 return i+1, taxids[0]
         return -1, -1
     # Deduplicate m8 and summarize hits
-    read_ids = subprocess.check_output("grep -v '^#' %s | cut -f1" % input_m8, shell="true").split("\n")
+    read_ids = subprocess.check_output("grep -v '^#' %s | cut -f1" % input_m8, shell=True).split("\n")
     read_ids = filter(None, read_ids)
     read_ids = set(read_ids)
     sorted_input_m8 = input_m8 + "-sorted"
@@ -689,7 +689,7 @@ def call_hits_m8(input_m8, output_m8, output_summary):
     for read_id in read_ids:
         # TO DO: remove inefficiency of calling grep on the entire file for each read_id.
         # Lines with same read_id are contiguous (verify?), so just iterate line by line.
-        m8_lines = subprocess.check_output("grep '^%s\t' %s" % (read_id, sorted_input_m8), shell="true").split("\n")
+        m8_lines = subprocess.check_output("grep '^%s\t' %s" % (read_id, sorted_input_m8), shell=True).split("\n")
         accessions_evalues_lines = [(line.split("\t")[1],
                                      float(line.split("\t")[10]),
                                      line) for line in m8_lines if line]
