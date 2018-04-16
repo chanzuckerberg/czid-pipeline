@@ -10,14 +10,19 @@ import shutil
 import traceback
 import random
 import multiprocessing
+from itertools import ifilter
 from .common import * #pylint: disable=wildcard-import
 
 
 # that's per job;  by default in early 2018 jobs are subsampled to <= 100 chunks
-MAX_CHUNKS_IN_FLIGHT_GSNAP = 64
-MAX_CHUNKS_IN_FLIGHT_RAPSEARCH = 64
+MAX_CHUNKS_IN_FLIGHT_GSNAP = 32
+MAX_CHUNKS_IN_FLIGHT_RAPSEARCH = 32
 chunks_in_flight_gsnap = threading.Semaphore(MAX_CHUNKS_IN_FLIGHT_GSNAP)
 chunks_in_flight_rapsearch = threading.Semaphore(MAX_CHUNKS_IN_FLIGHT_RAPSEARCH)
+
+# Sorry probably can't do more than 8 of those reasonably
+# TODO Get this out of the gsnap threads, it's limiting concurrency
+CALL_HITS_M8 = threading.Semaphore(8)
 
 # Dispatch at most this many chunks per minute, to ensure fairness
 # amongst jobs regardless of job size (not the best way to do it,
@@ -624,11 +629,12 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
             execute_command(scp(key_path, remote_username, gsnapl_instance_ip, multihit_remote_outfile, multihit_local_outfile))
 
         # Deduplicate multihit m8 by using taxonomy info
-        call_hits_m8(multihit_local_outfile, lineage_map, accession2taxid_dict, dedup_multihit_local_outfile, multihit_summary_file)
+        with CALL_HITS_M8:
+            call_hits_m8(multihit_local_outfile, lineage_map, accession2taxid_dict, dedup_multihit_local_outfile, multihit_summary_file)
 
         # copy outputs to S3
-        for f in [multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file]:
-            with iostream:
+        with iostream:
+            for f in [multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file]:
                 execute_command("aws s3 cp --quiet %s %s/" % (f, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
 
     write_to_log("finished alignment for chunk %s" % chunk_id)
@@ -636,11 +642,6 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
 
 
 def call_hits_m8(input_m8, lineage_map, accession2taxid_dict, output_m8, output_summary):
-    # Get lineage info
-    lineage_path = fetch_reference(LINEAGE_SHELF)
-    lineage_map = shelve.open(lineage_path)
-    accession2taxid_path = fetch_reference(ACCESSION2TAXID)
-    accession2taxid_dict = shelve.open(accession2taxid_path)
     # Helper functions
     def add_taxid_hits(accession, hits):
         taxid = accession2taxid_dict.get(accession.split(".")[0], "NA")
@@ -650,17 +651,16 @@ def call_hits_m8(input_m8, lineage_map, accession2taxid_dict, output_m8, output_
         hits["family"] += [family_taxid]
         return hits
     def call_hit_level(read_id, hits):
-        for i, level in enumerate(["species", "genus", "family"]):
-            taxids = hits[level]
+        for level, level_str in enumerate(["species", "genus", "family"], 1):
+            taxids = hits[level_str]
             taxids = [t for t in taxids if int(t) >= 0] # do not consider unclassified hits. TO DO: decide if that's an improvement
             n = len(set(taxids)) # number of distinct taxids at this level
             if n == 1:
-                return i+1, taxids[0]
+                return level, taxids[0]
         return -1, -1
     # Deduplicate m8 and summarize hits
     read_ids = subprocess.check_output("grep -v '^#' %s | cut -f1" % input_m8, shell=True).split("\n")
-    read_ids = filter(None, read_ids)
-    read_ids = set(read_ids)
+    read_ids = set(ifilter(None, read_ids))
     sorted_input_m8 = input_m8 + "-sorted"
     execute_command("sort -k1 %s > %s" % (input_m8, sorted_input_m8))
     read_to_hit_level = {}
@@ -668,7 +668,7 @@ def call_hits_m8(input_m8, lineage_map, accession2taxid_dict, output_m8, output_
     with open(output_m8, "wb") as outf:
         with open(output_summary, "wb") as outf_sum:
             for read_id in read_ids:
-                # TO DO: remove inefficiency of calling grep on the entire file for each read_id.
+                # TODO: remove inefficiency of calling grep on the entire file for each read_id.
                 # Lines with same read_id are contiguous (verify?), so just iterate line by line.
                 m8_lines = subprocess.check_output("grep '^%s\t' %s" % (read_id, sorted_input_m8), shell=True).split("\n")
                 accessions_evalues_lines = [(line.split("\t")[1],
@@ -787,11 +787,12 @@ def run_rapsearch_chunk(part_suffix, _remote_home_dir, remote_index_dir, remote_
             execute_command(scp(key_path, remote_username, instance_ip, multihit_remote_outfile, multihit_local_outfile))
 
         # Deduplicate multihit m8 by using taxonomy info
-        call_hits_m8(multihit_local_outfile, lineage_map, accession2taxid_dict, dedup_multihit_local_outfile, multihit_summary_file)
+        with CALL_HITS_M8:
+            call_hits_m8(multihit_local_outfile, lineage_map, accession2taxid_dict, dedup_multihit_local_outfile, multihit_summary_file)
 
         # copy outputs to S3
-        for f in [multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file]:
-            with iostream:
+        with iostream:
+            for f in [multihit_local_outfile, dedup_multihit_local_outfile, multihit_summary_file]:
                 execute_command("aws s3 cp --quiet %s %s/" % (f, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
 
     return multihit_local_outfile
