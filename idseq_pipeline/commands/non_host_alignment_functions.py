@@ -578,7 +578,7 @@ def remove_blank_line(file_path):
     execute_command("sed -i '$ {/^$/d;}' %s" % file_path)
 
 def lazy_fetch_all(basenames):
-    return all(fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, bn), CHUNK_RESULTS_DIR) for bn in basenames)
+    return all(fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, bn), CHUNKS_RESULT_DIR) for bn in basenames)
 
 def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, remote_username,
                      input_files, lineage_map, accession2taxid_dict, key_path, lazy_run):
@@ -724,7 +724,7 @@ def run_gsnapl_remotely(input_files, lineage_map, accession2taxid_dict, lazy_run
     for output_item in [(chunk_output_files, MULTIHIT_GSNAPL_OUT),
                         (multihit_chunk_summaries, SUMMARY_MULTIHIT_GSNAPL_OUT),
                         (multihit_chunk_dedup_m8s, DEDUP_MULTIHIT_GSNAPL_OUT)]:
-        chunk_files = output_item[0] 
+        chunk_files = output_item[0]
         concat_basename = output_item[1]
         concatenate_files(chunk_files, os.path.join(RESULT_DIR, concat_basename))
         with iostream:
@@ -857,7 +857,7 @@ def run_rapsearch2_remotely(input_fasta, lineage_map, accession2taxid_dict, lazy
     for output_item in [(chunk_output_files, MULTIHIT_RAPSEARCH_OUT),
                         (multihit_chunk_summaries, SUMMARY_MULTIHIT_RAPSEARCH_OUT),
                         (multihit_chunk_dedup_m8s, DEDUP_MULTIHIT_RAPSEARCH_OUT)]:
-        chunk_files = output_item[0] 
+        chunk_files = output_item[0]
         concat_basename = output_item[1]
         concatenate_files(chunk_files, os.path.join(RESULT_DIR, concat_basename))
         with iostream:
