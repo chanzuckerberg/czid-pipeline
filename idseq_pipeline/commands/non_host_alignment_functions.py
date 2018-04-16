@@ -594,6 +594,9 @@ def add_blank_line(file_path):
 def remove_blank_line(file_path):
     execute_command("sed -i '$ {/^$/d;}' %s" % file_path)
 
+def lazy_fetch_all(basenames):
+    return all(fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, bn), CHUNK_RESULTS_DIR) for bn in basenames)
+
 def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, remote_username,
                      input_files, lineage_map, accession2taxid_dict, key_path, lazy_run):
     chunk_id = input_files[0].split(part_suffix)[-1]
@@ -617,10 +620,7 @@ def run_gsnapl_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work
     dedup_multihit_basename = "dedup-" + multihit_basename
     multihit_summary_file = os.path.join(CHUNKS_RESULT_DIR, multihit_summary_basename)
     dedup_multihit_local_outfile = os.path.join(CHUNKS_RESULT_DIR, dedup_multihit_basename)
-    is_multihit_present = fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, multihit_basename), CHUNKS_RESULT_DIR)
-    is_multihit_summary_present = fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, multihit_summary_basename), CHUNKS_RESULT_DIR)
-    is_dedup_multihit_present = fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, dedup_multihit_basename), CHUNKS_RESULT_DIR)
-    if not lazy_run or not is_multihit_present or not is_multihit_summary_present or not is_dedup_multihit_present:
+    if not lazy_run or not lazy_fetch_all([multihit_basename, multihit_summary_basename, dedup_multihit_basename]):
         correct_number_of_output_columns = 12
         min_column_number = 0
         max_tries = 2
@@ -783,10 +783,7 @@ def run_rapsearch_chunk(part_suffix, _remote_home_dir, remote_index_dir, remote_
     dedup_multihit_basename = "dedup-" + multihit_basename
     multihit_summary_file = os.path.join(CHUNKS_RESULT_DIR, multihit_summary_basename)
     dedup_multihit_local_outfile = os.path.join(CHUNKS_RESULT_DIR, dedup_multihit_basename)
-    is_multihit_present = fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, multihit_basename), CHUNKS_RESULT_DIR)
-    is_multihit_summary_present = fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, multihit_summary_basename), CHUNKS_RESULT_DIR)
-    is_dedup_multihit_present = fetch_lazy_result(os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH, dedup_multihit_basename), CHUNKS_RESULT_DIR)
-    if not lazy_run or not is_multihit_present or not is_multihit_summary_present or not is_multihit_summary_present:
+    if not lazy_run or not lazy_fetch_all([multihit_basename, multihit_summary_basename, dedup_multihit_basename]):
         correct_number_of_output_columns = 12
         min_column_number = 0
         max_tries = 2
