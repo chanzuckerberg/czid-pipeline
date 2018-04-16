@@ -709,11 +709,7 @@ def call_hits_m8(input_m8, lineage_map, accession2taxid_dict, output_m8, output_
     outf_sum.close()
 
 
-def run_gsnapl_remotely(input_files, lazy_run):
-    lineage_path = fetch_reference(LINEAGE_SHELF)
-    lineage_map = shelve.open(lineage_path)
-    accession2taxid_path = fetch_reference(ACCESSION2TAXID)
-    accession2taxid_dict = shelve.open(accession2taxid_path)
+def run_gsnapl_remotely(input_files, lineage_map, accession2taxid_dict, lazy_run):
     key_path = fetch_key(ENVIRONMENT)
     remote_username = "ubuntu"
     remote_home_dir = "/home/%s" % remote_username
@@ -847,11 +843,7 @@ def check_for_errors(mutex, chunk_output_files, input_chunks, what):
             raise Exception("All retries failed for {} chunk {}.".format(what, input_chunks[ei]))
 
 
-def run_rapsearch2_remotely(input_fasta, lazy_run):
-    lineage_path = fetch_reference(LINEAGE_SHELF)
-    lineage_map = shelve.open(lineage_path)
-    accession2taxid_path = fetch_reference(ACCESSION2TAXID)
-    accession2taxid_dict = shelve.open(accession2taxid_path)
+def run_rapsearch2_remotely(input_fasta, lineage_map, accession2taxid_dict, lazy_run):
     key_path = fetch_key(ENVIRONMENT)
     remote_username = "ec2-user"
     remote_home_dir = "/home/%s" % remote_username
@@ -913,6 +905,12 @@ def run_stage2(lazy_run=True):
     # configure logger
     log_file = "%s/%s.%s.txt" % (RESULT_DIR, LOGS_OUT_BASENAME, AWS_BATCH_JOB_ID)
     configure_logger(log_file)
+
+    # Open reference maps
+    lineage_path = fetch_reference(LINEAGE_SHELF)
+    lineage_map = shelve.open(lineage_path)
+    accession2taxid_path = fetch_reference(ACCESSION2TAXID)
+    accession2taxid_dict = shelve.open(accession2taxid_path)
 
     # Download input files
     input1_s3_path = os.path.join(SAMPLE_S3_INPUT_PATH, EXTRACT_UNMAPPED_FROM_SAM_OUT1)
@@ -1006,6 +1004,8 @@ def run_stage2(lazy_run=True):
             SAMPLE_S3_OUTPUT_PATH,
             run_gsnapl_remotely,
             gsnapl_input_files,
+            lineage_map,
+            accession2taxid_dict,
             lazy_run)
         stats.count_reads("run_gsnapl_remotely",
                           before_filename=before_file_name_for_log,
@@ -1036,6 +1036,8 @@ def run_stage2(lazy_run=True):
             SAMPLE_S3_OUTPUT_PATH,
             run_rapsearch2_remotely,
             merged_fasta,
+            lineage_map,
+            accession2taxid_dict,
             lazy_run)
         stats.count_reads("run_rapsearch2_remotely",
                           before_filename=os.path.join(RESULT_DIR, merged_fasta),
