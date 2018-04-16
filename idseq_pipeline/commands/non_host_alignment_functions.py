@@ -380,25 +380,6 @@ def read_file_into_set(file_name):
     return S
 
 
-def filter_deuterostomes_from_m8(input_m8, output_m8, deuterostome_file, cache={}, lock=threading.RLock()):  #pylint: disable=dangerous-default-value
-    with lock:
-        if deuterostome_file not in cache:
-            cache[deuterostome_file] = read_file_into_set(deuterostome_file)
-        taxids_toremove = cache[deuterostome_file]
-    output_f = open(output_m8, 'wb')
-    with open(input_m8, "rb") as input_f:
-        for line in input_f:
-            # Every line should start with "taxid<number>:...", for example
-            #    "taxid9606:NB501961:14:HM7TLBGX2:1:12104:15431:..."
-            # Exceptional case:  If a line doesn't match that pattern, we output the line anyway.
-            taxid = None
-            if line.startswith("taxid"):
-                taxid = line.split(":", 1)[0][5:]
-            if taxid not in taxids_toremove:
-                output_f.write(line)
-    output_f.close()
-
-
 def environment_for_aligners(_environment):
     return "production" ## temporary fix since we only have "production" gsnap/rapsearch machines right now
 
@@ -682,29 +663,27 @@ def call_hits_m8(input_m8, lineage_map, accession2taxid_dict, output_m8, output_
     execute_command("sort -k1 %s > %s" % (input_m8, sorted_input_m8))
     read_to_hit_level = {}
     read_to_taxid = {}
-    outf = open(output_m8, "wb")
-    outf_sum = open(output_summary, "wb")
-    for read_id in read_ids:
-        # TO DO: remove inefficiency of calling grep on the entire file for each read_id.
-        # Lines with same read_id are contiguous (verify?), so just iterate line by line.
-        m8_lines = subprocess.check_output("grep '^%s\t' %s" % (read_id, sorted_input_m8), shell=True).split("\n")
-        accessions_evalues_lines = [(line.split("\t")[1],
-                                     float(line.split("\t")[10]),
-                                     line) for line in m8_lines if line]
-        best_evalue = min([item[1] for item in accessions_evalues_lines])
-        best_accessions_evalues_lines = [item for item in accessions_evalues_lines if item[1] == best_evalue]
-        best_accessions = [item[0] for item in best_accessions_evalues_lines]
+    with open(output_m8, "wb") as outf:
+        with open(output_summary, "wb") as outf_sum:
+            for read_id in read_ids:
+                # TO DO: remove inefficiency of calling grep on the entire file for each read_id.
+                # Lines with same read_id are contiguous (verify?), so just iterate line by line.
+                m8_lines = subprocess.check_output("grep '^%s\t' %s" % (read_id, sorted_input_m8), shell=True).split("\n")
+                accessions_evalues_lines = [(line.split("\t")[1],
+                                             float(line.split("\t")[10]),
+                                             line) for line in m8_lines if line]
+                best_evalue = min([item[1] for item in accessions_evalues_lines])
+                best_accessions_evalues_lines = [item for item in accessions_evalues_lines if item[1] == best_evalue]
+                best_accessions = [item[0] for item in best_accessions_evalues_lines]
 
-        first_line = best_accessions_evalues_lines[0][2]
-        outf.write(first_line + "\n")
+                first_line = best_accessions_evalues_lines[0][2]
+                outf.write(first_line + "\n")
 
-        hits = { "species": [], "genus": [], "family": [] }
-        for acc in best_accessions:
-            hits = add_taxid_hits(acc, hits)
-        hit_level, taxid = call_hit_level(read_id, hits)
-        outf_sum.write("%s\t%d\t%s\n" % (read_id, hit_level, taxid))
-    outf.close()
-    outf_sum.close()
+                hits = { "species": [], "genus": [], "family": [] }
+                for acc in best_accessions:
+                    hits = add_taxid_hits(acc, hits)
+                hit_level, taxid = call_hit_level(read_id, hits)
+                outf_sum.write("%s\t%d\t%s\n" % (read_id, hit_level, taxid))
 
 
 def run_gsnapl_remotely(input_files, lineage_map, accession2taxid_dict, lazy_run):
