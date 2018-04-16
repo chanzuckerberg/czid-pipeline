@@ -87,8 +87,8 @@ def accession2taxid(read_id, accession2taxid_dict, hit_type, lineage_map):
 def generate_taxid_fasta_from_accid(input_fasta_file, hit_summary_files, accession2taxid_path, lineagePath, output_fasta_file):
     accession2taxid_dict = shelve.open(accession2taxid_path)
     lineage_map = shelve.open(lineagePath)
-    nt_hit_summary_file = hit_summary_files[0]
-    nr_hit_summary_file = hit_summary_files[1]
+    nT_hsf = hit_summary_files[0]
+    nR_hsf = hit_summary_files[1]
     def get_valid_hit(read_id, hit_summary_file):
         hit_summary = filter(None, subprocess.check_output("grep '^%s\t' || true %s" % (read_id, hit_summary_file), shell=True).rstrip("\n").split("\n"))
         if len(hit_summary) == 0:
@@ -113,8 +113,8 @@ def generate_taxid_fasta_from_accid(input_fasta_file, hit_summary_files, accessi
     while len(sequence_name) > 0 and len(sequence_data) > 0:
         read_id = sequence_name.rstrip().lstrip('>') # example read_id: "NR::NT:CP010376.2:NB501961:14:HM7TLBGX2:1:23109:12720:8743/2"
 
-        nr_taxid_species, nr_taxid_genus, nr_taxid_family = get_valid_lineage(read_id, 'NR', nr_hit_summary_file)
-        nt_taxid_species, nt_taxid_genus, nt_taxid_family = get_valid_lineage(read_id, 'NT', nt_hit_summary_file)
+        nr_taxid_species, nr_taxid_genus, nr_taxid_family = get_valid_lineage(read_id, 'NR', nR_hsf)
+        nt_taxid_species, nt_taxid_genus, nt_taxid_family = get_valid_lineage(read_id, 'NT', nT_hsf)
 
         new_read_name = ('family_nr:' + nr_taxid_family + ':family_nt:' + nt_taxid_family
                          + ':genus_nr:' + nr_taxid_genus + ':genus_nt:' + nt_taxid_genus
