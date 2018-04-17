@@ -84,28 +84,36 @@ def accession2taxid(read_id, accession2taxid_dict, hit_type, lineage_map):
     species_taxid, genus_taxid, family_taxid = lineage_map.get(taxid, ("-100", "-200", "-300"))
     return species_taxid, genus_taxid, family_taxid
 
+
+def parse_hits(hit_summary_files):
+    # Return map of {NT, NR} => read_id => (hit_taxid_str, hit_level_str)
+    valid_hits = {}
+    for count_type, summary_file in hit_summary_files.items():
+        hits = {}
+        with open(summary_file, "rb") as sf:
+            for hit_line in sf:
+                hit_line_columns = hit_line.strip().split("\t")
+                if len(hit_line_columns) >= 3:
+                    hit_read_id = hit_line_columns[0]
+                    hit_level_str = hit_line_columns[1]
+                    hit_taxid_str = hit_line_columns[2]
+                    hits[hit_read_id] = (hit_taxid_str, hit_level_str)
+        valid_hits[count_type] = hits
+    return valid_hits
+
+
 def generate_taxid_fasta_from_accid(input_fasta_file, hit_summary_files, accession2taxid_path, lineagePath, output_fasta_file):
     accession2taxid_dict = shelve.open(accession2taxid_path)
     lineage_map = shelve.open(lineagePath)
-    nT_hsf = hit_summary_files[0]
-    nR_hsf = hit_summary_files[1]
-    def get_valid_hit(read_id, hit_summary_file):
-        hit_summary = filter(None, subprocess.check_output("grep '^%s\t' %s || true" % (read_id, hit_summary_file), shell=True).rstrip("\n").split("\n"))
-        if len(hit_summary) == 0:
-            # read did not have any hit
-            return None, None
-        assert len(hit_summary) == 1, "More than 1 line for %s in %s" % (read_id, hit_summary_file)
-        hit_line_columns = hit_summary[0].split("\t")
-        hit_level = hit_line_columns[1]
-        hit_taxid = hit_line_columns[2]
-        return hit_taxid, hit_level
-    def get_valid_lineage(read_id, count_type, hit_summary_file):
+    valid_hits = parse_hits(hit_summary_files)
+    def get_valid_lineage(read_id, count_type):
         taxid_lineage = accession2taxid(read_id, accession2taxid_dict, count_type, lineage_map)
-        hit_taxid, hit_level = get_valid_hit(remove_annotation(read_id), hit_summary_file)
-        if hit_taxid is None and hit_level is None:
+        try:
+            hit_taxid_str, hit_level_str = valid_hits[count_type][read_id]
+        except:
+            # This happens when the read hit nothing in the NT and NR databases
             return taxid_lineage
-        else:
-            return tuple(validate_taxid_lineage(taxid_lineage, hit_taxid, hit_level))
+        return validate_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str)
     input_fasta_f = open(input_fasta_file, 'rb')
     output_fasta_f = open(output_fasta_file, 'wb')
     sequence_name = input_fasta_f.readline()
@@ -113,8 +121,8 @@ def generate_taxid_fasta_from_accid(input_fasta_file, hit_summary_files, accessi
     while len(sequence_name) > 0 and len(sequence_data) > 0:
         read_id = sequence_name.rstrip().lstrip('>') # example read_id: "NR::NT:CP010376.2:NB501961:14:HM7TLBGX2:1:23109:12720:8743/2"
 
-        nr_taxid_species, nr_taxid_genus, nr_taxid_family = get_valid_lineage(read_id, 'NR', nR_hsf)
-        nt_taxid_species, nt_taxid_genus, nt_taxid_family = get_valid_lineage(read_id, 'NT', nT_hsf)
+        nr_taxid_species, nr_taxid_genus, nr_taxid_family = get_valid_lineage(read_id, 'NR')
+        nt_taxid_species, nt_taxid_genus, nt_taxid_family = get_valid_lineage(read_id, 'NT')
 
         new_read_name = ('family_nr:' + nr_taxid_family + ':family_nt:' + nt_taxid_family
                          + ':genus_nr:' + nr_taxid_genus + ':genus_nt:' + nt_taxid_genus
@@ -233,10 +241,12 @@ def run_stage3(lazy_run=False):
     input_m8 = os.path.join(INPUT_DIR, GSNAP_M8_FILE)
 
     # download hit level files
-    hit_summary_files = []
-    for s3_file in [SUMMARY_MULTIHIT_GSNAPL_OUT, SUMMARY_MULTIHIT_RAPSEARCH_OUT] :
-        execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, s3_file, INPUT_DIR))
-        hit_summary_files.append(os.path.join(INPUT_DIR, s3_file))
+    hit_summary_files = {
+        'NT':  os.path.join(INPUT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT),
+        'NR':  os.path.join(INPUT_DIR, SUMMARY_MULTIHIT_RAPSEARCH_OUT)
+    }
+    for local_file in hit_summary_files.values():
+        execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, os.path.basename(local_file), INPUT_DIR))
 
     # generate taxid fasta
     logparams = return_merged_dict(

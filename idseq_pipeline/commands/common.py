@@ -587,7 +587,7 @@ def big_version_change_from_last_run(pipeline_version, version_s3_path):
         version_hash = json.loads(execute_command_with_output("aws s3 cp %s - " % version_s3_path))
         for entry in version_hash:
             if entry['name'] == 'idseq-pipeline':
-                prev_pipeline_version_sig = major_version(entry['version']);
+                prev_pipeline_version_sig = major_version(entry['version'])
                 pipeline_version_sig = major_version(pipeline_version)
                 return (prev_pipeline_version_sig != pipeline_version_sig)
         return True # idseq-pipeline info is not
@@ -610,14 +610,17 @@ def upload_version_tracker(source_file, output_name, reference_version_number, o
 def env_set_if_blank(key, value):
     os.environ[key] = os.environ.get(key, value)
 
-def validate_taxid_lineage(taxid_lineage, hit_taxid, hit_level):
+def validate_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str):
     # Take the taxon lineage and mark meaningless calls with fake taxids.
     # For each hit, the fake taxids below the meaningful hit level should depend
     # only on: (a) the taxonomic level (b) the taxid of the meaningful hit
-    cleaned_taxid_lineage = []
-    for i, taxid in enumerate(taxid_lineage):
-        tax_level = i+1
-        if tax_level < int(hit_level):
-            taxid = str(tax_level*INVALID_CALL_BASE_ID - int(hit_taxid))
-        cleaned_taxid_lineage.append(taxid)
+    assert len(taxid_lineage) == 3  # this assumption is being made in postprocessing
+    cleaned_taxid_lineage = [None, None, None]
+    hit_tax_level = int(hit_level_str)
+    for tax_level, taxid in enumerate(taxid_lineage, 1):
+        if tax_level >= hit_tax_level:
+            taxid_str = str(taxid)
+        else:
+            taxid_str = str(tax_level * INVALID_CALL_BASE_ID - int(hit_taxid_str))
+        cleaned_taxid_lineage[tax_level - 1] = taxid_str
     return cleaned_taxid_lineage
