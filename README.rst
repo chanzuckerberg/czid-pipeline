@@ -26,6 +26,12 @@ When merging a commit to master, you need to increase the version number in `ids
 Release notes
 -------------
 
+- 1.5.0
+    - Update to GMAP-GSNAP 2018-03-25.
+
+- 1.4.0
+    - Add lazy run functionality.
+
 - 1.3.0   
     - Fix bug causing alignment to run before host subtraction in samples
       with unpaired reads.
@@ -34,4 +40,3 @@ Release notes
 - 1.2.0
     - Synchronize pair order after STAR to improve sensitivity in 10% of
       samples with paired-end reads.
-
