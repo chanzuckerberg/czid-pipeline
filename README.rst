@@ -26,8 +26,8 @@ When merging a commit to master, you need to increase the version number in `ids
 Release notes
 -------------
 
-- 1.5.0
-    - Update to GMAP-GSNAP 2018-03-25.
+- 1.6.0
+  - Update to GMAP-GSNAP 2018-03-25.
 
 - 1.4.0
     - Add lazy run functionality.
