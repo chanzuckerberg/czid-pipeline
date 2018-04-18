@@ -66,7 +66,7 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
             if line_count % 100000 == 0:
                 print("%d lines in the m8 file processed." % line_count)
             line_columns = line.rstrip().split("\t")
-            read_id = extract_m8_readid(line_columns[0])
+            read_id = line_columns[0]
             seq_info = read2seq.get(read_id)
             if seq_info:
                 accession_id = line_columns[1]
