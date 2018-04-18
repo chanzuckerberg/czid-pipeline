@@ -50,7 +50,7 @@ EXTRACT_UNMAPPED_FROM_SAM_OUT1 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.u
 EXTRACT_UNMAPPED_FROM_SAM_OUT2 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.2.fasta'
 EXTRACT_UNMAPPED_FROM_SAM_OUT3 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.merged.fasta'
 UNIDENTIFIED_FASTA_OUT = 'unidentified.fasta'
-COMBINED_JSON_OUT = 'idseq_web_sample.json'
+DEPRECATED_BOOBYTRAPPED_COMBINED_JSON_OUT = 'idseq_web_sample.json'
 LOGS_OUT_BASENAME = 'log'
 STATS_OUT = 'stats.json'
 VERSION_OUT = 'versions.json'
@@ -1038,6 +1038,12 @@ def run_stage2(lazy_run=True):
                                      os.path.join(RESULT_DIR, MULTIHIT_COMBINED_JSON_OUT),
                                      stats)
         execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, MULTIHIT_COMBINED_JSON_OUT, SAMPLE_S3_OUTPUT_PATH))
+        # Keep this warning there for a month or so, long enough for obselete webapps to retire.
+        # We have to do this because an obsolete webapp will keep the gsnap tier from scaling in if it doesn't see this file.
+        execute_command("echo This file is deprecated since pipeline version 1.5.  Please use {new} instead. > {deprecated}".format(
+            deprecated=os.path.join(RESULT_DIR, DEPRECATED_BOOBYTRAPPED_COMBINED_JSON_OUT),
+            new=MULTIHIT_COMBINED_JSON_OUT))
+        execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, DEPRECATED_BOOBYTRAPPED_COMBINED_JSON_OUT, SAMPLE_S3_OUTPUT_PATH))
 
         with thread_success_lock:
             thread_success["additional_steps"] = True
