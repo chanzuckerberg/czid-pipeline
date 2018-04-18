@@ -33,10 +33,14 @@ Release notes
 - 1.6.0
   - Update to GMAP-GSNAP 2018-03-25.
 
+- 1.5.0
+    - Identify hits that match multiple species within the same genus as
+      "non species specific" hits to the genus.
+
 - 1.4.0
     - Version result folder.
 
-- 1.3.0   
+- 1.3.0
     - Fix bug causing alignment to run before host subtraction in samples
       with unpaired reads.
     - Include ERCC gene counts from STAR.

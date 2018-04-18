@@ -20,6 +20,7 @@ base_s3 = bucket + "/alignment_data"
 ACCESSION2TAXID = ("%s/%s/accession2taxid.db.gz" % (base_s3, base_dt))
 base_s3 = bucket + "/taxonomy"
 LINEAGE_SHELF = ("%s/%s/taxid-lineages.db" % (base_s3, base_dt))
+INVALID_CALL_BASE_ID = -(10**8) # don't run into -2e9 limit of mysql database. current largest taxid is around 2e6 so should be fine
 
 VERSION_NONE = -1
 
@@ -281,21 +282,6 @@ def percent_str(percent):
         return "%3.1f" % percent
     except:
         return str(percent)
-
-def extract_m8_readid(read_id_column):
-    # Get raw read ID without our annotations:
-    # If m8 is from gsnap (case 1), 1 field has been prepended (taxid field).
-    # If m8 is from rapsearch in an old version of the pipeline (case 2), 3 fields have been prepended (taxid, 'NT', NT accession ID).
-    # If m8 is from rapsearch in a newer version of the pipeline (case 3), many fields have been prepended (taxid, alignment info fields),
-    # but the delimiter ":read_id:" marks the beginning of the raw read ID.
-    read_id_column = read_id_column.split(":", 1)[1] # remove taxid field (all cases)
-    if ":read_id:" in read_id_column: # case 3
-        raw_read_id = read_id_column.split(":read_id:")[1]
-    elif read_id_column.startswith("NT:"): # case 2
-        raw_read_id = read_id_column.split(":", 2)[2]
-    else: # case 1
-        raw_read_id = read_id_column
-    return raw_read_id
 
 def count_reads(file_name, file_type):
     count = 0
@@ -601,7 +587,7 @@ def big_version_change_from_last_run(pipeline_version, version_s3_path):
         version_hash = json.loads(execute_command_with_output("aws s3 cp %s - " % version_s3_path))
         for entry in version_hash:
             if entry['name'] == 'idseq-pipeline':
-                prev_pipeline_version_sig = major_version(entry['version']);
+                prev_pipeline_version_sig = major_version(entry['version'])
                 pipeline_version_sig = major_version(pipeline_version)
                 return (prev_pipeline_version_sig != pipeline_version_sig)
         return True # idseq-pipeline info is not
@@ -623,3 +609,18 @@ def upload_version_tracker(source_file, output_name, reference_version_number, o
 
 def env_set_if_blank(key, value):
     os.environ[key] = os.environ.get(key, value)
+
+def validate_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str):
+    # Take the taxon lineage and mark meaningless calls with fake taxids.
+    # For each hit, the fake taxids below the meaningful hit level should depend
+    # only on: (a) the taxonomic level (b) the taxid of the meaningful hit
+    assert len(taxid_lineage) == 3  # this assumption is being made in postprocessing
+    cleaned_taxid_lineage = [None, None, None]
+    hit_tax_level = int(hit_level_str)
+    for tax_level, taxid in enumerate(taxid_lineage, 1):
+        if tax_level >= hit_tax_level:
+            taxid_str = str(taxid)
+        else:
+            taxid_str = str(tax_level * INVALID_CALL_BASE_ID - int(hit_taxid_str))
+        cleaned_taxid_lineage[tax_level - 1] = taxid_str
+    return cleaned_taxid_lineage
