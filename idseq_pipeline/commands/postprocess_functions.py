@@ -51,8 +51,9 @@ TAXID_LOCATIONS_JSON_ALL = 'taxid_locations_combined.json'
 LOGS_OUT_BASENAME = 'postprocess-log'
 ALIGN_VIZ_DIR = 'align_viz'
 
+
 # target outputs by task
-TARGET_OUTPUTS = {"run_generate_taxid_fasta_from_accid": [os.path.join(RESULT_DIR, TAXID_ANNOT_FASTA)],
+TARGET_OUTPUTS = {"run_generate_taxid_fasta_from_hit_summaries": [os.path.join(RESULT_DIR, TAXID_ANNOT_FASTA)],
                   "run_generate_taxid_locator__1": [os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_NT),
                                                     os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_NT)],
                   "run_generate_taxid_locator__2": [os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_NR),
@@ -78,12 +79,6 @@ def remove_annotation(read_id):
     result = re.sub(r'NR:(.*?):', '', result)
     return result
 
-def accession2taxid(read_id, accession2taxid_dict, hit_type, lineage_map):
-    accid_short = ((read_id.split(hit_type+':'))[1].split(":")[0]).split(".")[0]
-    taxid = accession2taxid_dict.get(accid_short, "NA")
-    species_taxid, genus_taxid, family_taxid = lineage_map.get(taxid, ("-100", "-200", "-300"))
-    return species_taxid, genus_taxid, family_taxid
-
 
 def parse_hits(hit_summary_files):
     # Return map of {NT, NR} => read_id => (hit_taxid_str, hit_level_str)
@@ -102,24 +97,26 @@ def parse_hits(hit_summary_files):
     return valid_hits
 
 
-def generate_taxid_fasta_from_accid(input_fasta_file, hit_summary_files, accession2taxid_path, lineagePath, output_fasta_file):
-    accession2taxid_dict = shelve.open(accession2taxid_path)
+def generate_taxid_fasta_from_hit_summaries(input_fasta_file, hit_summary_files, lineagePath, output_fasta_file):
     lineage_map = shelve.open(lineagePath)
     valid_hits = parse_hits(hit_summary_files)
+    NULL_LINEAGE = ("-100", "-200", "-300")
     def get_valid_lineage(read_id, count_type):
-        taxid_lineage = accession2taxid(read_id, accession2taxid_dict, count_type, lineage_map)
-        try:
-            hit_taxid_str, hit_level_str = valid_hits[count_type][read_id]
-        except:
-            # This happens when the read hit nothing in the NT and NR databases
-            return taxid_lineage
-        return validate_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str)
+        # If the read aligned to something, then it would be present in the summary file
+        # for count type, and correspondingly in valid_hits[count_type], even if the
+        # hits disagree so much that the "valid_hits" entry is just ("-1", "-1").
+        # If the read didn't align to anything, we also represent that with ("-1", "-1).
+        # This ("-1", "-1) gets translated to NULL_LINEAGE.
+        hit_taxid_str, hit_level_str = valid_hits[count_type].get(read_id, ("-1", "-1"))
+        hit_lineage = lineage_map.get(hit_taxid_str, NULL_LINEAGE)
+        return validate_taxid_lineage(hit_lineage, hit_taxid_str, hit_level_str)
     input_fasta_f = open(input_fasta_file, 'rb')
     output_fasta_f = open(output_fasta_file, 'wb')
     sequence_name = input_fasta_f.readline()
     sequence_data = input_fasta_f.readline()
     while len(sequence_name) > 0 and len(sequence_data) > 0:
-        read_id = sequence_name.rstrip().lstrip('>') # example read_id: "NR::NT:CP010376.2:NB501961:14:HM7TLBGX2:1:23109:12720:8743/2"
+        accession_annotated_read_id = sequence_name.rstrip().lstrip('>') # example read_id: "NR::NT:CP010376.2:NB501961:14:HM7TLBGX2:1:23109:12720:8743/2"
+        read_id = accession_annotated_read_id.split(":", 4)[-1]
 
         nr_taxid_species, nr_taxid_genus, nr_taxid_family = get_valid_lineage(read_id, 'NR')
         nt_taxid_species, nt_taxid_genus, nt_taxid_family = get_valid_lineage(read_id, 'NT')
@@ -127,7 +124,7 @@ def generate_taxid_fasta_from_accid(input_fasta_file, hit_summary_files, accessi
         new_read_name = ('family_nr:' + nr_taxid_family + ':family_nt:' + nt_taxid_family
                          + ':genus_nr:' + nr_taxid_genus + ':genus_nt:' + nt_taxid_genus
                          + ':species_nr:' + nr_taxid_species + ':species_nt:' + nt_taxid_species
-                         + ':' + read_id)
+                         + ':' + accession_annotated_read_id)
         output_fasta_f.write(">%s\n" % new_read_name)
         output_fasta_f.write(sequence_data)
         sequence_name = input_fasta_f.readline()
@@ -203,10 +200,9 @@ def run_generate_align_viz(input_fasta, input_m8, output_dir):
     execute_command("aws s3 cp --quiet %s %s/align_viz --recursive" % (output_dir, SAMPLE_S3_OUTPUT_PATH))
     execute_command("aws s3 cp --quiet %s %s/" % (summary_file_name, SAMPLE_S3_OUTPUT_PATH))
 
-def run_generate_taxid_fasta_from_accid(input_fasta, hit_summary_files, output_fasta):
-    accession2taxid_path = fetch_reference(ACCESSION2TAXID)
+def run_generate_taxid_fasta_from_hit_summaries(input_fasta, hit_summary_files, output_fasta):
     lineage_path = fetch_reference(LINEAGE_SHELF)
-    generate_taxid_fasta_from_accid(input_fasta, hit_summary_files, accession2taxid_path, lineage_path, output_fasta)
+    generate_taxid_fasta_from_hit_summaries(input_fasta, hit_summary_files, lineage_path, output_fasta)
     logging.getLogger().info("finished job")
     execute_command("aws s3 cp --quiet %s %s/" % (output_fasta, SAMPLE_S3_OUTPUT_PATH))
 
@@ -251,12 +247,12 @@ def run_stage3(lazy_run=False):
     # generate taxid fasta
     logparams = return_merged_dict(
         DEFAULT_LOGPARAMS,
-        {"title": "run_generate_taxid_fasta_from_accid"})
+        {"title": "run_generate_taxid_fasta_from_hit_summaries"})
     run_and_log(
         logparams,
-        TARGET_OUTPUTS["run_generate_taxid_fasta_from_accid"],
+        TARGET_OUTPUTS["run_generate_taxid_fasta_from_hit_summaries"],
         False,
-        run_generate_taxid_fasta_from_accid, input_file,
+        run_generate_taxid_fasta_from_hit_summaries, input_file,
         hit_summary_files,
         os.path.join(RESULT_DIR, TAXID_ANNOT_FASTA))
 

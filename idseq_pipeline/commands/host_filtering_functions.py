@@ -155,46 +155,49 @@ def generate_lzw_filtered_paired(fasta_file_1, fasta_file_2, output_prefix, cuto
     output_read_1.close()
     output_read_2.close()
 
+
 def generate_unmapped_singles_from_sam(sam_file, output_prefix):
-    output_read_1 = open(output_prefix + '.1.fasta', 'wb')
-    output_merged_read = open(output_prefix + '.merged.fasta', 'wb')
-    with open(sam_file, 'rb') as samf:
-        line = samf.readline()
-        while line[0] == '@':
-            line = samf.readline() # skip headers
-        read1 = line
-        while read1:
-            parts1 = read1.split("\t")
-            if parts1[1] == "4": # read unmapped, see https://broadinstitute.github.io/picard/explain-flags.html
-                output_read_1.write(">%s\n%s\n" %(parts1[0], parts1[9]))
-                output_merged_read.write(">%s/1\n%s\n" %(parts1[0], parts1[9]))
+    "Output a single file containing every unmapped read after bowtie2."
+    with open(output_prefix + '.1.fasta', 'wb') as output_read_1:
+        with open(sam_file, 'rb') as samf:
+            # skip headers
             read1 = samf.readline()
-    output_read_1.close()
-    output_merged_read.close()
+            while read1 and read1[0] == '@':
+                read1 = samf.readline()
+            while read1:
+                parts1 = read1.split("\t")
+                if parts1[1] == "4": # read unmapped, see https://broadinstitute.github.io/picard/explain-flags.html
+                    output_read_1.write(">%s\n%s\n" %(parts1[0], parts1[9]))  # do NOT append /1 to read id
+                read1 = samf.readline()
+
+
+def generate_unmapped_pairs_from_sam_work(output_read_1, output_read_2, output_merged_read, samf):
+    # skip headers
+    read1 = samf.readline()
+    while read1 and read1[0] == '@':
+        read1 = samf.readline()
+    read2 = samf.readline()
+    while read1 and read2:
+        parts1 = read1.split("\t")
+        parts2 = read2.split("\t")
+        if parts1[1] == "77" and parts2[1] == "141": # both parts unmapped, see https://broadinstitute.github.io/picard/explain-flags.html
+            output_read_1.write(">%s\n%s\n" %(parts1[0], parts1[9]))
+            output_read_2.write(">%s\n%s\n" %(parts2[0], parts2[9]))
+            output_merged_read.write(">%s/1\n%s\n" %(parts1[0], parts1[9]))  # append /1 to read id
+            output_merged_read.write(">%s/2\n%s\n" %(parts2[0], parts2[9]))  # append /2 to read id
+        read1 = samf.readline()
+        read2 = samf.readline()
+
 
 def generate_unmapped_pairs_from_sam(sam_file, output_prefix):
-    output_read_1 = open(output_prefix + '.1.fasta', 'wb')
-    output_read_2 = open(output_prefix + '.2.fasta', 'wb')
-    output_merged_read = open(output_prefix + '.merged.fasta', 'wb')
-    with open(sam_file, 'rb') as samf:
-        line = samf.readline()
-        while line[0] == '@':
-            line = samf.readline() # skip headers
-        read1 = line
-        read2 = samf.readline()
-        while read1 and read2:
-            parts1 = read1.split("\t")
-            parts2 = read2.split("\t")
-            if parts1[1] == "77" and parts2[1] == "141": # both parts unmapped, see https://broadinstitute.github.io/picard/explain-flags.html
-                output_read_1.write(">%s\n%s\n" %(parts1[0], parts1[9]))
-                output_read_2.write(">%s\n%s\n" %(parts2[0], parts2[9]))
-                output_merged_read.write(">%s/1\n%s\n" %(parts1[0], parts1[9]))
-                output_merged_read.write(">%s/2\n%s\n" %(parts2[0], parts2[9]))
-            read1 = samf.readline()
-            read2 = samf.readline()
-    output_read_1.close()
-    output_read_2.close()
-    output_merged_read.close()
+    """Output 1.fasta and 2.fasta containing the unmapped pairs from bowtie2.
+    Also output .merged.fasta multiplxing read ids by appending /1 and /2."""
+    with open(output_prefix + '.1.fasta', 'wb') as output_read_1:
+        with open(output_prefix + '.2.fasta', 'wb') as output_read_2:
+            with open(output_prefix + '.merged.fasta', 'wb') as output_merged_read:
+                with open(sam_file, 'rb') as samf:
+                    generate_unmapped_pairs_from_sam_work(output_read_1, output_read_2, output_merged_read, samf)
+
 
 # job functions
 def run_star_part(output_dir, genome_dir, fastq_files, count_genes=False):
@@ -478,7 +481,7 @@ def run_bowtie2(input_fas):
     execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1, SAMPLE_S3_OUTPUT_PATH))
     if len(input_fas) == 2:
         execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3, SAMPLE_S3_OUTPUT_PATH))
+        execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3, SAMPLE_S3_OUTPUT_PATH))
 
 
 def get_host_filtering_version_s3_path():
@@ -604,12 +607,9 @@ def run_stage1(lazy_run=True):
 
     # run host filtering
     run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats)
-    # copy the merged fasta file back to results folder to change time stamp
-    execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1, SAMPLE_S3_OUTPUT_PATH))
-    if len(fastq_files) == 2:
-        execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3, SAMPLE_S3_OUTPUT_PATH))
 
+    # This lets the webapp know the stage has completed.
     stats.save_to_s3()
+
     write_to_log("Host filtering complete")
     upload_log_file(SAMPLE_S3_OUTPUT_PATH)
