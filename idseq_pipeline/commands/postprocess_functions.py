@@ -28,8 +28,11 @@ NT_LOC_DB = os.environ.get('NT_LOC_DB', "s3://idseq-database/20170824/blast_db/n
 NT_DB = os.environ.get('NT_DB', "s3://idseq-database/20170824/blast_db/nt")
 
 # input files
-ACCESSION_ANNOTATED_FASTA = 'taxids.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.fasta'
-GSNAP_M8_FILE = 'taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
+ACCESSION_ANNOTATED_FASTA = 'accessions.rapsearch2.gsnapl.fasta'
+GSNAP_M8_FILE = 'dedup.multihit.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
+SUMMARY_MULTIHIT_GSNAPL_OUT = 'summary.multihit.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.tab'
+SUMMARY_MULTIHIT_RAPSEARCH_OUT = 'summary.multihit.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.tab'
+MULTIHIT_NT_JSON_OUT = 'nt_multihit_idseq_web_sample.json'
 
 # output files
 TAXID_ANNOT_FASTA = 'taxid_annot.fasta'
@@ -48,6 +51,7 @@ TAXID_LOCATIONS_JSON_FAMILY_NR = 'taxid_locations_family_nr.json'
 TAXID_LOCATIONS_JSON_ALL = 'taxid_locations_combined.json'
 LOGS_OUT_BASENAME = 'postprocess-log'
 ALIGN_VIZ_DIR = 'align_viz'
+ASSEMBLY_DIR = 'assembly'
 
 # target outputs by task
 TARGET_OUTPUTS = {"run_generate_taxid_fasta_from_accid": [os.path.join(RESULT_DIR, TAXID_ANNOT_FASTA)],
@@ -333,3 +337,34 @@ def run_stage3(lazy_run=False):
         run_combine_json,
         input_files,
         os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_ALL))
+
+    # run assembly
+    def make_inputs_for_assembly():
+        # Get taxids to sssemble based on criteria from report, currently just genus taxids with the most reads
+        execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, MULTIHIT_NT_JSON_OUT, INPUT_DIR))
+        pipeline_output_json = os.path.join(INPUT_DIR, MULTIHIT_NT_JSON_OUT)
+        with open(pipeline_output_json) as f:
+            pipeline_output = json.load(f)
+        taxon_counts = pipeline_output['pipeline_output']['taxon_counts_attributes']
+        eligible_taxa = [item for item in taxon_counts if item['tax_level'] == 2 and int(item['taxid']) > 0]
+        max_count = max([item['count'] for item in eligible_taxa])
+        taxids_to_assemble = [item['taxid'] for item in eligible_taxa if item['count'] == max_count]
+        # Get reads for those taxids
+        output = {}
+        full_fasta = os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_GENUS_NT)
+        delimiter = 'genus_nt'
+        for taxid in taxids_to_assemble:
+            partial_fasta = taxid + ".fasta"
+            subprocess.check_call("grep -A 1 --no-group-separator 'delimiter:%s:' %s > %s" % (delimiter, taxid, full_fasta, partial_fasta), shell=True)
+            output[taxid] = partial_fasta
+        return output        
+    def spades(input_fasta, output_fasta):
+        tmp_output_dir = input_fasta + "_temp_output"
+        execute_command_realtime_stdout("spades.py -s %s -o %s --only-assembler" % (input_fasta, tmp_output_dir))
+        subprocess.check_call("mv %s/scaffolds.fasta %s" % (tmp_output_dir, output_fasta), shell=True)
+    inputs = make_inputs_for_assembly()
+    for taxid, input_fasta in inputs.iteritems():
+        output_fasta = os.path.join(RESULT_DIR, taxid + ".scaffolds.fasta")
+        spades(input_fasta, output_fasta)
+        execute_command("aws s3 cp --quiet %s %s/%s/%s" % (output_fasta, SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, taxid))
+
