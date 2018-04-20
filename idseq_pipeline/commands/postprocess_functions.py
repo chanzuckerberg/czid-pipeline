@@ -407,6 +407,7 @@ def run_stage3(lazy_run=False):
         subprocess.check_call("mv %s/scaffolds.fasta %s" % (tmp_output_dir, output_fasta), shell=True)
     inputs = make_inputs_for_assembly()
     for taxid, input_fasta in inputs.iteritems():
+        execute_command_realtime_stdout("cat " + input_fasta)
         output_fasta = os.path.join(RESULT_DIR, taxid + ".scaffolds.fasta")
         spades(input_fasta, output_fasta)
         execute_command("aws s3 cp --quiet %s %s/%s/%s" % (output_fasta, SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, taxid))
