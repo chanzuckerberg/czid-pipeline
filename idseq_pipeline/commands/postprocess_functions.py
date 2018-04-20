@@ -398,7 +398,7 @@ def run_stage3(lazy_run=False):
         delimiter = 'genus_nt'
         for taxid in taxids_to_assemble:
             partial_fasta = taxid + ".fasta"
-            subprocess.check_call("grep -A 1 --no-group-separator 'delimiter:%s:' %s > %s" % (delimiter, taxid, full_fasta, partial_fasta), shell=True)
+            subprocess.check_call("grep -A 1 --no-group-separator '%s:%s:' %s > %s" % (delimiter, taxid, full_fasta, partial_fasta), shell=True)
             output[taxid] = partial_fasta
         return output        
     def spades(input_fasta, output_fasta):
