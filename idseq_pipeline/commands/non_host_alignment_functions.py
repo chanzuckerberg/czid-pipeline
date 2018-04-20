@@ -265,6 +265,9 @@ def annotate_fasta_with_accessions(input_fasta, nt_m8, nr_m8, output_fasta):
     annotate(input_fasta, read_to_accession_id_maps, hit_types_in_order, output_fasta)
 
 def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, count_type, stats, lineage_map, output_file):
+    if not SKIP_DEUTERO_FILTER:
+        deuterostome_file = fetch_deuterostome_file()
+        taxids_toremove = read_file_into_set(deuterostome_file)
     taxid_properties = {}
     hit_f = open(hit_level_file, 'rb')
     m8_f = open(m8_file, 'rb')
@@ -295,6 +298,8 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
 
         # Aggregate each level
         for tax_level, taxid in enumerate(cleaned_hit_taxids_all_levels, 1):
+            if not SKIP_DEUTERO_FILTER and taxid in taxids_toremove:
+                continue
             genus_taxid = cleaned_hit_taxids_all_levels[TAX_LEVEL_GENUS-1] if tax_level <= TAX_LEVEL_GENUS else MISSING_GENUS_ID
             family_taxid = cleaned_hit_taxids_all_levels[TAX_LEVEL_FAMILY-1] if tax_level <= TAX_LEVEL_FAMILY else MISSING_FAMILY_ID
             taxid_properties[taxid] = taxid_properties.get(taxid, {'tax_level': tax_level,
@@ -310,13 +315,6 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
             taxid_properties[taxid]['sum_e_value'] += e_value
         hit_line = hit_f.readline()
         m8_line = m8_f.readline()
-
-    # Apply deuterostome filter
-    if not SKIP_DEUTERO_FILTER:
-        deuterostome_file = fetch_deuterostome_file()
-        taxids_toremove = read_file_into_set(deuterostome_file)
-        for taxid in taxids_toremove:
-            taxid_properties.pop(taxid, None)
 
     # Produce the final output
     taxon_counts_attributes = []
