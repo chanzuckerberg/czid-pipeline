@@ -28,11 +28,8 @@ NT_LOC_DB = os.environ.get('NT_LOC_DB', "s3://idseq-database/20170824/blast_db/n
 NT_DB = os.environ.get('NT_DB', "s3://idseq-database/20170824/blast_db/nt")
 
 # input files
-ACCESSION_ANNOTATED_FASTA = 'accessions.rapsearch2.gsnapl.fasta'
-GSNAP_M8_FILE = 'dedup.multihit.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
-SUMMARY_MULTIHIT_GSNAPL_OUT = 'summary.multihit.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.tab'
-SUMMARY_MULTIHIT_RAPSEARCH_OUT = 'summary.multihit.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.tab'
-MULTIHIT_NT_JSON_OUT = 'nt_multihit_idseq_web_sample.json'
+ACCESSION_ANNOTATED_FASTA = 'taxids.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.fasta'
+GSNAP_M8_FILE = 'taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
 
 # output files
 TAXID_ANNOT_FASTA = 'taxid_annot.fasta'
@@ -407,7 +404,6 @@ def run_stage3(lazy_run=False):
         subprocess.check_call("mv %s/scaffolds.fasta %s" % (tmp_output_dir, output_fasta), shell=True)
     inputs = make_inputs_for_assembly()
     for taxid, input_fasta in inputs.iteritems():
-        execute_command_realtime_stdout("cat " + input_fasta)
         output_fasta = os.path.join(RESULT_DIR, taxid + ".scaffolds.fasta")
         spades(input_fasta, output_fasta)
         execute_command("aws s3 cp --quiet %s %s/%s/%s" % (output_fasta, SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, taxid))
