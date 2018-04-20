@@ -298,7 +298,7 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
 
         # Aggregate each level
         for tax_level, taxid in enumerate(cleaned_hit_taxids_all_levels, 1):
-            if SKIP_DEUTERO_FILTER and taxid in taxids_toremove:
+            if not SKIP_DEUTERO_FILTER and taxid in taxids_toremove:
                 continue
             genus_taxid = cleaned_hit_taxids_all_levels[TAX_LEVEL_GENUS-1] if tax_level <= TAX_LEVEL_GENUS else MISSING_GENUS_ID
             family_taxid = cleaned_hit_taxids_all_levels[TAX_LEVEL_FAMILY-1] if tax_level <= TAX_LEVEL_FAMILY else MISSING_FAMILY_ID
