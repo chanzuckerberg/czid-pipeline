@@ -389,9 +389,9 @@ def run_stage3(lazy_run=False):
         with open(pipeline_output_json) as f:
             pipeline_output = json.load(f)
         taxon_counts = pipeline_output['pipeline_output']['taxon_counts_attributes']
-        eligible_taxa = [item for item in taxon_counts if item['tax_level'] == 2 and int(item['taxid']) > 0]
+        eligible_taxa = [item for item in taxon_counts if item['tax_level'] == 2 and int(item['tax_id']) > 0]
         max_count = max([item['count'] for item in eligible_taxa])
-        taxids_to_assemble = [item['taxid'] for item in eligible_taxa if item['count'] == max_count]
+        taxids_to_assemble = [item['tax_id'] for item in eligible_taxa if item['count'] == max_count]
         # Get reads for those taxids
         output = {}
         full_fasta = os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_GENUS_NT)
