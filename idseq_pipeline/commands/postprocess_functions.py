@@ -339,8 +339,8 @@ def run_stage3(lazy_run=False):
     # run assembly
     def make_inputs_for_assembly():
         # Get taxids to sssemble based on criteria from report, currently just genus taxids with the most reads
-        execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, MULTIHIT_NT_JSON_OUT, INPUT_DIR))
-        pipeline_output_json = os.path.join(INPUT_DIR, MULTIHIT_NT_JSON_OUT)
+        execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, NT_JSON, INPUT_DIR))
+        pipeline_output_json = os.path.join(INPUT_DIR, NT_JSON)
         with open(pipeline_output_json) as f:
             pipeline_output = json.load(f)
         taxon_counts = pipeline_output['pipeline_output']['taxon_counts_attributes']
