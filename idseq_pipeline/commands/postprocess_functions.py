@@ -368,7 +368,7 @@ def run_stage3(lazy_run=False):
     def spades(input_fasta, output_fasta):
         tmp_output_dir = input_fasta + "_temp_output"
         try:
-            execute_command_realtime_stdout("spades.py -s %s -o %s --only-assembler" % (input_fasta, tmp_output_dir))
+            execute_command_realtime_stdout("spades.py -s %s -o %s -m 56 --only-assembler" % (input_fasta, tmp_output_dir))
             subprocess.check_call("mv %s/scaffolds.fasta %s" % (tmp_output_dir, output_fasta), shell=True)
             return True
         except:
