@@ -11,6 +11,7 @@ from .common import * #pylint: disable=wildcard-import
 # from common import REF_DIR
 DEST_DIR = ROOT_DIR + '/idseq/data' # generated data go here
 TEMP_DIR = ROOT_DIR + '/tmp' # tmp directory with a lot of space for sorting large files
+SPADES_DIR = ROOT_DIR + '/spades'
 
 # arguments from environment variables
 INPUT_BUCKET = os.environ.get('INPUT_BUCKET')
@@ -192,7 +193,7 @@ def run_stage3(lazy_run=False):
     assert lazy_run == False, "we seem to be hardwiring that..."
 
     # make data directories
-    execute_command("mkdir -p %s %s %s %s" % (SAMPLE_DIR, RESULT_DIR, REF_DIR, TEMP_DIR))
+    execute_command("mkdir -p %s %s %s %s %s" % (SAMPLE_DIR, RESULT_DIR, REF_DIR, TEMP_DIR, SPADES_DIR))
 
     # configure logger
     log_file = "%s/%s.%s.txt" % (RESULT_DIR, LOGS_OUT_BASENAME, AWS_BATCH_JOB_ID)
@@ -337,6 +338,14 @@ def run_stage3(lazy_run=False):
         os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_ALL))
 
     # run assembly
+    def install_spades():
+        # TODO: update Docker image instead
+        command = "cd %s; " % SPADES_DIR
+        command += "wget http://cab.spbu.ru/files/release3.10.1/SPAdes-3.10.1-Linux.tar.gz; "
+        command += "tar -xzf SPAdes-3.10.1-Linux.tar.gz; "
+        command += "cp SPAdes-3.10.1-Linux/bin/* /usr/local/bin/; "
+        command += "cp -r SPAdes-3.10.1-Linux/share/* /usr/local/share/"
+        subprocess.check_call(command, shell=True)
     def make_inputs_for_assembly():
         # Get taxids to sssemble based on criteria from report, currently just species taxids with the most reads
         execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, NT_JSON, INPUT_DIR))
@@ -358,11 +367,17 @@ def run_stage3(lazy_run=False):
         return output        
     def spades(input_fasta, output_fasta):
         tmp_output_dir = input_fasta + "_temp_output"
-        execute_command_realtime_stdout("spades.py -s %s -o %s --only-assembler" % (input_fasta, tmp_output_dir))
-        subprocess.check_call("mv %s/scaffolds.fasta %s" % (tmp_output_dir, output_fasta), shell=True)
+        try:
+            execute_command_realtime_stdout("spades.py -s %s -o %s --only-assembler" % (input_fasta, tmp_output_dir))
+            subprocess.check_call("mv %s/scaffolds.fasta %s" % (tmp_output_dir, output_fasta), shell=True)
+            return True
+        except:
+            return False
+
+    install_spades()
     inputs = make_inputs_for_assembly()
     for taxid, input_fasta in inputs.iteritems():
         output_fasta = os.path.join(RESULT_DIR, taxid + ".scaffolds.fasta")
-        spades(input_fasta, output_fasta)
-        execute_command("aws s3 cp --quiet %s %s/%s/%s" % (output_fasta, SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, taxid))
+        if spades(input_fasta, output_fasta):
+            execute_command("aws s3 cp --quiet %s %s/%s/%s" % (output_fasta, SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, taxid))
 
