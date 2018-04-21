@@ -338,22 +338,22 @@ def run_stage3(lazy_run=False):
 
     # run assembly
     def make_inputs_for_assembly():
-        # Get taxids to sssemble based on criteria from report, currently just genus taxids with the most reads
+        # Get taxids to sssemble based on criteria from report, currently just species taxids with the most reads
         execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, NT_JSON, INPUT_DIR))
         pipeline_output_json = os.path.join(INPUT_DIR, NT_JSON)
         with open(pipeline_output_json) as f:
             pipeline_output = json.load(f)
         taxon_counts = pipeline_output['pipeline_output']['taxon_counts_attributes']
-        eligible_taxa = [item for item in taxon_counts if item['tax_level'] == 2 and int(item['tax_id']) > 0]
+        eligible_taxa = [item for item in taxon_counts if item['tax_level'] == 1 and int(item['tax_id']) > 0]
         max_count = max([item['count'] for item in eligible_taxa])
         taxids_to_assemble = [item['tax_id'] for item in eligible_taxa if item['count'] == max_count]
         # Get reads for those taxids
         output = {}
-        full_fasta = os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_GENUS_NT)
-        delimiter = 'genus_nt'
+        full_fasta = os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_SPECIES_NT)
+        delimiter = 'species_nt'
         for taxid in taxids_to_assemble:
             partial_fasta = taxid + ".fasta"
-            subprocess.check_call("grep -A 1 --no-group-separator 'delimiter:%s:' %s > %s" % (delimiter, taxid, full_fasta, partial_fasta), shell=True)
+            subprocess.check_call("grep -A 1 --no-group-separator '%s:%s:' %s > %s" % (delimiter, taxid, full_fasta, partial_fasta), shell=True)
             output[taxid] = partial_fasta
         return output        
     def spades(input_fasta, output_fasta):
