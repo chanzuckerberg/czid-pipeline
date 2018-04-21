@@ -349,7 +349,7 @@ def run_stage3(lazy_run=False):
         taxids_to_assemble = [item['tax_id'] for item in eligible_taxa if item['count'] == max_count]
         # Get reads for those taxids
         output = {}
-        full_fasta = os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_SPECIES_NT)
+        full_fasta = os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_NT)
         delimiter = 'species_nt'
         for taxid in taxids_to_assemble:
             partial_fasta = taxid + ".fasta"
