@@ -13,6 +13,9 @@ DEST_DIR = ROOT_DIR + '/idseq/data' # generated data go here
 TEMP_DIR = ROOT_DIR + '/tmp' # tmp directory with a lot of space for sorting large files
 SPADES_DIR = ROOT_DIR + '/spades' # outputs of SPAdes assemblies go here
 
+# parameters
+ASSEMBLY_READ_THRESHOLD = 100
+
 # arguments from environment variables
 INPUT_BUCKET = os.environ.get('INPUT_BUCKET')
 OUTPUT_BUCKET = os.environ.get('OUTPUT_BUCKET')
@@ -331,8 +334,7 @@ def run_stage3(lazy_run=False):
             pipeline_output = json.load(f)
         taxon_counts = pipeline_output['pipeline_output']['taxon_counts_attributes']
         eligible_taxa = [item for item in taxon_counts if item['tax_level'] == 1 and int(item['tax_id']) > 0]
-        # max_count = max([item['count'] for item in eligible_taxa])
-        taxids_to_assemble = [item['tax_id'] for item in eligible_taxa if item['count'] >= 100]
+        taxids_to_assemble = [item['tax_id'] for item in eligible_taxa if item['count'] >= ASSEMBLY_READ_THRESHOLD]
         # Get reads for those taxids
         output = {}
         full_fasta = os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_NT)
