@@ -323,17 +323,8 @@ def run_stage3(lazy_run=False):
         os.path.join(RESULT_DIR, ALIGN_VIZ_DIR))
 
     # run assembly
-    def install_spades():
-        # TODO: update Docker image instead
-        command = "cd %s; " % SPADES_DIR
-        command += "wget http://cab.spbu.ru/files/release3.10.1/SPAdes-3.10.1-Linux.tar.gz; "
-        command += "tar -xzf SPAdes-3.10.1-Linux.tar.gz; "
-        command += "cp SPAdes-3.10.1-Linux/bin/* /usr/local/bin/; "
-        command += "cp -r SPAdes-3.10.1-Linux/share/* /usr/local/share/"
-        subprocess.check_call(command, shell=True)
-
     def make_inputs_for_assembly():
-        # Get taxids to sssemble based on criteria from report, currently just species taxids with the most reads
+        # Get taxids to assemble based on criteria from report, currently just species taxids with the most reads
         execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, NT_JSON, INPUT_DIR))
         pipeline_output_json = os.path.join(INPUT_DIR, NT_JSON)
         with open(pipeline_output_json) as f:
@@ -361,7 +352,6 @@ def run_stage3(lazy_run=False):
         except:
             return False
 
-    install_spades()
     inputs = make_inputs_for_assembly()
     for taxid, input_fasta in inputs.iteritems():
         output_fasta = os.path.join(RESULT_DIR, taxid + ".scaffolds.fasta")
