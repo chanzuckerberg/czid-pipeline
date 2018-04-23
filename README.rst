@@ -30,6 +30,9 @@ When merging a commit to master, you need to increase the version number in `ids
 Release notes
 -------------
 
+- 1.5.0
+    - Perform de-novo assembly using SPAdes for species with >= 100 reads.
+
 - 1.4.0
     - Version result folder.
 
