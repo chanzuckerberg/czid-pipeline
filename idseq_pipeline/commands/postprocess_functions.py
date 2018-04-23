@@ -11,7 +11,7 @@ from .common import * #pylint: disable=wildcard-import
 # from common import REF_DIR
 DEST_DIR = ROOT_DIR + '/idseq/data' # generated data go here
 TEMP_DIR = ROOT_DIR + '/tmp' # tmp directory with a lot of space for sorting large files
-SPADES_DIR = ROOT_DIR + '/spades'
+SPADES_DIR = ROOT_DIR + '/spades' # outputs of SPAdes assemblies go here
 
 # arguments from environment variables
 INPUT_BUCKET = os.environ.get('INPUT_BUCKET')
@@ -331,6 +331,7 @@ def run_stage3(lazy_run=False):
         command += "cp SPAdes-3.10.1-Linux/bin/* /usr/local/bin/; "
         command += "cp -r SPAdes-3.10.1-Linux/share/* /usr/local/share/"
         subprocess.check_call(command, shell=True)
+
     def make_inputs_for_assembly():
         # Get taxids to sssemble based on criteria from report, currently just species taxids with the most reads
         execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, NT_JSON, INPUT_DIR))
@@ -350,6 +351,7 @@ def run_stage3(lazy_run=False):
             subprocess.check_call("grep -A 1 --no-group-separator '%s:%s:' %s > %s" % (delimiter, taxid, full_fasta, partial_fasta), shell=True)
             output[taxid] = partial_fasta
         return output        
+
     def spades(input_fasta, output_fasta):
         tmp_output_dir = input_fasta + "_temp_output"
         try:
@@ -383,4 +385,3 @@ def run_stage3(lazy_run=False):
         run_combine_json,
         input_files,
         os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_ALL))
-
