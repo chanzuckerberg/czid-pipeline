@@ -327,7 +327,7 @@ def run_stage3(lazy_run=False):
 
     # run assembly
     def make_inputs_for_assembly():
-        # Get taxids to assemble based on criteria from report, currently just species taxids with the most reads
+        # Get taxids to assemble based on criteria from report, currently: species taxids with NT read count >= ASSEMBLY_READ_THRESHOLD
         execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, NT_JSON, INPUT_DIR))
         pipeline_output_json = os.path.join(INPUT_DIR, NT_JSON)
         with open(pipeline_output_json) as f:
