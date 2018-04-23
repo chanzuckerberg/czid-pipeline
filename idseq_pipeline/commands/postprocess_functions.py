@@ -308,6 +308,7 @@ def run_stage3(lazy_run=False):
         'NR',
         os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_FAMILY_NR),
         os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_FAMILY_NR))
+
     # generate alignment visualization
     logparams = return_merged_dict(
         DEFAULT_LOGPARAMS,
@@ -320,22 +321,6 @@ def run_stage3(lazy_run=False):
         os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_NT),
         input_m8,
         os.path.join(RESULT_DIR, ALIGN_VIZ_DIR))
-
-    # combine results
-    logparams = return_merged_dict(
-        DEFAULT_LOGPARAMS,
-        {"title": "run_combine_json"})
-    input_files_basenames = [TAXID_LOCATIONS_JSON_NT, TAXID_LOCATIONS_JSON_NR,
-                             TAXID_LOCATIONS_JSON_GENUS_NT, TAXID_LOCATIONS_JSON_GENUS_NR,
-                             TAXID_LOCATIONS_JSON_FAMILY_NT, TAXID_LOCATIONS_JSON_FAMILY_NR]
-    input_files = [os.path.join(RESULT_DIR, f) for f in input_files_basenames]
-    run_and_log(
-        logparams,
-        TARGET_OUTPUTS["run_combine_json"],
-        False,
-        run_combine_json,
-        input_files,
-        os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_ALL))
 
     # run assembly
     def install_spades():
@@ -368,7 +353,7 @@ def run_stage3(lazy_run=False):
     def spades(input_fasta, output_fasta):
         tmp_output_dir = input_fasta + "_temp_output"
         try:
-            execute_command_realtime_stdout("spades.py -s %s -o %s -m 56 -t 4 --only-assembler" % (input_fasta, tmp_output_dir))
+            execute_command_realtime_stdout("spades.py -s %s -o %s -m 60 -t 32 --only-assembler" % (input_fasta, tmp_output_dir))
             subprocess.check_call("mv %s/scaffolds.fasta %s" % (tmp_output_dir, output_fasta), shell=True)
             return True
         except:
@@ -380,4 +365,22 @@ def run_stage3(lazy_run=False):
         output_fasta = os.path.join(RESULT_DIR, taxid + ".scaffolds.fasta")
         if spades(input_fasta, output_fasta):
             execute_command("aws s3 cp --quiet %s %s/%s/%s" % (output_fasta, SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, taxid))
+
+    # combine taxid location results
+    # This step needs to be last, because the web app detects presence of the output and then kills batch job.
+    # TODO: use an explicit status file to detect job completion instead.
+    logparams = return_merged_dict(
+        DEFAULT_LOGPARAMS,
+        {"title": "run_combine_json"})
+    input_files_basenames = [TAXID_LOCATIONS_JSON_NT, TAXID_LOCATIONS_JSON_NR,
+                             TAXID_LOCATIONS_JSON_GENUS_NT, TAXID_LOCATIONS_JSON_GENUS_NR,
+                             TAXID_LOCATIONS_JSON_FAMILY_NT, TAXID_LOCATIONS_JSON_FAMILY_NR]
+    input_files = [os.path.join(RESULT_DIR, f) for f in input_files_basenames]
+    run_and_log(
+        logparams,
+        TARGET_OUTPUTS["run_combine_json"],
+        False,
+        run_combine_json,
+        input_files,
+        os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_ALL))
 
