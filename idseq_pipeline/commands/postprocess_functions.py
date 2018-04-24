@@ -392,7 +392,7 @@ def run_stage3(lazy_run=False):
     for taxid, input_fasta in inputs.iteritems():
         spades_output = os.path.join(RESULT_DIR, taxid + ".scaffolds.fasta")
         output_fasta = os.path.join(RESULT_DIR, taxid + ".cleaned-scaffolds.fasta")
-        if spades(input_fasta, output_fasta):
+        if spades(input_fasta, spades_output):
             clean_scaffolds(spades_output, max_read_length(input_fasta), output_fasta)
             execute_command("aws s3 cp --quiet %s %s/%s/%s" % (output_fasta, SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, taxid))
 
