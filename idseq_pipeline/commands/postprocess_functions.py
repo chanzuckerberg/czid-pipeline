@@ -340,7 +340,7 @@ def run_stage3(lazy_run=False):
         full_fasta = os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_NT)
         delimiter = 'species_nt'
         for taxid in taxids_to_assemble:
-            partial_fasta = taxid + ".fasta"
+            partial_fasta =  os.path.join(RESULT_DIR, taxid + ".fasta")
             subprocess.check_call("grep -A 1 --no-group-separator '%s:%s:' %s > %s" % (delimiter, taxid, full_fasta, partial_fasta), shell=True)
             output[taxid] = partial_fasta
         return output        
@@ -391,7 +391,7 @@ def run_stage3(lazy_run=False):
     inputs = make_inputs_for_assembly()
     for taxid, input_fasta in inputs.iteritems():
         spades_output = os.path.join(RESULT_DIR, taxid + ".scaffolds.fasta")
-        output_fasta = os.path.join(RESULT_DIR, taxid + "cleaned-scaffolds.fasta")
+        output_fasta = os.path.join(RESULT_DIR, taxid + ".cleaned-scaffolds.fasta")
         if spades(input_fasta, output_fasta):
             clean_scaffolds(spades_output, max_read_length(input_fasta), output_fasta)
             execute_command("aws s3 cp --quiet %s %s/%s/%s" % (output_fasta, SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, taxid))
