@@ -371,8 +371,8 @@ def run_stage3(lazy_run=False):
         fasta_dict, read_order = read_fasta(spades_scaffolds_fasta)
         for name, sequence in fasta_dict.iteritems():
             if length_without_newlines(sequence) <= min_contig_length:
-                scaffolds.pop(name)
-        write_fasta(scaffolds, read_order, cleaned_fasta)
+                fasta_dict.pop(name)
+        write_fasta(fasta_dict, read_order, cleaned_fasta)
 
     def max_read_length(input_fasta):
         fasta_dict, _read_order = read_fasta(input_fasta)
