@@ -345,11 +345,47 @@ def run_stage3(lazy_run=False):
             output[taxid] = partial_fasta
         return output        
 
+    def length_without_newlines(sequence):
+        return len(sequence.replace("\n",""))
+
+    def read_fasta(input_fasta):
+        ''' Read fasta file into dictionary. Newlines remain part of the keys/values.'''
+        read_name = None
+        d = {}
+        read_order = []
+        with open(input_fasta, 'rb') as f:
+            for line in f:
+                if line.startswith('>'):
+                    read_name = line
+                    read_order += [read_name]
+                else:
+                    d[read_name] = d.get(read_name, '') + line
+        return d, read_order
+
+    def write_fasta(fasta_dict, read_order, output_file):
+        with open(output_file, 'wb') as f:
+            for read_name in read_order:
+                f.write(read_name + fasta_dict[read_name])
+
+    def clean_scaffolds(spades_scaffolds_fasta, min_contig_length, cleaned_fasta):
+        fasta_dict, read_order = read_fasta(spades_scaffolds_fasta)
+        for name, sequence in fasta_dict.iteritems():
+            if length_without_newlines(sequence) <= min_contig_length:
+                scaffolds.pop(name)
+        write_fasta(scaffolds, read_order, cleaned_fasta)
+
+    def max_read_length(input_fasta):
+        fasta_dict, _read_order = read_fasta(input_fasta)
+        return max([length_without_newlines(sequence) for sequence in fasta_dict.values()])
+
     def spades(input_fasta, output_fasta):
         tmp_output_dir = input_fasta + "_temp_output"
+        spades_tmp_output_file = tmp_output_dir + "/scaffolds.fasta"
+        cleaned_tmp_output_file = tmp_output_dir + "/cleaned-scaffolds.fasta"
         try:
             execute_command_realtime_stdout("spades.py -s %s -o %s -m 60 -t 32 --only-assembler" % (input_fasta, tmp_output_dir))
-            subprocess.check_call("mv %s/scaffolds.fasta %s" % (tmp_output_dir, output_fasta), shell=True)
+            clean_scaffolds(tmp_output_file, max_read_length(input_fasta), cleaned_tmp_output_file)
+            subprocess.check_call("mv %s %s" % (cleaned_tmp_output_file, output_fasta), shell=True)
             return True
         except:
             return False
