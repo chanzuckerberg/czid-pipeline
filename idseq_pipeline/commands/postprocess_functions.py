@@ -380,20 +380,20 @@ def run_stage3(lazy_run=False):
 
     def spades(input_fasta, output_fasta):
         tmp_output_dir = input_fasta + "_temp_output"
-        spades_tmp_output_file = tmp_output_dir + "/scaffolds.fasta"
-        cleaned_tmp_output_file = tmp_output_dir + "/cleaned-scaffolds.fasta"
+        tmp_output_file = tmp_output_dir + "/scaffolds.fasta"
         try:
             execute_command_realtime_stdout("spades.py -s %s -o %s -m 60 -t 32 --only-assembler" % (input_fasta, tmp_output_dir))
-            clean_scaffolds(tmp_output_file, max_read_length(input_fasta), cleaned_tmp_output_file)
-            subprocess.check_call("mv %s %s" % (cleaned_tmp_output_file, output_fasta), shell=True)
+            subprocess.check_call("mv %s %s" % (tmp_output_file, output_fasta), shell=True)
             return True
         except:
             return False
 
     inputs = make_inputs_for_assembly()
     for taxid, input_fasta in inputs.iteritems():
-        output_fasta = os.path.join(RESULT_DIR, taxid + ".scaffolds.fasta")
+        spades_output = os.path.join(RESULT_DIR, taxid + ".scaffolds.fasta")
+        output_fasta = os.path.join(RESULT_DIR, taxid + "cleaned-scaffolds.fasta")
         if spades(input_fasta, output_fasta):
+            clean_scaffolds(spades_output, max_read_length(input_fasta), output_fasta)
             execute_command("aws s3 cp --quiet %s %s/%s/%s" % (output_fasta, SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, taxid))
 
     # combine taxid location results
