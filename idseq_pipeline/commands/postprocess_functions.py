@@ -190,7 +190,7 @@ def run_stage3(lazy_run=False):
     assert lazy_run == False, "we seem to be hardwiring that..."
 
     # make data directories
-    execute_command("mkdir -p %s %s %s %s %s" % (SAMPLE_DIR, RESULT_DIR, REF_DIR, TEMP_DIR, SPADES_DIR))
+    execute_command("mkdir -p %s %s %s %s" % (SAMPLE_DIR, RESULT_DIR, REF_DIR, TEMP_DIR))
 
     # configure logger
     log_file = "%s/%s.%s.txt" % (RESULT_DIR, LOGS_OUT_BASENAME, AWS_BATCH_JOB_ID)
@@ -319,7 +319,7 @@ def run_stage3(lazy_run=False):
         input_m8,
         os.path.join(RESULT_DIR, ALIGN_VIZ_DIR))
 
-    # combine taxid location results
+    # combine results
     logparams = return_merged_dict(
         DEFAULT_LOGPARAMS,
         {"title": "run_combine_json"})
