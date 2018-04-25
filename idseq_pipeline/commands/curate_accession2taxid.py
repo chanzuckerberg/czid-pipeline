@@ -113,7 +113,7 @@ class Curate_accession2taxid(Base):
         execute_command("rm -f %s" % output_db_file)
         generate_accession2taxid_db(output_mapping_file, output_db_file, False)
         output_s3_path = arguments['--output_s3_folder'].rstrip('/')
-        output_s3_file_gz = os.path.join(output_s3_path, os.path.basename(output_db_file) + ".gz")
+        output_s3_file = os.path.join(output_s3_path, os.path.basename(output_db_file))
 
         # Record difference with old accession2taxid
         previous_mapping_s3 = arguments.get('--previous_mapping')
@@ -135,7 +135,7 @@ class Curate_accession2taxid(Base):
             for previous_key in previous_mapping:
                 if previous_key not in new_mapping:
                     removed_accessionids.append(previous_key)
-            diff_accessionids = { 'old_file': previous_mapping_s3, 'new_file': output_s3_file_gz,
+            diff_accessionids = { 'old_file': previous_mapping_s3, 'new_file': output_s3_file,
                                   'added': added_accessionids, 'removed': removed_accessionids }
             diff_accessionids_file = os.path.join(dest_dir, "accession_diff.txt")
             print "Starting json dump"
@@ -145,7 +145,7 @@ class Curate_accession2taxid(Base):
 
         # Upload result and record versions
         print "Uploading result to S3"
-        execute_command("gzip -c {output_db_file} | aws s3 cp --quiet - {output_s3_file_gz}".format(output_db_file=output_db_file, output_s3_file_gz=output_s3_file_gz))
+        execute_command("aws s3 cp --quiet {output_db_file} {output_s3_file}".format(output_db_file=output_db_file, output_s3_file=output_s3_file))
         upload_version_tracker(mapping_files_sources + [arguments['--nt_file'], arguments['--nr_file']],
                                'accession2taxid',
                                mapping_version_numbers + [nt_version_number, nr_version_number],
