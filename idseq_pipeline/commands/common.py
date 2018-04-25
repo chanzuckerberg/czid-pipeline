@@ -17,7 +17,7 @@ bucket = "s3://idseq-database"
 NCBITOOL_S3_PATH = bucket + "/ncbitool" # S3 location of ncbitool executable
 base_dt = '2018-02-15-utc-1518652800-unixtime__2018-02-15-utc-1518652800-unixtime'
 base_s3 = bucket + "/alignment_data"
-ACCESSION2TAXID = ("%s/%s/accession2taxid.db.gz" % (base_s3, base_dt))
+ACCESSION2TAXID = ("%s/%s/accession2taxid.db" % (base_s3, base_dt))
 base_s3 = bucket + "/taxonomy"
 LINEAGE_SHELF = ("%s/%s/taxid-lineages.db" % (base_s3, base_dt))
 
