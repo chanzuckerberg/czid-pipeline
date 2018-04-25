@@ -49,8 +49,7 @@ def run_stage4():
             pipeline_output = json.load(f)
         taxon_counts = pipeline_output['pipeline_output']['taxon_counts_attributes']
         eligible_taxa = [item for item in taxon_counts if item['tax_level'] == 1 and int(item['tax_id']) > 0 and item['count'] >= ASSEMBLY_READ_THRESHOLD]
-        eligible_taxa = eligible_taxa.sort(key=lambda x: x['count'])
-        print eligible_taxa
+        eligible_taxa.sort(key=lambda x: x['count'])
         taxids_to_assemble = [item['tax_id'] for item in eligible_taxa]
         # Get reads for those taxids
         output = {}
