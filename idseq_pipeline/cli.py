@@ -44,7 +44,7 @@ Examples:
 
   INPUT_BUCKET="s3://czbiohub-idseq-samples-development/samples/3/77/results" OUTPUT_BUCKET="s3://czbiohub-idseq-samples-development/samples/3/77/postprocess" idseq_pipeline postprocess
 
-  ALIGNMENT_BUCKET="s3://czbiohub-idseq-samples-development/samples/3/77/results" POSTPROCESS_BUCKET="s3://czbiohub-idseq-samples-development/samples/3/77/postprocess" idseq_pipeline assembly
+  ALIGNMENT_S3_PATH="s3://czbiohub-idseq-samples-development/samples/3/77/results" POSTPROCESS_S3_PATH="s3://czbiohub-idseq-samples-development/samples/3/77/postprocess" idseq_pipeline assembly
 
   INPUT_FASTA_S3=s3://czbiohub-infectious-disease/references/mosquitos/mosquito_genomes2.fa OUTPUT_PATH_S3=s3://czbiohub-infectious-disease/references/mosquitos HOST_NAME=mosquitos idseq_pipeline host_indexing
 
