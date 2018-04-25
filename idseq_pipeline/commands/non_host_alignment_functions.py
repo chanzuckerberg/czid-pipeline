@@ -494,11 +494,10 @@ def environment_for_aligners(_environment):
 
 def fetch_key(environment, mutex=threading.RLock()):
     with mutex:
-        key_s3_path = "s3://idseq-secrets/idseq-%s.pem" % environment_for_aligners(environment)
-        key_name = os.path.basename(key_s3_path)
+        key_name = "idseq-%s.pem" % environment_for_aligners(environment)
         key_path = REF_DIR +'/' + key_name
         if not os.path.exists(key_path):
-            execute_command("aws s3 cp --quiet %s %s/" % (key_s3_path, REF_DIR))
+            execute_command("chamber read idseq-%s pem-key | cut -f2 | tail -n1 > %s" % (environment_for_aligners(environment), key_path))
             execute_command("chmod 400 %s" % key_path)
         return key_path
 
