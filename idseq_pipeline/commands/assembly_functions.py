@@ -66,8 +66,11 @@ def run_stage4():
         for taxid in taxids_to_assemble:
             pattern = '\|'.join(['%s:%s:' % (delimiter, taxid) for delimiter in hit_delimiters])
             partial_fasta =  os.path.join(RESULT_DIR, taxid + ".fasta")
-            subprocess.check_call("grep -A 1 --no-group-separator '%s' %s > %s" % (pattern, full_fasta, partial_fasta), shell=True)
-            output[taxid] = partial_fasta
+            try:
+                subprocess.check_call("grep -A 1 --no-group-separator '%s' %s > %s" % (pattern, full_fasta, partial_fasta), shell=True)
+                output[taxid] = partial_fasta
+            except:
+                print "WARNING: taxid %s was not found in the annotated fasta" % taxid
         return output        
 
     def length_without_newlines(sequence):
