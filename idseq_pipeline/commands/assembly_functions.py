@@ -23,8 +23,8 @@ INPUT_DIR = SAMPLE_DIR + '/inputs'
 RESULT_DIR = SAMPLE_DIR + '/results'
 
 # input files
-NT_JSON = 'counts.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.json'
-TAXID_ANNOT_SORTED_FASTA_NT = 'taxid_annot_sorted_nt.fasta'
+TAXON_COUNTS = 'idseq_web_sample.json'
+TAXID_ANNOT_FASTA = 'taxid_annot.fasta'
 
 # outputs
 SAMPLE_S3_OUTPUT_PATH = POSTPROCESS_S3_PATH
@@ -37,26 +37,36 @@ def run_stage4():
     execute_command("mkdir -p %s %s %s %s %s" % (SAMPLE_DIR, RESULT_DIR, REF_DIR, TEMP_DIR, SPADES_DIR))
 
     # download input
-    execute_command("aws s3 cp --quiet %s/%s %s/" % (ALIGNMENT_S3_PATH, NT_JSON, INPUT_DIR))
-    pipeline_output_json = os.path.join(INPUT_DIR, NT_JSON)
-    execute_command("aws s3 cp --quiet %s/%s %s/" % (POSTPROCESS_S3_PATH, TAXID_ANNOT_SORTED_FASTA_NT, INPUT_DIR))
-    full_fasta = os.path.join(INPUT_DIR, TAXID_ANNOT_SORTED_FASTA_NT)
+    execute_command("aws s3 cp --quiet %s/%s %s/" % (ALIGNMENT_S3_PATH, TAXON_COUNTS, INPUT_DIR))
+    pipeline_output_json = os.path.join(INPUT_DIR, TAXON_COUNTS)
+    execute_command("aws s3 cp --quiet %s/%s %s/" % (POSTPROCESS_S3_PATH, TAXID_ANNOT_FASTA, INPUT_DIR))
+    full_fasta = os.path.join(INPUT_DIR, TAXID_ANNOT_FASTA)
 
     # run assembly
+    def get_taxids_to_assemble(taxon_counts):
+        total_counts = {} # sum of NT and NR counts for each taxid
+        filtered_total_counts = {} # taxids that satisfy count threshold
+        for item in taxon_counts:
+            taxid = item['tax_id']
+            total_counts[taxid] = total_counts.get(taxid, 0) + item['count']
+            if total_counts[taxid] >= ASSEMBLY_READ_THRESHOLD:
+                filtered_total_counts[taxid] = total_counts[taxid]
+        sorted_filtered_taxids = sorted(filtered_total_counts, key=filtered_total_counts.get, reverse=True)        
+        return sorted_filtered_taxids
+
     def make_inputs_for_assembly():
-        # Get taxids to assemble based on criteria from report, currently: species taxids with NT read count >= ASSEMBLY_READ_THRESHOLD
+        # Get taxids to assemble based on criteria from report, currently: taxids with read count >= ASSEMBLY_READ_THRESHOLD
         with open(pipeline_output_json) as f:
             pipeline_output = json.load(f)
         taxon_counts = pipeline_output['pipeline_output']['taxon_counts_attributes']
-        eligible_taxa = [item for item in taxon_counts if item['tax_level'] == 1 and int(item['tax_id']) > 0 and item['count'] >= ASSEMBLY_READ_THRESHOLD]
-        eligible_taxa.sort(key=lambda x: -x['count'])
-        taxids_to_assemble = [item['tax_id'] for item in eligible_taxa]
+        taxids_to_assemble = get_taxids_to_assemble(taxon_counts)
         # Get reads for those taxids
         output = {}
-        delimiter = 'species_nt'
+        hit_delimiters = ['_nt', '_nr'] # annotations are like e.g. "genus_nt:543:"
         for taxid in taxids_to_assemble:
+            pattern = '\|'.join(['%s:%s:' % (delimiter, taxid) for delimiter in hit_delimiters])
             partial_fasta =  os.path.join(RESULT_DIR, taxid + ".fasta")
-            subprocess.check_call("grep -A 1 --no-group-separator '%s:%s:' %s > %s" % (delimiter, taxid, full_fasta, partial_fasta), shell=True)
+            subprocess.check_call("grep -A 1 --no-group-separator '%s' %s > %s" % (pattern, full_fasta, partial_fasta), shell=True)
             output[taxid] = partial_fasta
         return output        
 
