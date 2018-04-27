@@ -59,11 +59,11 @@ def run_stage4():
         with open(pipeline_output_json) as f:
             pipeline_output = json.load(f)
         taxon_counts = pipeline_output['pipeline_output']['taxon_counts_attributes']
-        taxids_to_assemble = get_taxids_to_assemble(taxon_counts)
+        sorted_taxids_to_assemble = get_taxids_to_assemble(taxon_counts)
         # Get reads for those taxids
         output = {}
         hit_delimiters = ['_nt', '_nr'] # annotations are like e.g. "genus_nt:543:"
-        for taxid in taxids_to_assemble:
+        for taxid in sorted_taxids_to_assemble:
             pattern = '\|'.join(['%s:%s:' % (delimiter, taxid) for delimiter in hit_delimiters])
             partial_fasta =  os.path.join(RESULT_DIR, taxid + ".fasta")
             try:
@@ -73,7 +73,8 @@ def run_stage4():
                 print "WARNING: taxid %s was not found in the annotated fasta" % taxid
         # Also include the full fasta as an input to assembly
         output['all'] = full_fasta
-        return output        
+        sorted_taxids_to_assemble.append('all')
+        return output, sorted_taxids_to_assemble
 
     def length_without_newlines(sequence):
         return len(sequence.replace("\n",""))
@@ -118,8 +119,9 @@ def run_stage4():
         except:
             return False
 
-    inputs = make_inputs_for_assembly()
-    for taxid, input_fasta in inputs.iteritems():
+    inputs, sorted_taxids = make_inputs_for_assembly()
+    for taxid in sorted_taxids:
+        input_fasta = inputs[taxid]
         spades_output = os.path.join(RESULT_DIR, taxid + ".scaffolds.fasta")
         output_fasta = os.path.join(RESULT_DIR, taxid + ".cleaned-scaffolds.fasta")
         if spades(input_fasta, spades_output):
