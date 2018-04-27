@@ -9,6 +9,7 @@ import gzip
 import os
 import traceback
 import re
+import multiprocessing
 
 
 
@@ -17,7 +18,7 @@ bucket = "s3://idseq-database"
 NCBITOOL_S3_PATH = bucket + "/ncbitool" # S3 location of ncbitool executable
 base_dt = '2018-04-01-utc-1522569777-unixtime__2018-04-04-utc-1522862260-unixtime'
 base_s3 = bucket + "/alignment_data"
-ACCESSION2TAXID = ("%s/%s/accession2taxid.db.gz" % (base_s3, base_dt))
+ACCESSION2TAXID = ("%s/%s/accession2taxid.db" % (base_s3, base_dt))
 base_s3 = bucket + "/taxonomy"
 base_dt = '2018-02-15-utc-1518652800-unixtime__2018-02-15-utc-1518652800-unixtime'
 LINEAGE_SHELF = ("%s/%s/taxid-lineages.db" % (base_s3, base_dt))
@@ -32,7 +33,7 @@ REF_DIR = ROOT_DIR + '/idseq/ref' # referene genome / ref databases go here
 
 OUTPUT_VERSIONS = []
 
-print_lock = threading.RLock()
+print_lock = multiprocessing.RLock()
 
 # peak network & storage perf for a typical small instance is saturated by just a few concurrent streams
 MAX_CONCURRENT_COPY_OPERATIONS = 8
@@ -84,7 +85,7 @@ class StatsFile(object):
         # return 0.1
 
     def get_remaining_reads(self):
-        return (item for item in self.data if item.get("task") == "run_gsnapl_remotely").next().get("reads_before")
+        return (item for item in self.data if item.get("task") == "run_bowtie2").next().get("reads_after")
 
     def count_reads(self, func_name, before_filename, before_filetype, after_filename, after_filetype):
         records_before = count_reads(before_filename, before_filetype)
@@ -168,6 +169,8 @@ class CommandTracker(Updater):
         self.enforce_timeout(t_elapsed)
 
     def enforce_timeout(self, t_elapsed):
+        if self.timeout == None:
+            return
         if not self.proc or t_elapsed <= self.timeout or self.proc.poll() != None:
             # Unregistered subprocess, subprocess not yet timed out, or subprocess already exited.
             pass
@@ -242,11 +245,20 @@ def remote_command(base_command, key_path, remote_username, instance_ip):
 
 
 def check_s3_file_presence(s3_path):
+    # This approach does not distinguish operatonal error (rate limit etc) from situations
+    # when the file legitimately does not exist.  When testing for files that should exist
+    # this is okay.  When testing for files that are expected not to exist, this incurs
+    # a delay due to retries.
+    # TODO: Replace this with something more solid.
     command = "aws s3 ls %s | wc -l" % s3_path
-    try:
-        return int(execute_command_with_output(command).rstrip())
-    except:
-        return 0
+    MAX_ATTEMPTS = 3
+    for attempts in range(MAX_ATTEMPTS):
+        try:
+            return int(execute_command_with_output(command).rstrip())
+        except:
+            if attempts == MAX_ATTEMPTS - 1:
+                time.sleep(2)
+    return 0
 
 
 def scp(key_path, remote_username, instance_ip, remote_path, local_path):
@@ -302,7 +314,7 @@ def count_reads(file_name, file_type):
             if line.startswith('>'):
                 count += 1
         elif file_type == "m8" and line[0] == '#':
-            continue
+            pass
         else:
             count += 1
     f.close()
@@ -396,8 +408,8 @@ def fetch_lazy_result(source, destination, allow_s3mi=False):
     return fetch_from_s3(source, destination, auto_unzip=False, allow_s3mi=allow_s3mi) != None
 
 
-def fetch_reference(source, auto_unzip=True):
-    path = fetch_from_s3(source, REF_DIR, auto_unzip, allow_s3mi=True)
+def fetch_reference(source, auto_unzip=True, allow_s3mi=True):
+    path = fetch_from_s3(source, REF_DIR, auto_unzip, allow_s3mi=allow_s3mi)
     assert path != None
     return path
 
@@ -461,14 +473,15 @@ def upload_log_file(sample_s3_output_path, lock=threading.RLock()):
         execute_command("aws s3 cp --quiet %s %s/;" % (logh.baseFilename, sample_s3_output_path))
 
 
-def write_to_log(message, warning=False):
+def write_to_log(message, warning=False, flush=True):
     LOGGER = logging.getLogger()
     with print_lock:
         if warning:
             LOGGER.warn(message)
         else:
             LOGGER.info(message)
-        sys.stdout.flush()
+        if flush:
+            sys.stdout.flush()
 
 
 def unbuffer_stdout():
@@ -476,7 +489,7 @@ def unbuffer_stdout():
     sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
     os.dup2(sys.stdout.fileno(), sys.stderr.fileno())
 
-def upload_commit_sha(version, s3_destination = None):
+def upload_commit_sha(version, s3_destination=None):
     sha_file = os.environ.get('COMMIT_SHA_FILE')
     s3_destination = s3_destination or os.environ.get('OUTPUT_BUCKET')
     if sha_file is None or s3_destination is None:
@@ -582,21 +595,6 @@ def major_version(version):
     m = re.match("(\d+\.\d+).*", version)
     return m.group(1) if m else None
 
-def big_version_change_from_last_run(pipeline_version, version_s3_path):
-    ''' Return True is there's a significant pipeline version chanage. i.e. 1.2.1 -> 1.3.0. False otherwise '''
-    try:
-        version_hash = json.loads(execute_command_with_output("aws s3 cp %s - " % version_s3_path))
-        for entry in version_hash:
-            if entry['name'] == 'idseq-pipeline':
-                prev_pipeline_version_sig = major_version(entry['version'])
-                pipeline_version_sig = major_version(pipeline_version)
-                return (prev_pipeline_version_sig != pipeline_version_sig)
-        return True # idseq-pipeline info is not
-    except:
-        # couldn't get the s3_version_file (no output most likely). Return True to indicate change from nothing
-        traceback.print_exc()
-        return True
-
 def upload_version_tracker(source_file, output_name, reference_version_number, output_path_s3, indexing_version):
     version_tracker_file = "%s.version.txt" % output_name
     version_json = {"name": output_name,
@@ -611,17 +609,52 @@ def upload_version_tracker(source_file, output_name, reference_version_number, o
 def env_set_if_blank(key, value):
     os.environ[key] = os.environ.get(key, value)
 
-def validate_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str):
-    # Take the taxon lineage and mark meaningless calls with fake taxids.
-    # For each hit, the fake taxids below the meaningful hit level should depend
-    # only on: (a) the taxonomic level (b) the taxid of the meaningful hit
+
+def cleaned_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str):
+    """Take the taxon lineage and mark meaningless calls with fake taxids."""
     assert len(taxid_lineage) == 3  # this assumption is being made in postprocessing
-    cleaned_taxid_lineage = [None, None, None]
+    result = [None, None, None]
     hit_tax_level = int(hit_level_str)
     for tax_level, taxid in enumerate(taxid_lineage, 1):
         if tax_level >= hit_tax_level:
             taxid_str = str(taxid)
         else:
             taxid_str = str(tax_level * INVALID_CALL_BASE_ID - int(hit_taxid_str))
-        cleaned_taxid_lineage[tax_level - 1] = taxid_str
-    return cleaned_taxid_lineage
+        result[tax_level - 1] = taxid_str
+    return result
+
+
+def fill_missing_calls(cleaned_taxid_lineage):
+    """replace missing calls with virtual taxids as shown in fill_missing_calls_tests."""
+    result = list(cleaned_taxid_lineage)
+    tax_level = len(cleaned_taxid_lineage)
+    closest_real_hit_just_above_me = -1
+    def blank(taxid_int):
+        return 0 > taxid_int > INVALID_CALL_BASE_ID
+    while tax_level > 0:
+        me = int(cleaned_taxid_lineage[tax_level - 1])
+        if me >= 0:
+            closest_real_hit_just_above_me = me
+        elif closest_real_hit_just_above_me >= 0 and blank(me):
+            result[tax_level -1] = str(tax_level * INVALID_CALL_BASE_ID - closest_real_hit_just_above_me)
+        tax_level -= 1
+    return result
+
+
+def fill_missing_calls_tests():
+    # -200 => -200001534
+    assert fill_missing_calls((55, -200, 1534)) == [55, "-200001534", 1534]
+    # -100 => -100005888
+    assert fill_missing_calls((-100, 5888, -300)) == ["-100005888", 5888, -300]
+    # -100 => -100001534, -200 => -200001534
+    assert fill_missing_calls((-100, -200, 1534)) == ["-100001534", "-200001534", 1534]
+    # no change
+    assert fill_missing_calls((55, -200, -300)) == [55, -200, -300]
+
+
+# a bit ad-hoc
+fill_missing_calls_tests()
+
+
+def validate_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str):
+    return fill_missing_calls(cleaned_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str))
