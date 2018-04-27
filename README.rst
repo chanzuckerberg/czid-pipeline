@@ -38,7 +38,7 @@ Release notes
     - Extend the partial fix in release 1.5.1 to repair more of the
       broken reports.  Full fix requires rerun with updated webapp.
     - Correctly aggregate counts for species with unclassified genera,
-      such as e.g. genus-less species 1768803 from	family 80864.
+      such as e.g. genus-less species 1768803 from family 80864.
     - Fix total count in samples with unpaired reads (no longer doubled).
     - Fix crash when zero reads remain after host filtering.
     - Fix bug in enforcing command timeouts that could lead to hangs.
