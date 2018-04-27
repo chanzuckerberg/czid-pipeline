@@ -23,7 +23,7 @@ INPUT_DIR = SAMPLE_DIR + '/inputs'
 RESULT_DIR = SAMPLE_DIR + '/results'
 
 # input files
-TAXON_COUNTS = 'idseq_web_sample.json'
+TAXON_COUNTS = 'multihit_idseq_web_sample.json'
 TAXID_ANNOT_FASTA = 'taxid_annot.fasta'
 
 # outputs
