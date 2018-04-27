@@ -74,6 +74,7 @@ def run_stage4():
         # Also include the full fasta as an input to assembly
         output['all'] = full_fasta
         sorted_taxids_to_assemble.append('all')
+        sorted_taxids_to_assemble = [item in sorted_taxids_to_assemble if item in output.keys()]
         return output, sorted_taxids_to_assemble
 
     def length_without_newlines(sequence):
