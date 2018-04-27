@@ -34,6 +34,9 @@ Release notes
     - Perform de-novo assembly using SPAdes for taxa with >= 100 reads
     - Perform de-novo assembly using SPAdes for all non-host reads taken together
 
+- 1.7.0
+    - Update to GMAP-GSNAP 2018-03-25.
+
 - 1.6.0
     - Fix fasta downloads broken by release 1.5.0, making sure only
       hits at the correct level are output in the deduped m8.
