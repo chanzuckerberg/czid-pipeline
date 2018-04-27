@@ -606,7 +606,7 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, r
     if service == "gsnap":
         commands = "mkdir -p {remote_work_dir} ; \
             {download_input_from_s3} ; \
-            {remote_home_dir}/bin/gsnapl -A m8 --batch=0 --use-shared-memory=0 --gmap-mode=none --npaths=100 --ordered -t 32 --max-mismatches=40 -D {remote_index_dir} -d nt_k16 {remote_input_files} > {multihit_remote_outfile}"
+            {remote_home_dir}/bin/gsnapl -A m8 --batch=0 --use-shared-memory=0 --gmap-mode=none --npaths=10 --ordered -t 32 --max-mismatches=40 -D {remote_index_dir} -d nt_k16 {remote_input_files} > {multihit_remote_outfile}"
     else:
         commands = "mkdir -p {remote_work_dir} ; \
             {download_input_from_s3} ; \
