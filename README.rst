@@ -31,7 +31,8 @@ Release notes
 -------------
 
 - 1.6.1
-    - Perform de-novo assembly using SPAdes for species with >= 100 reads.
+    - Perform de-novo assembly using SPAdes for taxa with >= 100 reads
+    - Perform de-novo assembly using SPAdes for all non-host reads taken together
 
 - 1.6.0
     - Fix fasta downloads broken by release 1.5.0, making sure only
