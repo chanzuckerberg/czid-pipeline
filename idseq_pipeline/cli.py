@@ -56,7 +56,7 @@ Examples:
 
   OUTPUT_PATH_S3=s3://czbiohub-infectious-disease/references INPUT=/pub/taxonomy/taxdump.tar.gz idseq_pipeline lineages
 
-  INPUT_FASTA_S3='s3://czbiohub-ncbi-store/blast/db/FASTA/vector.gz' ACCESSION2TAXID_DB_S3_PATH='s3://czbiohub-infectious-disease/references/accession2taxid.db.gz' idseq_pipeline blacklist
+  INPUT_FASTA_S3='s3://czbiohub-ncbi-store/blast/db/FASTA/vector.gz' ACCESSION2TAXID_DB_S3_PATH='s3://czbiohub-infectious-disease/references/accession2taxid.db' idseq_pipeline blacklist
 
   idseq_pipeline curate_accessionid2seq --s3_db_path s3://yunfang-workdir/curate_accessionid2seq/nt.sample --s3_db_loc_path s3://yunfang-workdir/curate_accessionid2seq/nt.sample.db
 

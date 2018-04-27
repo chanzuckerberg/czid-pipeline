@@ -28,8 +28,10 @@ NT_LOC_DB = os.environ.get('NT_LOC_DB', "s3://idseq-database/20170824/blast_db/n
 NT_DB = os.environ.get('NT_DB', "s3://idseq-database/20170824/blast_db/nt")
 
 # input files
-ACCESSION_ANNOTATED_FASTA = 'taxids.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.fasta'
-GSNAP_M8_FILE = 'taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
+ACCESSION_ANNOTATED_FASTA = 'accessions.rapsearch2.gsnapl.fasta'
+GSNAP_M8_FILE = 'dedup.multihit.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8'
+SUMMARY_MULTIHIT_GSNAPL_OUT = 'summary.multihit.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.tab'
+SUMMARY_MULTIHIT_RAPSEARCH_OUT = 'summary.multihit.rapsearch2.filter.deuterostomes.taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.tab'
 
 # output files
 TAXID_ANNOT_FASTA = 'taxid_annot.fasta'
@@ -49,8 +51,9 @@ TAXID_LOCATIONS_JSON_ALL = 'taxid_locations_combined.json'
 LOGS_OUT_BASENAME = 'postprocess-log'
 ALIGN_VIZ_DIR = 'align_viz'
 
+
 # target outputs by task
-TARGET_OUTPUTS = {"run_generate_taxid_fasta_from_accid": [os.path.join(RESULT_DIR, TAXID_ANNOT_FASTA)],
+TARGET_OUTPUTS = {"run_generate_taxid_fasta_from_hit_summaries": [os.path.join(RESULT_DIR, TAXID_ANNOT_FASTA)],
                   "run_generate_taxid_locator__1": [os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_NT),
                                                     os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_NT)],
                   "run_generate_taxid_locator__2": [os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_NR),
@@ -71,27 +74,57 @@ TARGET_OUTPUTS = {"run_generate_taxid_fasta_from_accid": [os.path.join(RESULT_DI
 # from common import ACCESSION2TAXID
 
 # processing functions
-def accession2taxid(read_id, accession2taxid_dict, hit_type, lineage_map):
-    accid_short = ((read_id.split(hit_type+':'))[1].split(":")[0]).split(".")[0]
-    taxid = accession2taxid_dict.get(accid_short, "NA")
-    species_taxid, genus_taxid, family_taxid = lineage_map.get(taxid, ("-100", "-200", "-300"))
-    return species_taxid, genus_taxid, family_taxid
+def remove_annotation(read_id):
+    result = re.sub(r'NT:(.*?):', '', read_id)
+    result = re.sub(r'NR:(.*?):', '', result)
+    return result
 
-def generate_taxid_fasta_from_accid(input_fasta_file, accession2taxid_path, lineagePath, output_fasta_file):
-    accession2taxid_dict = shelve.open(accession2taxid_path)
+
+def parse_hits(hit_summary_files):
+    # Return map of {NT, NR} => read_id => (hit_taxid_str, hit_level_str)
+    valid_hits = {}
+    for count_type, summary_file in hit_summary_files.items():
+        hits = {}
+        with open(summary_file, "rb") as sf:
+            for hit_line in sf:
+                hit_line_columns = hit_line.strip().split("\t")
+                if len(hit_line_columns) >= 3:
+                    hit_read_id = hit_line_columns[0]
+                    hit_level_str = hit_line_columns[1]
+                    hit_taxid_str = hit_line_columns[2]
+                    hits[hit_read_id] = (hit_taxid_str, hit_level_str)
+        valid_hits[count_type] = hits
+    return valid_hits
+
+
+def generate_taxid_fasta_from_hit_summaries(input_fasta_file, hit_summary_files, lineagePath, output_fasta_file):
     lineage_map = shelve.open(lineagePath)
+    valid_hits = parse_hits(hit_summary_files)
+    NULL_LINEAGE = ("-100", "-200", "-300")
+    def get_valid_lineage(read_id, count_type):
+        # If the read aligned to something, then it would be present in the summary file
+        # for count type, and correspondingly in valid_hits[count_type], even if the
+        # hits disagree so much that the "valid_hits" entry is just ("-1", "-1").
+        # If the read didn't align to anything, we also represent that with ("-1", "-1).
+        # This ("-1", "-1) gets translated to NULL_LINEAGE.
+        hit_taxid_str, hit_level_str = valid_hits[count_type].get(read_id, ("-1", "-1"))
+        hit_lineage = lineage_map.get(hit_taxid_str, NULL_LINEAGE)
+        return validate_taxid_lineage(hit_lineage, hit_taxid_str, hit_level_str)
     input_fasta_f = open(input_fasta_file, 'rb')
     output_fasta_f = open(output_fasta_file, 'wb')
     sequence_name = input_fasta_f.readline()
     sequence_data = input_fasta_f.readline()
     while len(sequence_name) > 0 and len(sequence_data) > 0:
-        read_id = sequence_name.rstrip().lstrip('>') # example read_id: "NR::NT:CP010376.2:NB501961:14:HM7TLBGX2:1:23109:12720:8743/2"
-        nr_taxid_species, nr_taxid_genus, nr_taxid_family = accession2taxid(read_id, accession2taxid_dict, 'NR', lineage_map)
-        nt_taxid_species, nt_taxid_genus, nt_taxid_family = accession2taxid(read_id, accession2taxid_dict, 'NT', lineage_map)
+        accession_annotated_read_id = sequence_name.rstrip().lstrip('>') # example read_id: "NR::NT:CP010376.2:NB501961:14:HM7TLBGX2:1:23109:12720:8743/2"
+        read_id = accession_annotated_read_id.split(":", 4)[-1]
+
+        nr_taxid_species, nr_taxid_genus, nr_taxid_family = get_valid_lineage(read_id, 'NR')
+        nt_taxid_species, nt_taxid_genus, nt_taxid_family = get_valid_lineage(read_id, 'NT')
+
         new_read_name = ('family_nr:' + nr_taxid_family + ':family_nt:' + nt_taxid_family
                          + ':genus_nr:' + nr_taxid_genus + ':genus_nt:' + nt_taxid_genus
                          + ':species_nr:' + nr_taxid_species + ':species_nt:' + nt_taxid_species
-                         + ':' + read_id)
+                         + ':' + accession_annotated_read_id)
         output_fasta_f.write(">%s\n" % new_read_name)
         output_fasta_f.write(sequence_data)
         sequence_name = input_fasta_f.readline()
@@ -167,10 +200,9 @@ def run_generate_align_viz(input_fasta, input_m8, output_dir):
     execute_command("aws s3 cp --quiet %s %s/align_viz --recursive" % (output_dir, SAMPLE_S3_OUTPUT_PATH))
     execute_command("aws s3 cp --quiet %s %s/" % (summary_file_name, SAMPLE_S3_OUTPUT_PATH))
 
-def run_generate_taxid_fasta_from_accid(input_fasta, output_fasta):
-    accession2taxid_path = fetch_reference(ACCESSION2TAXID)
+def run_generate_taxid_fasta_from_hit_summaries(input_fasta, hit_summary_files, output_fasta):
     lineage_path = fetch_reference(LINEAGE_SHELF)
-    generate_taxid_fasta_from_accid(input_fasta, accession2taxid_path, lineage_path, output_fasta)
+    generate_taxid_fasta_from_hit_summaries(input_fasta, hit_summary_files, lineage_path, output_fasta)
     logging.getLogger().info("finished job")
     execute_command("aws s3 cp --quiet %s %s/" % (output_fasta, SAMPLE_S3_OUTPUT_PATH))
 
@@ -204,15 +236,24 @@ def run_stage3(lazy_run=False):
     execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, GSNAP_M8_FILE, INPUT_DIR))
     input_m8 = os.path.join(INPUT_DIR, GSNAP_M8_FILE)
 
+    # download hit level files
+    hit_summary_files = {
+        'NT':  os.path.join(INPUT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT),
+        'NR':  os.path.join(INPUT_DIR, SUMMARY_MULTIHIT_RAPSEARCH_OUT)
+    }
+    for local_file in hit_summary_files.values():
+        execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, os.path.basename(local_file), INPUT_DIR))
+
     # generate taxid fasta
     logparams = return_merged_dict(
         DEFAULT_LOGPARAMS,
-        {"title": "run_generate_taxid_fasta_from_accid"})
+        {"title": "run_generate_taxid_fasta_from_hit_summaries"})
     run_and_log(
         logparams,
-        TARGET_OUTPUTS["run_generate_taxid_fasta_from_accid"],
+        TARGET_OUTPUTS["run_generate_taxid_fasta_from_hit_summaries"],
         False,
-        run_generate_taxid_fasta_from_accid, input_file,
+        run_generate_taxid_fasta_from_hit_summaries, input_file,
+        hit_summary_files,
         os.path.join(RESULT_DIR, TAXID_ANNOT_FASTA))
 
     # SPECIES level
