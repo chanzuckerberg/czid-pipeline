@@ -166,7 +166,8 @@ def subsample_helper(input_file, records_to_keep, type_, output_file):
 
 
 # Note dedicated random stream for just this function, so that arbitrary other use of randomness (e.g. for I/O retry delays) will not perturb the subsampling stream
-def subsample_single_fasta(input_file, target_n_reads, randgen=random.Random(x=hash(SAMPLE_NAME))):
+def subsample_single_fasta(input_files_basename, target_n_reads, randgen=random.Random(x=hash(SAMPLE_NAME))):
+    input_file = result_dir(input_files_basename)
     total_records = count_lines(input_file) // 2 # each fasta record spans 2 lines
     write_to_log("total unpaired reads: %d" % total_records)
     write_to_log("target reads: %d" % target_n_reads)
@@ -894,7 +895,7 @@ def run_stage2(lazy_run=True):
 
     cleaned_inputs = fetch_and_clean_inputs()
 
-    gsnapl_input_files = [os.path.basename(f) for f in cleaned_inputs[:-1]]
+    gsnapl_input_files = [os.path.basename(f) for f in cleaned_inputs[:2]]
     merged_fasta = cleaned_inputs[-1]
     before_file_name_for_log = cleaned_inputs[0]
     before_file_type_for_log = "fasta_paired" if len(gsnapl_input_files) == 2 else "fasta" # unpaired
