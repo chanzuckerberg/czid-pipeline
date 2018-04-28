@@ -66,3 +66,5 @@ class Curate_accessionid2seq(Base):
 
         # cleanup
         execute_command("rm -rf %s %s" % (local_input_file, local_output_file))
+
+
