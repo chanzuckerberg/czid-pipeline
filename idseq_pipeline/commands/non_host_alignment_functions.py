@@ -610,7 +610,7 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, r
     else:
         commands = "mkdir -p {remote_work_dir} ; \
             {download_input_from_s3} ; \
-            /usr/local/bin/rapsearch -d {remote_index_dir}/nr_rapsearch -e -6 -l 10 -a T -b 0 -v 100 -z 24 -q {remote_input_files} -o {multihit_remote_outfile}"
+            /usr/local/bin/rapsearch -d {remote_index_dir}/nr_rapsearch -e -6 -l 10 -a T -b 0 -v 50 -z 24 -q {remote_input_files} -o {multihit_remote_outfile}"
     commands = commands.format(
         remote_work_dir=remote_work_dir,
         download_input_from_s3=download_input_from_s3,
@@ -664,9 +664,17 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path, output_m
     # TODO: Represent taxids by numbers instead of strings to greatly reduce memory footprint
     # and increase speed.
     NULL_TAXIDS = ("-100", "-200", "-300")
+    lineage_cache = {}
+    def get_lineage(accession_id):
+        if accession_id in lineage_cache:
+            result = lineage_cache[accession_id]
+        else:
+            accession_taxid = accession2taxid_dict.get(accession_id.split(".")[0], "NA")
+            result = lineage_map.get(accession_taxid, NULL_TAXIDS)
+            lineage_cache[accession_id] = result
+        return result
     def accumulate(hits, accession_id):
-        accession_taxid = accession2taxid_dict.get(accession_id.split(".")[0], "NA")
-        lineage_taxids = lineage_map.get(accession_taxid, NULL_TAXIDS)
+        lineage_taxids = get_lineage(accession_id)
         for level, taxid_at_level in enumerate(lineage_taxids):
             if int(taxid_at_level) < 0:
                 # When an accession doesn't provide species level info, it doesn't contradict
