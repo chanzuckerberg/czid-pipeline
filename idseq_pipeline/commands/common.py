@@ -16,11 +16,10 @@ import multiprocessing
 from idseq_pipeline import __version__ as PIPELINE_VERSION
 bucket = "s3://idseq-database"
 NCBITOOL_S3_PATH = bucket + "/ncbitool" # S3 location of ncbitool executable
-base_dt = '2018-04-01-utc-1522569777-unixtime__2018-04-04-utc-1522862260-unixtime'
+base_dt = '2018-02-15-utc-1518652800-unixtime__2018-02-15-utc-1518652800-unixtime'
 base_s3 = bucket + "/alignment_data"
 ACCESSION2TAXID = ("%s/%s/accession2taxid.db" % (base_s3, base_dt))
 base_s3 = bucket + "/taxonomy"
-base_dt = '2018-02-15-utc-1518652800-unixtime__2018-02-15-utc-1518652800-unixtime'
 LINEAGE_SHELF = ("%s/%s/taxid-lineages.db" % (base_s3, base_dt))
 INVALID_CALL_BASE_ID = -(10**8) # don't run into -2e9 limit of mysql database. current largest taxid is around 2e6 so should be fine
 
