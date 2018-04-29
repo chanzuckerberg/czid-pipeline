@@ -646,7 +646,7 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, r
         with iostream:
             execute_command(scp(key_path, remote_username, instance_ip, multihit_remote_outfile, multihit_local_outfile))
             execute_command("aws s3 cp --quiet %s %s/" % (multihit_local_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
-    write_to_log("finished alignment for chunk %s on %s server %s" % (chunk_id, service, instance_ip))
+        write_to_log("finished alignment for chunk %s on %s server %s" % (chunk_id, service, instance_ip))
     return multihit_local_outfile
 
 
