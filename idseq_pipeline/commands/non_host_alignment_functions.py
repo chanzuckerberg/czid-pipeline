@@ -166,7 +166,8 @@ def subsample_helper(input_file, records_to_keep, type_, output_file):
 
 
 # Note dedicated random stream for just this function, so that arbitrary other use of randomness (e.g. for I/O retry delays) will not perturb the subsampling stream
-def subsample_single_fasta(input_file, target_n_reads, randgen=random.Random(x=hash(SAMPLE_NAME))):
+def subsample_single_fasta(input_files_basename, target_n_reads, randgen=random.Random(x=hash(SAMPLE_NAME))):
+    input_file = result_dir(input_files_basename)
     total_records = count_lines(input_file) // 2 # each fasta record spans 2 lines
     write_to_log("total unpaired reads: %d" % total_records)
     write_to_log("target reads: %d" % target_n_reads)
@@ -610,7 +611,7 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, r
     else:
         commands = "mkdir -p {remote_work_dir} ; \
             {download_input_from_s3} ; \
-            /usr/local/bin/rapsearch -d {remote_index_dir}/nr_rapsearch -e -6 -l 10 -a T -b 0 -v 100 -z 24 -q {remote_input_files} -o {multihit_remote_outfile}"
+            /usr/local/bin/rapsearch -d {remote_index_dir}/nr_rapsearch -e -6 -l 10 -a T -b 0 -v 50 -z 24 -q {remote_input_files} -o {multihit_remote_outfile}"
     commands = commands.format(
         remote_work_dir=remote_work_dir,
         download_input_from_s3=download_input_from_s3,
@@ -664,9 +665,17 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path, output_m
     # TODO: Represent taxids by numbers instead of strings to greatly reduce memory footprint
     # and increase speed.
     NULL_TAXIDS = ("-100", "-200", "-300")
+    lineage_cache = {}
+    def get_lineage(accession_id):
+        if accession_id in lineage_cache:
+            result = lineage_cache[accession_id]
+        else:
+            accession_taxid = accession2taxid_dict.get(accession_id.split(".")[0], "NA")
+            result = lineage_map.get(accession_taxid, NULL_TAXIDS)
+            lineage_cache[accession_id] = result
+        return result
     def accumulate(hits, accession_id):
-        accession_taxid = accession2taxid_dict.get(accession_id.split(".")[0], "NA")
-        lineage_taxids = lineage_map.get(accession_taxid, NULL_TAXIDS)
+        lineage_taxids = get_lineage(accession_id)
         for level, taxid_at_level in enumerate(lineage_taxids):
             if int(taxid_at_level) < 0:
                 # When an accession doesn't provide species level info, it doesn't contradict
@@ -886,7 +895,7 @@ def run_stage2(lazy_run=True):
 
     cleaned_inputs = fetch_and_clean_inputs()
 
-    gsnapl_input_files = [os.path.basename(f) for f in cleaned_inputs[:-1]]
+    gsnapl_input_files = [os.path.basename(f) for f in cleaned_inputs[:2]]
     merged_fasta = cleaned_inputs[-1]
     before_file_name_for_log = cleaned_inputs[0]
     before_file_type_for_log = "fasta_paired" if len(gsnapl_input_files) == 2 else "fasta" # unpaired

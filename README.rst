@@ -30,6 +30,10 @@ When merging a commit to master, you need to increase the version number in `ids
 Release notes
 -------------
 
+- 1.6.1
+    - Fix crash for samples with unpaired reads.
+    - Improve hit calling performance.
+
 - 1.6.0
     - Fix fasta downloads broken by release 1.5.0, making sure only
       hits at the correct level are output in the deduped m8.
