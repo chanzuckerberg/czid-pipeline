@@ -1,4 +1,4 @@
-from .common import *
+from common import *
 
 def remove_short(input_fasta, length_threshold, size_db_file, output_fasta):
     '''Remove fasta records with sequence shorter than threshold; report length distribution'''
@@ -46,3 +46,6 @@ def main():
     output_fasta = "%s/nt_sample_curated.fasta" % dest_dir
     
     remove_short(nt_local, length_threshold, size_db_file, output_fasta)
+
+if __name__ == "__main__":
+    main()
