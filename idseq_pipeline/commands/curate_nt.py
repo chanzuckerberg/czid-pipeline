@@ -1,4 +1,5 @@
 from common import *
+import shelve
 
 def remove_short(input_fasta, length_threshold, size_db_file, output_fasta):
     '''Remove fasta records with sequence shorter than threshold; report length distribution'''
