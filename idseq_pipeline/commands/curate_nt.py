@@ -39,7 +39,7 @@ def main():
 
     nt_s3 = "s3://yunfang-workdir/curate_accessionid2seq/nt.sample"
     nt_local = "%s/nt_sample.fasta" % dest_dir
-    execute_command("s3mi cp %s %s/" % (nt_s3, nt_local))
+    execute_command("s3mi cp %s %s" % (nt_s3, nt_local))
 
     length_threshold = 100
     size_db_file = "%s/nt_sample_seqlen.db" % dest_dir
