@@ -234,6 +234,8 @@ def log_corrupt(m8_file, line):
 
 
 def iterate_m8(m8_file, debug_caller=None, logging_interval=25000000):
+    invalid_hits = 0
+    last_invalid_line = None
     with open(m8_file, 'rb') as m8f:
         line_count = 0
         for line in m8f:
@@ -246,10 +248,22 @@ def iterate_m8(m8_file, debug_caller=None, logging_interval=25000000):
             assert len(parts) >= 12, log_corrupt(m8_file, line)
             read_id = parts[0]
             accession_id = parts[1]
+            percent_id = float(parts[2])
+            alignment_length = int(parts[3])
             e_value = float(parts[10])
+            # GSNAP outputs these sometimes, and usually they are not the only assingment, so rather
+            # than killing the job, we just skip them.  If we don't filter these out here, they will
+            # override the good data when computing min(evalue), pollute averages computed in the json,
+            # and cause the webapp loader to crash as the RAILS JSON parser cannot handle NaNs.
+            if alignment_length <= 0 or not -0.25 < percent_id < 100.25 or e_value != e_value:
+                invalid_hits += 1
+                last_invalid_line = line
+                continue
             if debug_caller and line_count % logging_interval == 0:
                 write_to_log("Scanned {} m8 lines from {} for {}, and going.".format(line_count, m8_file, debug_caller))
-            yield (read_id, accession_id, e_value, line)
+            yield (read_id, accession_id, percent_id, alignment_length, e_value, line)
+    if invalid_hits:
+        write_to_log("Found {} invalid hits in {};  last invalid hit line: {}".format(invalid_hits, m8_file, last_invalid_line), warning=True)
     if debug_caller:
         write_to_log("Scanned all {} m8 lines from {} for {}.".format(line_count, m8_file, debug_caller))
 
@@ -257,7 +271,7 @@ def iterate_m8(m8_file, debug_caller=None, logging_interval=25000000):
 def annotate_fasta_with_accessions(merged_input_fasta, nt_m8, nr_m8, output_fasta):
 
     def get_map(m8_file):
-        return dict((read_id, accession_id) for read_id, accession_id, _1, _2 in iterate_m8(m8_file, "annotate_fasta_with_accessions"))
+        return dict((read_id, accession_id) for read_id, accession_id, _percent_id, _alignment_length, _e_value, _line in iterate_m8(m8_file, "annotate_fasta_with_accessions"))
 
     nt_map = get_map(nt_m8)
     nr_map = get_map(nr_m8)
@@ -311,6 +325,8 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
     lineage_map = shelve.open(lineage_map_path)
     LINEAGE_WILDCARDS = ("-100", "-200", "-300")
     NUM_RANKS = len(LINEAGE_WILDCARDS)
+    # See https://en.wikipedia.org/wiki/Double-precision_floating-point_format
+    MIN_NORMAL_POSITIVE_DOUBLE = 2.0 ** -1022
     while hit_line and m8_line:
         # Retrieve data values from files:
         hit_line_columns = hit_line.rstrip("\n").split("\t")
@@ -326,7 +342,12 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
         percent_identity = float(m8_line_columns[2])
         alignment_length = float(m8_line_columns[3])
         e_value = float(m8_line_columns[10])
+        # These have been filtered out before the creation of m8_f and hit_f
+        assert alignment_length > 0
+        assert -0.25 < percent_identity < 100.25
+        assert e_value == e_value
         if e_value_type != 'log10':
+            assert MIN_NORMAL_POSITIVE_DOUBLE <= e_value  # Subtle, but this excludes positive subnorms.
             e_value = math.log10(e_value)
 
         # Retrieve the taxon lineage and mark meaningless calls with fake taxids.
@@ -342,9 +363,9 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
                 if not agg_bucket:
                     agg_bucket = {
                         'count': 0,
-                        'sum_percent_identity': 0,
-                        'sum_alignment_length': 0,
-                        'sum_e_value': 0
+                        'sum_percent_identity': 0.0,
+                        'sum_alignment_length': 0.0,
+                        'sum_e_value': 0.0
                     }
                     aggregation[agg_key] = agg_bucket
                 agg_bucket['count'] += 1
@@ -360,6 +381,7 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
     # Produce the final output
     taxon_counts_attributes = []
     for agg_key, agg_bucket in aggregation.iteritems():
+        count = agg_bucket['count']
         tax_level = NUM_RANKS - len(agg_key) + 1
         taxon_counts_attributes.append({# TODO: Extend taxonomic ranks as indicated on the commented out lines.
             "tax_id": agg_key[0],
@@ -372,10 +394,10 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
             # 'phyllum_taxid' : agg_key[6 - tax_level] if tax_level <= 6 else "-600",
             # 'kingdom_taxid' : agg_key[7 - tax_level] if tax_level <= 7 else "-700",
             # 'domain_taxid' : agg_key[8 - tax_level] if tax_level <= 8 else "-800",
-            "count": agg_bucket['count'],
-            "percent_identity": agg_bucket['sum_percent_identity'] / agg_bucket['count'],
-            "alignment_length": agg_bucket['sum_alignment_length'] / agg_bucket['count'],
-            "e_value": agg_bucket['sum_e_value'] / agg_bucket['count'],
+            "count": count,
+            "percent_identity": agg_bucket['sum_percent_identity'] / count,
+            "alignment_length": agg_bucket['sum_alignment_length'] / count,
+            "e_value": agg_bucket['sum_e_value'] / count,
             "count_type": count_type})
     output_dict = {
         "pipeline_output": {
@@ -691,7 +713,7 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path, output_m
         return -1, "-1", None
     # Read input_m8 and group hits by read id
     m8 = defaultdict(list)
-    for read_id, accession_id, e_value, _ in iterate_m8(input_m8, "call_hits_m8_initial_scan"):
+    for read_id, accession_id, _percent_id, _alignment_length, e_value, _line in iterate_m8(input_m8, "call_hits_m8_initial_scan"):
         m8[read_id].append((accession_id, e_value))
     # Deduplicate m8 and summarize hits
     summary = {}
@@ -712,7 +734,7 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path, output_m
     emitted = set()
     with open(output_m8, "wb") as outf:
         with open(output_summary, "wb") as outf_sum:
-            for read_id, accession_id, e_value, line in iterate_m8(input_m8, "call_hits_m8_emit_deduped_and_summarized_hits"):
+            for read_id, accession_id, _percent_id, _alignment_length, e_value, line in iterate_m8(input_m8, "call_hits_m8_emit_deduped_and_summarized_hits"):
                 if read_id not in emitted:
                     best_e_value, (hit_level, taxid, best_accession_id) = summary[read_id]
                     if best_e_value == e_value and best_accession_id in (None, accession_id):

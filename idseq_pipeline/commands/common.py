@@ -623,15 +623,15 @@ def cleaned_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str):
     return result
 
 
-def fill_missing_calls(cleaned_taxid_lineage):
+def fill_missing_calls(cleaned_lineage):
     """replace missing calls with virtual taxids as shown in fill_missing_calls_tests."""
-    result = list(cleaned_taxid_lineage)
-    tax_level = len(cleaned_taxid_lineage)
+    result = list(cleaned_lineage)
+    tax_level = len(cleaned_lineage)
     closest_real_hit_just_above_me = -1
     def blank(taxid_int):
         return 0 > taxid_int > INVALID_CALL_BASE_ID
     while tax_level > 0:
-        me = int(cleaned_taxid_lineage[tax_level - 1])
+        me = int(cleaned_lineage[tax_level - 1])
         if me >= 0:
             closest_real_hit_just_above_me = me
         elif closest_real_hit_just_above_me >= 0 and blank(me):
