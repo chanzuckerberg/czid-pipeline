@@ -14,7 +14,7 @@ def remove_short(input_fasta, length_threshold, size_db_file, output_fasta):
     with open(input_fasta, 'rb') as input_f:
         with open(output_fasta, 'wb') as output_f:
             line_number = 0
-            for line in f:
+            for line in input_f:
                 line_number += 1
                 if line_number % 100000 == 0:
                     print "%3.1f M lines. " %  (line_number/1000000.0)
