@@ -53,7 +53,7 @@ def main():
     removed_fasta = "%s/nt_removed.fasta" % dest_dir
  
     for output in [size_db_file, size_count_file, output_fasta, removed_fasta]:
-        execute_command("rm %s" % output)
+        execute_command("rm -rf %s" % output)
     remove_short(nt_local, length_threshold, size_db_file, size_count_file, output_fasta, removed_fasta)
 
 if __name__ == "__main__":
