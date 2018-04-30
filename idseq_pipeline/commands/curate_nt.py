@@ -42,7 +42,7 @@ def main():
     execute_command("mkdir -p %s" % dest_dir)
 
     nt_s3 = "s3://idseq-database/alignment_data/2018-04-01-utc-1522569777-unixtime__2018-04-04-utc-1522862260-unixtime/nt"
-    nt_local = "%s/nt.fasta" % dest_dir
+    nt_local = "%s/nt" % dest_dir
     if not os.path.isfile(nt_local):
         execute_command("s3mi cp %s %s" % (nt_s3, nt_local))
 
