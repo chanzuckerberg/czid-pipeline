@@ -43,6 +43,6 @@ def main():
 
     length_threshold = 100
     size_db_file = "%s/nt_sample_seqlen.db" % dest_dir
-    output_fasta = %s/nt_sample_curated.fasta" % dest_dir
+    output_fasta = "%s/nt_sample_curated.fasta" % dest_dir
     
     remove_short(nt_local, length_threshold, size_db_file, output_fasta)
