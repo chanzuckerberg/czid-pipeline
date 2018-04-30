@@ -51,7 +51,9 @@ def main():
     size_count_file = "%s/nt_length_counts.txt" % dest_dir
     output_fasta = "%s/nt_curated.fasta" % dest_dir
     removed_fasta = "%s/nt_removed.fasta" % dest_dir
-    
+ 
+    for output in [size_db_file, size_count_file, output_fasta, removed_fasta]:
+        execute_command("rm %s" % output)
     remove_short(nt_local, length_threshold, size_db_file, size_count_file, output_fasta, removed_fasta)
 
 if __name__ == "__main__":
