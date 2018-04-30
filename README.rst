@@ -30,6 +30,9 @@ When merging a commit to master, you need to increase the version number in `ids
 Release notes
 -------------
 
+- 1.6.2
+    - Fix crash for reruns which reuse compatible results from a previous run.
+
 - 1.6.1
     - Fix crash for samples with unpaired reads.
     - Improve hit calling performance.
