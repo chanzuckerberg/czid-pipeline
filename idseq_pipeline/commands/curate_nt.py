@@ -43,13 +43,13 @@ def main():
     dest_dir = os.path.join(DEST_DIR, 'curate_nt')
     execute_command("mkdir -p %s" % dest_dir)
 
-    nt_s3 = "s3://yunfang-workdir/curate_accessionid2seq/nt.sample"
-    nt_local = "%s/nt_sample.fasta" % dest_dir
+    nt_s3 = "s3://idseq-database/alignment_data/2018-04-01-utc-1522569777-unixtime__2018-04-04-utc-1522862260-unixtime/nt"
+    nt_local = "%s/nt.fasta" % dest_dir
     execute_command("s3mi cp %s %s" % (nt_s3, nt_local))
 
     length_threshold = 100
-    size_db_file = "%s/nt_sample_seqlen.db" % dest_dir
-    output_fasta = "%s/nt_sample_curated.fasta" % dest_dir
+    size_db_file = "%s/nt_seqlen.db" % dest_dir
+    output_fasta = "%s/nt_curated.fasta" % dest_dir
     
     remove_short(nt_local, length_threshold, size_db_file, output_fasta)
 
