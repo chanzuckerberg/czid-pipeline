@@ -52,7 +52,7 @@ def main():
     output_fasta = "%s/nt_curated.fasta" % dest_dir
     removed_fasta = "%s/nt_removed.fasta" % dest_dir
     
-    remove_short(nt_local, length_threshold, size_db_file, output_fasta)
+    remove_short(nt_local, length_threshold, size_db_file, size_count_file, output_fasta, removed_fasta)
 
 if __name__ == "__main__":
     main()
