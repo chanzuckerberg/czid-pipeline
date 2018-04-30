@@ -30,10 +30,9 @@ When merging a commit to master, you need to increase the version number in `ids
 Release notes
 -------------
 
-- 1.6.2
+- 1.6.3 ... 1.6.1
+    - Handle bogus 0-length alignments output by gsnap without crashing.
     - Fix crash for reruns which reuse compatible results from a previous run.
-
-- 1.6.1
     - Fix crash for samples with unpaired reads.
     - Improve hit calling performance.
 
