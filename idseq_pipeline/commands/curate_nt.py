@@ -4,6 +4,7 @@ import shelve
 def remove_short(input_fasta, length_threshold, size_db_file, output_fasta):
     '''Remove fasta records with sequence shorter than threshold; report length distribution'''
     size_count = shelve.open(size_db_file)
+    size_count.clear()
     removed = set()
     with open(input_fasta, 'rb') as input_f:
         with open(output_fasta, 'wb') as output_f:
