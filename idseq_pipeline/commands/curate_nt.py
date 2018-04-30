@@ -31,6 +31,10 @@ def remove_short(input_fasta, length_threshold, size_db_file, output_fasta):
                     seq += line 
                     seq_len += len(seq.replace("\n",""))
             write_output(seq_name, seq, seq_len)
+    for seqlen in sorted(size_count.keys(), key=lambda x: int(x)):
+        print "sequence length %s: %d records" % (seqlen, size_count[seqlen])
+    print "records removed: "
+    print removed
     size_count.close()
     return removed
 
