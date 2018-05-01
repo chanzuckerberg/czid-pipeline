@@ -1,11 +1,9 @@
 from common import *
 import shelve
 
-def size_select(nt_local, short_threshold, long_threshold,
+def size_select(input_fasta, short_threshold, long_threshold,
                 size_db_file, size_count_file,
                 short_records_fasta, medium_records_fasta, long_records_fasta):
-
-def size_select(input_fasta, length_threshold, size_db_file, size_count_file, output_fasta, removed_fasta):
     '''Get sequence length distribution; split fasta based on length'''
     size_count = shelve.open(size_db_file)
     size_count.clear()
