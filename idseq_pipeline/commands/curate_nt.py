@@ -47,7 +47,7 @@ def cluster_seqs(input_fasta, output_fasta, identity_threshold):
     execute_command("cdhit-est -i %s -o %s -c %s -n 10 -d 0 -M 800 -T 0" % (input_fasta, output_fasta, str(identity_threshold)))
 
 def main():
-    dest_dir = os.path.join(DEST_DIR, 'curate_nt_2018-04-01')
+    dest_dir = os.path.join(DEST_DIR, 'curate_nt')
     execute_command("mkdir -p %s" % dest_dir)
 
     nt_s3 = "s3://idseq-database/alignment_data/2018-04-01-utc-1522569777-unixtime__2018-04-04-utc-1522862260-unixtime/nt"
