@@ -60,7 +60,7 @@ def main():
     medium_records_fasta = "%s/nt_medium.fasta" % dest_dir
     long_records_fasta = "%s/nt_long.fasta" % dest_dir
 
-    for output in [size_db_file, size_count_file, output_fasta, removed_fasta]:
+    for output in [size_db_file, size_count_file, short_records_fasta, medium_records_fasta, long_records_fasta]:
         execute_command("rm -rf %s" % output)
     size_select(nt_local, short_threshold, long_threshold,
                 size_db_file, size_count_file,
