@@ -44,7 +44,7 @@ def size_select(input_fasta, short_threshold, long_threshold,
     size_count.close()
 
 def main():
-    dest_dir = os.path.join(DEST_DIR, 'curate_nt')
+    dest_dir = os.path.join(DEST_DIR, 'curate_nt_2018-04-01')
     execute_command("mkdir -p %s" % dest_dir)
 
     nt_s3 = "s3://idseq-database/alignment_data/2018-04-01-utc-1522569777-unixtime__2018-04-04-utc-1522862260-unixtime/nt"
