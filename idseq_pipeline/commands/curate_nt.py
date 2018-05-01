@@ -43,6 +43,9 @@ def size_select(input_fasta, short_threshold, long_threshold,
             count_f.write("sequence length %s: %d records\n" % (seqlen, size_count[seqlen]))
     size_count.close()
 
+def cluster_seqs(input_fasta, output_fasta, identity_threshold):
+    execute_command("cdhit-est -i %s -o %s -c %s -n 10 -d 0 -M 800 -T 0" % (input_fasta, output_fasta, str(identity_threshold)))
+
 def main():
     dest_dir = os.path.join(DEST_DIR, 'curate_nt_2018-04-01')
     execute_command("mkdir -p %s" % dest_dir)
@@ -60,11 +63,13 @@ def main():
     medium_records_fasta = "%s/nt_medium.fasta" % dest_dir
     long_records_fasta = "%s/nt_long.fasta" % dest_dir
 
-    for output in [size_db_file, size_count_file, short_records_fasta, medium_records_fasta, long_records_fasta]:
-        execute_command("rm -rf %s" % output)
-    size_select(nt_local, short_threshold, long_threshold,
-                size_db_file, size_count_file,
-                short_records_fasta, medium_records_fasta, long_records_fasta)
+    if not os.path.isfile(medium_records_fasta):
+        size_select(nt_local, short_threshold, long_threshold,
+                    size_db_file, size_count_file,
+                    short_records_fasta, medium_records_fasta, long_records_fasta)
+
+    dedup_fasta = "%s/nt_medium_dedup.fasta" % dest_dir
+    cluster_seqs(medium_records_fasta, dedup_fasta, 0.95)
 
 if __name__ == "__main__":
     main()
