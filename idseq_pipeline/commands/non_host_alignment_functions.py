@@ -296,16 +296,8 @@ def annotate_fasta_with_accessions(merged_input_fasta, nt_m8, nr_m8, output_fast
     execute_command("aws s3 cp --quiet %s %s/" % (output_fasta, SAMPLE_S3_OUTPUT_PATH))
 
 
-
-def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, count_type, lineage_map_path, deuterostome_path, total_reads, remaining_reads, output_file, fork=True):
-    # TODO: Make this pattern a decorator, ensuring thus-decorated functions always run in subrpocess.
-    if fork:
-        fork = False
-        run_in_subprocess(
-            target=generate_taxon_count_json_from_m8,
-            args=[m8_file, hit_level_file, e_value_type, count_type, lineage_map_path, deuterostome_path, total_reads, remaining_reads, output_file, fork]
-        )
-        return
+@run_in_subprocess
+def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, count_type, lineage_map_path, deuterostome_path, total_reads, remaining_reads, output_file):
     if SKIP_DEUTERO_FILTER:
         def any_hits_to_remove(_hits):
             return False
@@ -671,16 +663,8 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, r
         write_to_log("finished alignment for chunk %s on %s server %s" % (chunk_id, service, instance_ip))
     return multihit_local_outfile
 
-
-def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path, output_m8, output_summary, fork=True):
-    # TODO: Make this pattern a decorator, ensuring thus-decorated functions always run in subrpocess.
-    if fork:
-        fork = False
-        run_in_subprocess(
-            target=call_hits_m8,
-            args=[input_m8, lineage_map_path, accession2taxid_dict_path, output_m8, output_summary, fork]
-        )
-        return
+@run_in_subprocess
+def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path, output_m8, output_summary):
     lineage_map = shelve.open(lineage_map_path)
     accession2taxid_dict = shelve.open(accession2taxid_dict_path)
     # Helper functions
@@ -889,13 +873,16 @@ def fetch_and_clean_inputs():
     return cleaned_inputs
 
 
-def run_in_subprocess(target, args):
-    p = multiprocessing.Process(target=target, args=args)
-    p.start()
-    p.join()
-    if p.exitcode != 0:
-        raise Exception("Failed {} on {}".format(target.__name__, args))
-    write_to_log("finished {}".format(target.__name__))
+def run_in_subprocess(job_function):
+    """ Forks a job function to a subprocess """
+    def wrapper(*args):
+        p = multiprocessing.Process(target=job_function, args=args)
+        p.start()
+        p.join()
+        if p.exitcode != 0:
+            raise Exception("Failed {} on {}".format(target.__name__, args))
+        write_to_log("finished {}".format(target.__name__))
+    return wrapper
 
 
 def run_stage2(lazy_run=True):
