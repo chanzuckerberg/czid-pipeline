@@ -407,7 +407,7 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
     }
     with open(output_file, 'wb') as outf:
         json.dump(output_dict, outf)
-    execute_command("aws s3 cp --quiet %s %s/" % (output_file, SAMPLE_S3_OUTPUT_PATH))
+    async_handler.awsUpload(output_file, SAMPLE_S3_OUTPUT_PATH + "/")
 
 
 def combine_pipeline_output_json(inputPath1, inputPath2, outputPath, stats):
@@ -429,8 +429,7 @@ def combine_pipeline_output_json(inputPath1, inputPath2, outputPath, stats):
     }
     with open(outputPath, 'wb') as outf:
         json.dump(output_dict, outf)
-    execute_command("aws s3 cp --quiet %s %s/" % (outputPath, SAMPLE_S3_OUTPUT_PATH))
-
+    async_handler.awsUpload(outputPath, SAMPLE_S3_OUTPUT_PATH + "/")
 
 
 def read_file_into_set(file_name):
@@ -576,7 +575,7 @@ def chunk_input(input_files_basenames, chunk_nlines, chunksize):
         out_prefix_base = os.path.basename(input_file) + part_suffix
         out_prefix = os.path.join(CHUNKS_RESULT_DIR, out_prefix_base)
         execute_command("split -a %d --numeric-suffixes -l %d %s %s" % (ndigits, chunk_nlines, input_file_full_local_path, out_prefix))
-        execute_command("aws s3 cp --quiet %s/ %s/ --recursive --exclude '*' --include '%s*'" % (CHUNKS_RESULT_DIR, SAMPLE_S3_OUTPUT_CHUNKS_PATH, out_prefix_base))
+        async_handler.launchCommand("aws s3 cp --quiet %s/ %s/ --recursive --exclude '*' --include '%s*'" % (CHUNKS_RESULT_DIR, SAMPLE_S3_OUTPUT_CHUNKS_PATH, out_prefix_base))
         # note: no sleep(10) after this upload to s3... not sure if that was ever needed
         partial_files = [os.path.basename(partial_file) for partial_file in execute_command_with_output("ls %s*" % out_prefix).rstrip().split("\n")]
         pattern = "{:0%dd}" % ndigits

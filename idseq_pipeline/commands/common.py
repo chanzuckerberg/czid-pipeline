@@ -665,8 +665,7 @@ class AsyncHandler:
         pass
 
     def launch(self, target, args):
-        with iostream:  # semaphore to limit max number of operations
-            t = threading.Thread(target=target, args=args)
+        t = threading.Thread(target=target, args=args)
         self.threads.append(t)
         t.start()
 
@@ -675,7 +674,10 @@ class AsyncHandler:
             t.join()
 
     def awsUpload(self, local, remote):
-        self.launch(execute_command("aws s3 cp --quiet %s %s" % (local, remote)), None)
+        self.launch(execute_command, "aws s3 cp --quiet %s %s" % (local, remote))
+
+    def launchCommand(self, command):
+        self.launch(execute_command, command)
 
 
 async_handler = AsyncHandler()
