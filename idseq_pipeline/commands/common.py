@@ -657,3 +657,25 @@ fill_missing_calls_tests()
 
 def validate_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str):
     return fill_missing_calls(cleaned_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str))
+
+
+class AsyncHandler:
+    def __init__(self):
+        self.threads = []
+        pass
+
+    def launch(self, target, args):
+        with iostream:  # semaphore to limit max number of operations
+            t = threading.Thread(target=target, args=args)
+        self.threads.append(t)
+        t.start()
+
+    def wait_on_all(self):
+        for t in self.threads:
+            t.join()
+
+    def awsUpload(self, local, remote):
+        self.launch(execute_command("aws s3 cp --quiet %s %s" % (local, remote)), None)
+
+
+async_handler = AsyncHandler()

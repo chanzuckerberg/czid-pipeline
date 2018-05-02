@@ -293,8 +293,7 @@ def annotate_fasta_with_accessions(merged_input_fasta, nt_m8, nr_m8, output_fast
                 sequence_name = input_fasta_f.readline()
                 sequence_data = input_fasta_f.readline()
 
-    execute_command("aws s3 cp --quiet %s %s/" % (output_fasta, SAMPLE_S3_OUTPUT_PATH))
-
+    async_handler.awsUpload(output_fasta, SAMPLE_S3_OUTPUT_PATH + "/")
 
 
 def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, count_type, lineage_map_path, deuterostome_path, total_reads, remaining_reads, output_file, fork=True):
