@@ -37,7 +37,8 @@ def parse_reads(annotated_fasta, db_type):
                 sequence = line
                 m = re.search("%s:([\d-]*)" % search_string, read_id)
                 if m:
-                    if int(m.group(1)) > 0: # it's a match
+                    species_id = int(m.group(1))
+                    if species_id > 0 or species_id < INVALID_CALL_BASE_ID: # it's a match
                         ma = re.search(adv_search_string, read_id)
                         if ma:
                             read2seq[ma.group(4).rstrip()] = [sequence.rstrip(), ma.group(1), ma.group(2), ma.group(3)]
