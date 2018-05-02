@@ -115,6 +115,17 @@ TAX_LEVEL_FAMILY = 3
 MISSING_GENUS_ID = -200
 MISSING_FAMILY_ID = -300
 
+# decorators
+def run_in_subprocess(target):
+    """ Forks a job function to a subprocess """
+    def wrapper(*args):
+        p = multiprocessing.Process(target=target, args=args)
+        p.start()
+        p.join()
+        if p.exitcode != 0:
+            raise Exception("Failed {} on {}".format(target.__name__, args))
+        write_to_log("finished {}".format(target.__name__))
+    return wrapper
 
 # convenience functions
 def count_lines(input_file):
@@ -871,18 +882,6 @@ def fetch_and_clean_inputs():
     assert len(cleaned_inputs) in (1, 3)
 
     return cleaned_inputs
-
-
-def run_in_subprocess(job_function):
-    """ Forks a job function to a subprocess """
-    def wrapper(*args):
-        p = multiprocessing.Process(target=job_function, args=args)
-        p.start()
-        p.join()
-        if p.exitcode != 0:
-            raise Exception("Failed {} on {}".format(target.__name__, args))
-        write_to_log("finished {}".format(target.__name__))
-    return wrapper
 
 
 def run_stage2(lazy_run=True):
