@@ -513,7 +513,7 @@ def run_gsnap_filter(input_fas):
                     '--gmap-mode=all',
                     '--npaths=1',
                     '--ordered',
-                    '-t 16',
+                    '-t 32',
                     '--max-mismatches=40',
                     '-D', gsnap_base_dir,
                     '-d', gsnap_index_name,
