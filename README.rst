@@ -31,7 +31,7 @@ Release notes
 -------------
 
 - 1.6.4 ... 1.6.1
-    - Implement decorator to fork jobs to subprocesses.
+    - Implement decorators to fork jobs to subprocesses and retry alignment jobs.
     - Handle bogus 0-length alignments output by gsnap without crashing.
     - Fix crash for reruns which reuse compatible results from a previous run.
     - Fix crash for samples with unpaired reads.
