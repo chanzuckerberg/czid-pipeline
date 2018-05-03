@@ -408,19 +408,19 @@ def run_priceseqfilter(input_fqs):
     execute_command_realtime_stdout(" ".join(priceseq_params))
     write_to_log("finished job")
     execute_command("mv %s %s" % (output_files[0], os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1)))
-    execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, PRICESEQFILTER_OUT1, SAMPLE_S3_OUTPUT_PATH))
+    async_handler.awsUpload(RESULT_DIR + "/" + PRICESEQFILTER_OUT1, SAMPLE_S3_OUTPUT_PATH)
     if len(input_fqs) == 2:
         execute_command("mv %s %s" % (output_files[1], os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2)))
-        execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, PRICESEQFILTER_OUT2, SAMPLE_S3_OUTPUT_PATH))
+        async_handler.awsUpload(RESULT_DIR + "/" + PRICESEQFILTER_OUT2, SAMPLE_S3_OUTPUT_PATH)
 
 def run_fq2fa(input_fqs):
     fq2fa(input_fqs[0], os.path.join(RESULT_DIR, FQ2FA_OUT1))
     if len(input_fqs) == 2:
         fq2fa(input_fqs[1], os.path.join(RESULT_DIR, FQ2FA_OUT2))
     write_to_log("finished job")
-    execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, FQ2FA_OUT1, SAMPLE_S3_OUTPUT_PATH))
+    async_handler.awsUpload(RESULT_DIR + "/" + FQ2FA_OUT1, SAMPLE_S3_OUTPUT_PATH)
     if len(input_fqs) == 2:
-        execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, FQ2FA_OUT2, SAMPLE_S3_OUTPUT_PATH))
+        async_handler.awsUpload(RESULT_DIR + "/" + FQ2FA_OUT2, SAMPLE_S3_OUTPUT_PATH)
 
 def run_cdhitdup(input_fas):
     cdhitdup_params = [CDHITDUP,
@@ -607,6 +607,7 @@ def run_stage1(lazy_run=True):
 
     # run host filtering
     run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats)
+    async_handler.wait_on_all()
 
     # This lets the webapp know the stage has completed.
     stats.save_to_s3()
