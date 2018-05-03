@@ -860,15 +860,11 @@ def fetch_input_and_replace_whitespace(input_filename, result):
 
 def get_input_file_list():
     # Check existence of gsnap filter output
-    try:
-        output = execute_command_with_output("aws s3 ls %s/%s" % (SAMPLE_S3_INPUT_PATH, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1))
-        if len(output) > 10: # gsnap filter applied
-            return [EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1,
-                    EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT2,
-                    EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT3]
-    except:
-        write_to_log("gsnap filter not applied for host filtering")
-
+    if check_s3_file_presence(os.path.join(SAMPLE_S3_INPUT_PATH,
+                                           EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1)):
+        return [EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1,
+                EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT2,
+                EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT3]
     return [EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1,
             EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2,
             EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT3]

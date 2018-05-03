@@ -362,8 +362,10 @@ def run_star(fastq_files):
     def unmapped_files_in(some_dir):
         return ["%s/Unmapped.out.mate%d" % (some_dir, i+1) for i in range(num_fastqs)]
     genome_dir = fetch_genome(STAR_GENOME)
-    # If we are here, we are also going to need a bowtie genome later;  start fetching it now
+    # If we are here, we are also going to need a bowtie genome and gsnap genome later;  start fetching it now
     threading.Thread(target=fetch_genome, args=[BOWTIE2_GENOME]).start()
+    if check_s3_file_presence(GSNAP_GENOME):
+        threading.Thread(target=fetch_genome, args=[GSNAP_GENOME]).start()
     # Check if parts.txt file exists, if so use the new version of (partitioned indices). Otherwise, stay put
     parts_file = os.path.join(genome_dir, "parts.txt")
 
@@ -493,11 +495,11 @@ def run_bowtie2(input_fas):
         execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
         execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT3, SAMPLE_S3_OUTPUT_PATH))
 
-def run_gsnap_filter(input_fas, local_gsnap_genome):
+def run_gsnap_filter(input_fas):
     # Unpack the gsnap genome
-    gsnap_base_dir = os.path.dirname(local_gsnap_genome)
-    gsnap_index_name = os.path.basename(local_gsnap_genome).split(".")[0]
-    execute_command_realtime_stdout("tar xvf %s -C %s" % (local_gsnap_genome, gsnap_base_dir))
+    genome_dir = fetch_genome(GSNAP_GENOME)
+    gsnap_base_dir = os.path.dirname(genome_dir)
+    gsnap_index_name = os.path.basename(genome_dir)
 
     # Run Gsnap
     gsnap_params = [GSNAPL,
@@ -507,7 +509,7 @@ def run_gsnap_filter(input_fas, local_gsnap_genome):
                     '--gmap-mode=all',
                     '--npaths=1',
                     '--ordered',
-                    '-t 32',
+                    '-t 16',
                     '--max-mismatches=40',
                     '-D', gsnap_base_dir,
                     '-d', gsnap_index_name,
@@ -528,8 +530,6 @@ def run_gsnap_filter(input_fas, local_gsnap_genome):
         execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
         execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT3, SAMPLE_S3_OUTPUT_PATH))
 
-def get_host_filtering_version_s3_path():
-    return os.path.join(SAMPLE_S3_OUTPUT_PATH, VERSION_OUT)
 
 def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats):
     number_of_input_files = len(fastq_files)
@@ -547,11 +547,6 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats):
                       before_filetype=initial_file_type_for_log,
                       after_filename=os.path.join(RESULT_DIR, STAR_OUT1),
                       after_filetype=initial_file_type_for_log)
-
-    # start downloading gsnap genome after STAR step
-    local_gsnap_genome = fetch_from_s3(GSNAP_GENOME,
-                                       os.path.join(REF_DIR, os.path.basename(GSNAP_GENOME)),
-                                       auto_unzip=False)
 
     # run priceseqfilter
     logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "PriceSeqFilter"})
@@ -617,18 +612,20 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats):
                       after_filename=os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1),
                       after_filetype="fasta_paired")
     # run gsnap against host genomes (only available for human as of 5/1/2018)
-    if local_gsnap_genome:
+    if check_s3_file_presence(GSNAP_GENOME):
         if number_of_input_files == 2:
             input_files = [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1), os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2)]
         else:
             input_files = [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1)]
         logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "run_gsnap_filter"})
-        run_and_log_s3(logparams, target_outputs["run_gsnap_filter"], lazy_run, SAMPLE_S3_OUTPUT_PATH, run_gsnap_filter, input_files, local_gsnap_genome)
+        run_and_log_s3(logparams, target_outputs["run_gsnap_filter"], lazy_run, SAMPLE_S3_OUTPUT_PATH, run_gsnap_filter, input_files)
         stats.count_reads("run_gsnap_filter",
                           before_filename=os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1),
                           before_filetype="fasta_paired",
                           after_filename=os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1),
                           after_filetype="fasta_paired")
+    # finalize the remaing reads
+    stats.set_remaining_reads()
 
 
 def upload_pipeline_version_file():
