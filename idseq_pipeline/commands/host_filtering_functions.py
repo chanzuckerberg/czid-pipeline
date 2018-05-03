@@ -362,10 +362,9 @@ def run_star(fastq_files):
     def unmapped_files_in(some_dir):
         return ["%s/Unmapped.out.mate%d" % (some_dir, i+1) for i in range(num_fastqs)]
     genome_dir = fetch_genome(STAR_GENOME)
-    # If we are here, we are also going to need a bowtie genome and gsnap genome later;  start fetching it now
+    # If we are here, we are also going to need a bowtie genome later;  start fetching it now
+    # TODO(boris): add the following line to a better place
     threading.Thread(target=fetch_genome, args=[BOWTIE2_GENOME]).start()
-    if check_s3_file_presence(GSNAP_GENOME):
-        threading.Thread(target=fetch_genome, args=[GSNAP_GENOME]).start()
     # Check if parts.txt file exists, if so use the new version of (partitioned indices). Otherwise, stay put
     parts_file = os.path.join(genome_dir, "parts.txt")
 
@@ -463,6 +462,11 @@ def run_lzw(input_fas):
 def run_bowtie2(input_fas):
     # check if genome downloaded already
     genome_dir = fetch_genome(BOWTIE2_GENOME)
+
+    # If we are here, we are also going to need a gsnap genome later;  start fetching it now
+    # TODO(boris): add the following line to a better place
+    if check_s3_file_presence(GSNAP_GENOME):
+        threading.Thread(target=fetch_genome, args=[GSNAP_GENOME]).start()
     # the file structure looks like "bowtie2_genome/GRCh38.primary_assembly.genome.3.bt2"
     # the code below will handle up to "bowtie2_genome/GRCh38.primary_assembly.genome.99.bt2" but not 100
     local_genome_dir_ls = execute_command_with_output("ls {genome_dir}/*.bt2*".format(genome_dir=genome_dir))
