@@ -16,9 +16,13 @@ CDHITDUP_OUT2 = 'cdhitdup.priceseqfilter.unmapped.star.2.fasta'
 LZW_OUT1 = 'lzw.cdhitdup.priceseqfilter.unmapped.star.1.fasta'
 LZW_OUT2 = 'lzw.cdhitdup.priceseqfilter.unmapped.star.2.fasta'
 BOWTIE2_OUT = 'bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.sam'
-EXTRACT_UNMAPPED_FROM_SAM_OUT1 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.1.fasta'
-EXTRACT_UNMAPPED_FROM_SAM_OUT2 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.2.fasta'
-EXTRACT_UNMAPPED_FROM_SAM_OUT3 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.merged.fasta'
+EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.1.fasta'
+EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.2.fasta'
+EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT3 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.merged.fasta'
+GSNAP_FILTER_SAM = 'gsnap_filter.sam'
+EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1 = 'unmapped.gsnap_filter.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.1.fasta'
+EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT2 = 'unmapped.gsnap_filter.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.2.fasta'
+EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT3 = 'unmapped.gsnap_filter.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.merged.fasta'
 LOGS_OUT_BASENAME = 'log'
 STATS_OUT = 'stats.json'
 VERSION_OUT = 'versions.json'
@@ -30,6 +34,8 @@ FILE_TYPE = os.environ.get('FILE_TYPE')
 OUTPUT_BUCKET = os.environ.get('OUTPUT_BUCKET').rstrip('/')
 STAR_GENOME = os.environ.get('STAR_GENOME', 's3://czbiohub-infectious-disease/references/human/STAR_genome.tar')
 BOWTIE2_GENOME = os.environ.get('BOWTIE2_GENOME', 's3://czbiohub-infectious-disease/references/human/bowtie2_genome.tar')
+GSNAP_GENOME = os.environ.get('GSNAP_GENOME', os.path.join(os.path.dirname(STAR_GENOME), 'hg38_pantro5_k16.tar'))
+
 STAR_BOWTIE_VERSION_FILE_S3 = os.environ.get('STAR_BOWTIE_VERSION_FILE_S3', get_host_index_version_file(STAR_GENOME))
 DB_SAMPLE_ID = os.environ['DB_SAMPLE_ID']
 AWS_BATCH_JOB_ID = os.environ.get('AWS_BATCH_JOB_ID', 'local')
@@ -51,8 +57,9 @@ TARGET_OUTPUTS_SINGLE = {"run_star": [os.path.join(RESULT_DIR, STAR_OUT1)],
                          "run_fq2fa": [os.path.join(RESULT_DIR, FQ2FA_OUT1)],
                          "run_cdhitdup": [os.path.join(RESULT_DIR, CDHITDUP_OUT1)],
                          "run_lzw": [os.path.join(RESULT_DIR, LZW_OUT1)],
-                         "run_bowtie2": [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1),
-                                         os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3)]}
+                         "run_bowtie2": [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1)],
+                         "run_gsnap_filter": [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1)]
+                         }
 TARGET_OUTPUTS_PAIRED = {"run_star": [os.path.join(RESULT_DIR, STAR_OUT1),
                                       os.path.join(RESULT_DIR, STAR_OUT2)],
                          "run_priceseqfilter": [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1),
@@ -63,15 +70,20 @@ TARGET_OUTPUTS_PAIRED = {"run_star": [os.path.join(RESULT_DIR, STAR_OUT1),
                                           os.path.join(RESULT_DIR, CDHITDUP_OUT2)],
                          "run_lzw": [os.path.join(RESULT_DIR, LZW_OUT1),
                                      os.path.join(RESULT_DIR, LZW_OUT2)],
-                         "run_bowtie2": [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1),
-                                         os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2),
-                                         os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3)]}
+                         "run_bowtie2": [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1),
+                                         os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2),
+                                         os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT3)],
+                         "run_gsnap_filter": [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1),
+                                              os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT2),
+                                              os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT3)]
+                         }
 
 # software packages
 STAR = "STAR"
 PRICESEQ_FILTER = "PriceSeqFilter"
 CDHITDUP = "cd-hit-dup"
 BOWTIE2 = "bowtie2"
+GSNAPL = "gsnapl"
 
 # pipeline configuration
 LZW_FRACTION_CUTOFF = 0.45
@@ -471,18 +483,53 @@ def run_bowtie2(input_fas):
     execute_command_realtime_stdout(" ".join(bowtie2_params))
     write_to_log("finished alignment")
     # extract out unmapped files from sam
-    output_prefix = RESULT_DIR + '/' + EXTRACT_UNMAPPED_FROM_SAM_OUT1[:-8]
+    output_prefix = RESULT_DIR + '/' + EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1[:-8]
     if len(input_fas) == 2:
         generate_unmapped_pairs_from_sam(RESULT_DIR + '/' + BOWTIE2_OUT, output_prefix)
     else:
         generate_unmapped_singles_from_sam(RESULT_DIR + '/' + BOWTIE2_OUT, output_prefix)
     write_to_log("extracted unmapped fragments from SAM file")
     execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, BOWTIE2_OUT, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1, SAMPLE_S3_OUTPUT_PATH))
     if len(input_fas) == 2:
-        execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
-        execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT3, SAMPLE_S3_OUTPUT_PATH))
+        execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
+        execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT3, SAMPLE_S3_OUTPUT_PATH))
 
+def run_gsnap_filter(input_fas, local_gsnap_genome):
+    # Unpack the gsnap genome
+    gsnap_base_dir = os.path.dirname(local_gsnap_genome)
+    gsnap_index_name = os.path.basename(local_gsnap_genome).split(".")[0]
+    execute_command_realtime_stdout("tar xvf %s -C %s" % (local_gsnap_genome, gsnap_base_dir))
+
+    # Run Gsnap
+    gsnap_params = [GSNAPL,
+                    '-A sam',
+                    '--batch=0',
+                    '--use-shared-memory=0',
+                    '--gmap-mode=all',
+                    '--npaths=1',
+                    '--ordered',
+                    '-t 32',
+                    '--max-mismatches=40',
+                    '-D', gsnap_base_dir,
+                    '-d', gsnap_index_name,
+                    '-o', RESULT_DIR + '/' + GSNAP_FILTER_SAM
+                    ]
+    gsnap_params += input_fas
+    execute_command_realtime_stdout(" ".join(bowtie2_params))
+    write_to_log("finished alignment")
+    # extract out unmapped files from sam
+    output_prefix = RESULT_DIR + '/' + EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1[:-8]
+    if len(input_fas) == 2:
+        generate_unmapped_pairs_from_sam(RESULT_DIR + '/' + GSNAP_FILTER_SAM, output_prefix)
+    else:
+        generate_unmapped_singles_from_sam(RESULT_DIR + '/' + GSNAP_FILTER_SAM, output_prefix)
+    write_to_log("extracted unmapped fragments from SAM file for gsnap output")
+    execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, GSNAP_FILTER_SAM, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1, SAMPLE_S3_OUTPUT_PATH))
+    if len(input_fas) == 2:
+        execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT2, SAMPLE_S3_OUTPUT_PATH))
+        execute_command("aws s3 cp --quiet %s/%s %s/;" % (RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT3, SAMPLE_S3_OUTPUT_PATH))
 
 def get_host_filtering_version_s3_path():
     return os.path.join(SAMPLE_S3_OUTPUT_PATH, VERSION_OUT)
@@ -503,6 +550,11 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats):
                       before_filetype=initial_file_type_for_log,
                       after_filename=os.path.join(RESULT_DIR, STAR_OUT1),
                       after_filetype=initial_file_type_for_log)
+
+    # start downloading gsnap genome after STAR step
+    local_gsnap_filter_genome = fetch_from_s3(GSNAP_GENOME,
+                                              os.path.join(REF_DIR, os.path.basename(GSNAP_GENOME)),
+                                              auto_unzip = False)
 
     # run priceseqfilter
     logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "PriceSeqFilter"})
@@ -542,7 +594,6 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats):
                       after_filename=os.path.join(RESULT_DIR, CDHITDUP_OUT1),
                       after_filetype="fasta_paired")
 
-
     # run lzw filter
     logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "LZW filter"})
     if number_of_input_files == 2:
@@ -566,8 +617,22 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats):
     stats.count_reads("run_bowtie2",
                       before_filename=os.path.join(RESULT_DIR, LZW_OUT1),
                       before_filetype="fasta_paired",
-                      after_filename=os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_SAM_OUT1),
+                      after_filename=os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1),
                       after_filetype="fasta_paired")
+    # run gsnap against host genomes (only available for human as of 5/1/2018)
+    if local_gsnap_genome:
+        if number_of_input_files == 2:
+            input_files = [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1), os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2)]
+        else:
+            input_files = [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1)]
+        logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "run_gsnap_filter"})
+        run_and_log_s3(logparams, target_outputs["run_gsnap_filter"], lazy_run, SAMPLE_S3_OUTPUT_PATH, run_gsnap_filter, input_files, local_gsnap_filter_genome)
+        stats.count_reads("run_gsnap_filter",
+                          before_filename=os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1),
+                          before_filetype="fasta_paired",
+                          after_filename=os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1),
+                          after_filetype="fasta_paired")
+
 
 def upload_pipeline_version_file():
     execute_command("echo %s > %s" % (PIPELINE_VERSION, PIPELINE_VERSION_OUT))
