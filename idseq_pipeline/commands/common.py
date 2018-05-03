@@ -211,6 +211,25 @@ class ProgressFile(object):
             self.tail_subproc.kill()
 
 
+def run_in_subprocess(target):
+    """
+    Decorator that forks a job function to a subprocess.
+    For use in conjunction with threading.
+    1. Use for job that needs a lot of CPU, so it gets to run on its own CPU core.
+    2. Typical subprocess caveats apply:
+       a. changes made to global variables won't bee seen by parent process
+       b. use of global threading semaphores/locks/etc is mute, so use their multiprocessing equivalents
+    3. If data from a file is needed, do the I/O before launching subprocesses to avoid accessing the file multiple times
+    """ 
+    def wrapper(*args, **kwargs):
+        p = multiprocessing.Process(target=target, args=args, kwargs=kwargs)
+        p.start()
+        p.join()
+        if p.exitcode != 0:
+            raise Exception("Failed {} on {}, {}".format(target.__name__, args, kwargs))
+        write_to_log("finished {}".format(target.__name__))
+    return wrapper
+
 def execute_command_with_output(command, progress_file=None, timeout=None, grace_period=None):
     with CommandTracker() as ct:
         with print_lock:

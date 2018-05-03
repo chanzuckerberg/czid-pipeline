@@ -115,18 +115,6 @@ TAX_LEVEL_FAMILY = 3
 MISSING_GENUS_ID = -200
 MISSING_FAMILY_ID = -300
 
-# decorators
-def run_in_subprocess(target):
-    """ Forks a job function to a subprocess """
-    def wrapper(*args, **kwargs):
-        p = multiprocessing.Process(target=target, args=args, kwargs=kwargs)
-        p.start()
-        p.join()
-        if p.exitcode != 0:
-            raise Exception("Failed {} on {}, {}".format(target.__name__, args, kwargs))
-        write_to_log("finished {}".format(target.__name__))
-    return wrapper
-
 # convenience functions
 def count_lines(input_file):
     return int(execute_command_with_output("wc -l %s" % input_file).strip().split()[0])
