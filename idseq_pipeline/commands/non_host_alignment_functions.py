@@ -634,17 +634,14 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, r
         multihit_remote_outfile=multihit_remote_outfile if service == "gsnap" else multihit_remote_outfile[:-3]  # strip the .m8 for rapsearch as it adds that
     )
     if not lazy_run or not fetch_lazy_result(multihit_s3_outfile, multihit_local_outfile):
-        correct_number_of_output_columns = 12
-        min_column_number = 0
-        max_tries = 2
-        try_number = 1
-        while min_column_number != correct_number_of_output_columns and try_number <= max_tries:
+        @retry(2)
+        def align_and_verify(correct_number_of_output_columns=12):
             write_to_log("waiting for {} server for chunk {}".format(service, chunk_id))
             max_concurrent = GSNAPL_MAX_CONCURRENT if service == "gsnap" else RAPSEARCH2_MAX_CONCURRENT
             instance_ip = wait_for_server_ip(service, key_path, remote_username, ENVIRONMENT, max_concurrent, chunk_id)
             write_to_log("starting alignment for chunk %s on %s server %s" % (chunk_id, service, instance_ip))
             execute_command(remote_command(commands, key_path, remote_username, instance_ip))
-            # check if every row has correct number of columns (12) in the output file on the remote machine
+            # check if every row has correct number of columns in the output file on the remote machine
             if service == "gsnap":
                 verification_command = "cat %s" % multihit_remote_outfile
             else:
@@ -653,9 +650,9 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, r
             verification_command += " | awk '{print NF}' | sort -nu | head -n 1"
             min_column_number_string = execute_command_with_output(remote_command(verification_command, key_path, remote_username, instance_ip))
             min_column_number = interpret_min_column_number_string(min_column_number_string, correct_number_of_output_columns, try_number)
-            try_number += 1
+            assert min_column_number == correct_number_of_output_columns, "Chunk %s output corrupt; not copying to S3. Re-start pipeline to try again." % chunk_id
+        align_and_verify()
         # move output from remote machine to local
-        assert min_column_number == correct_number_of_output_columns, "Chunk %s output corrupt; not copying to S3. Re-start pipeline to try again." % chunk_id
         with iostream:
             execute_command(scp(key_path, remote_username, instance_ip, multihit_remote_outfile, multihit_local_outfile))
             execute_command("aws s3 cp --quiet %s %s/" % (multihit_local_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH))

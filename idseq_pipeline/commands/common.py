@@ -231,23 +231,25 @@ def run_in_subprocess(target):
         write_to_log("finished {}".format(target.__name__))
     return wrapper
 
-def retry(operation, randgen=random.Random().random):
-    # Note the use of a separate random generator for retries so transient
-    # errors won't perturb other random streams used in the application.
-    @wraps(operation)
-    def wrapped_operation(*args, **kwargs):
-        remaining_attempts = 3
-        delay = 1.0
-        while remaining_attempts > 1:
-            try:
-                return operation(*args, **kwargs)
-            except:
-                time.sleep(delay * (1.0 + randgen()))
-                delay *= 3.0
-                remaining_attempts -= 1
-        # The last attempt is outside try/catch so caller can handle exception
-        return operation(*args, **kwargs)
-    return wrapped_operation
+def retry(n):
+    def decorator(operation, randgen=random.Random().random):
+        # Note the use of a separate random generator for retries so transient
+        # errors won't perturb other random streams used in the application.
+        @wraps(operation)
+        def wrapped_operation(*args, **kwargs):
+            remaining_attempts = n
+            delay = 1.0
+            while remaining_attempts > 1:
+                try:
+                    return operation(*args, **kwargs)
+                except:
+                    time.sleep(delay * (1.0 + randgen()))
+                    delay *= 3.0
+                    remaining_attempts -= 1
+            # The last attempt is outside try/catch so caller can handle exception
+            return operation(*args, **kwargs)
+        return wrapped_operation
+    return decorator
 
 def execute_command_with_output(command, progress_file=None, timeout=None, grace_period=None):
     with CommandTracker() as ct:
