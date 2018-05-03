@@ -30,7 +30,8 @@ When merging a commit to master, you need to increase the version number in `ids
 Release notes
 -------------
 
-- 1.6.3 ... 1.6.1
+- 1.6.4 ... 1.6.1
+    - Implement decorator to fork jobs to subprocesses.
     - Handle bogus 0-length alignments output by gsnap without crashing.
     - Fix crash for reruns which reuse compatible results from a previous run.
     - Fix crash for samples with unpaired reads.
