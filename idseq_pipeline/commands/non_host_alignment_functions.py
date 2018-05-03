@@ -580,12 +580,12 @@ def chunk_input(input_files_basenames, chunk_nlines, chunksize):
     return part_suffix, input_chunks
 
 
-def interpret_min_column_number_string(min_column_number_string, correct_number_of_output_columns, try_number):
+def interpret_min_column_number_string(min_column_number_string, correct_number_of_output_columns):
     if min_column_number_string:
         min_column_number = float(min_column_number_string)
-        write_to_log("Try no. %d: Smallest number of columns observed in any line was %d" % (try_number, min_column_number))
+        write_to_log("Smallest number of columns observed in any line was %d" % min_column_number)
     else:
-        write_to_log("Try no. %d: No hits" % try_number)
+        write_to_log("No hits in the file")
         min_column_number = correct_number_of_output_columns
     return min_column_number
 
@@ -649,7 +649,7 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, r
                 verification_command = "grep -v '^#' %s" % multihit_remote_outfile
             verification_command += " | awk '{print NF}' | sort -nu | head -n 1"
             min_column_number_string = execute_command_with_output(remote_command(verification_command, key_path, remote_username, instance_ip))
-            min_column_number = interpret_min_column_number_string(min_column_number_string, correct_number_of_output_columns, try_number)
+            min_column_number = interpret_min_column_number_string(min_column_number_string, correct_number_of_output_columns)
             assert min_column_number == correct_number_of_output_columns, "Chunk %s output corrupt; not copying to S3. Re-start pipeline to try again." % chunk_id
         align_and_verify()
         # move output from remote machine to local
