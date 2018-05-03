@@ -58,8 +58,7 @@ TARGET_OUTPUTS_SINGLE = {"run_star": [os.path.join(RESULT_DIR, STAR_OUT1)],
                          "run_cdhitdup": [os.path.join(RESULT_DIR, CDHITDUP_OUT1)],
                          "run_lzw": [os.path.join(RESULT_DIR, LZW_OUT1)],
                          "run_bowtie2": [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1)],
-                         "run_gsnap_filter": [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1)]
-                         }
+                         "run_gsnap_filter": [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1)]}
 TARGET_OUTPUTS_PAIRED = {"run_star": [os.path.join(RESULT_DIR, STAR_OUT1),
                                       os.path.join(RESULT_DIR, STAR_OUT2)],
                          "run_priceseqfilter": [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1),
@@ -75,8 +74,7 @@ TARGET_OUTPUTS_PAIRED = {"run_star": [os.path.join(RESULT_DIR, STAR_OUT1),
                                          os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT3)],
                          "run_gsnap_filter": [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1),
                                               os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT2),
-                                              os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT3)]
-                         }
+                                              os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT3)]}
 
 # software packages
 STAR = "STAR"
@@ -513,10 +511,9 @@ def run_gsnap_filter(input_fas, local_gsnap_genome):
                     '--max-mismatches=40',
                     '-D', gsnap_base_dir,
                     '-d', gsnap_index_name,
-                    '-o', RESULT_DIR + '/' + GSNAP_FILTER_SAM
-                    ]
+                    '-o', RESULT_DIR + '/' + GSNAP_FILTER_SAM]
     gsnap_params += input_fas
-    execute_command_realtime_stdout(" ".join(bowtie2_params))
+    execute_command_realtime_stdout(" ".join(gsnap_params))
     write_to_log("finished alignment")
     # extract out unmapped files from sam
     output_prefix = RESULT_DIR + '/' + EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1[:-8]
@@ -552,9 +549,9 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats):
                       after_filetype=initial_file_type_for_log)
 
     # start downloading gsnap genome after STAR step
-    local_gsnap_filter_genome = fetch_from_s3(GSNAP_GENOME,
-                                              os.path.join(REF_DIR, os.path.basename(GSNAP_GENOME)),
-                                              auto_unzip = False)
+    local_gsnap_genome = fetch_from_s3(GSNAP_GENOME,
+                                       os.path.join(REF_DIR, os.path.basename(GSNAP_GENOME)),
+                                       auto_unzip=False)
 
     # run priceseqfilter
     logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "PriceSeqFilter"})
@@ -626,7 +623,7 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats):
         else:
             input_files = [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1)]
         logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "run_gsnap_filter"})
-        run_and_log_s3(logparams, target_outputs["run_gsnap_filter"], lazy_run, SAMPLE_S3_OUTPUT_PATH, run_gsnap_filter, input_files, local_gsnap_filter_genome)
+        run_and_log_s3(logparams, target_outputs["run_gsnap_filter"], lazy_run, SAMPLE_S3_OUTPUT_PATH, run_gsnap_filter, input_files, local_gsnap_genome)
         stats.count_reads("run_gsnap_filter",
                           before_filename=os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1),
                           before_filetype="fasta_paired",
