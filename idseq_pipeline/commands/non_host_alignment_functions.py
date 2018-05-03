@@ -651,7 +651,8 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, r
             min_column_number_string = execute_command_with_output(remote_command(verification_command, key_path, remote_username, instance_ip))
             min_column_number = interpret_min_column_number_string(min_column_number_string, correct_number_of_output_columns)
             assert min_column_number == correct_number_of_output_columns, "Chunk %s output corrupt; not copying to S3. Re-start pipeline to try again." % chunk_id
-        align_and_verify()
+            return instance_ip
+        instance_ip = align_and_verify()
         # move output from remote machine to local
         with iostream:
             execute_command(scp(key_path, remote_username, instance_ip, multihit_remote_outfile, multihit_local_outfile))
