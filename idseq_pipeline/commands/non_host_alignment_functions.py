@@ -115,7 +115,6 @@ TAX_LEVEL_FAMILY = 3
 MISSING_GENUS_ID = -200
 MISSING_FAMILY_ID = -300
 
-
 # convenience functions
 def count_lines(input_file):
     return int(execute_command_with_output("wc -l %s" % input_file).strip().split()[0])
@@ -296,16 +295,8 @@ def annotate_fasta_with_accessions(merged_input_fasta, nt_m8, nr_m8, output_fast
     execute_command("aws s3 cp --quiet %s %s/" % (output_fasta, SAMPLE_S3_OUTPUT_PATH))
 
 
-
-def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, count_type, lineage_map_path, deuterostome_path, total_reads, remaining_reads, output_file, fork=True):
-    # TODO: Make this pattern a decorator, ensuring thus-decorated functions always run in subrpocess.
-    if fork:
-        fork = False
-        run_in_subprocess(
-            target=generate_taxon_count_json_from_m8,
-            args=[m8_file, hit_level_file, e_value_type, count_type, lineage_map_path, deuterostome_path, total_reads, remaining_reads, output_file, fork]
-        )
-        return
+@run_in_subprocess
+def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, count_type, lineage_map_path, deuterostome_path, total_reads, remaining_reads, output_file):
     if SKIP_DEUTERO_FILTER:
         def any_hits_to_remove(_hits):
             return False
@@ -589,12 +580,12 @@ def chunk_input(input_files_basenames, chunk_nlines, chunksize):
     return part_suffix, input_chunks
 
 
-def interpret_min_column_number_string(min_column_number_string, correct_number_of_output_columns, try_number):
+def interpret_min_column_number_string(min_column_number_string, correct_number_of_output_columns):
     if min_column_number_string:
         min_column_number = float(min_column_number_string)
-        write_to_log("Try no. %d: Smallest number of columns observed in any line was %d" % (try_number, min_column_number))
+        write_to_log("Smallest number of columns observed in any line was %d" % min_column_number)
     else:
-        write_to_log("Try no. %d: No hits" % try_number)
+        write_to_log("No hits in the file")
         min_column_number = correct_number_of_output_columns
     return min_column_number
 
@@ -643,17 +634,14 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, r
         multihit_remote_outfile=multihit_remote_outfile if service == "gsnap" else multihit_remote_outfile[:-3]  # strip the .m8 for rapsearch as it adds that
     )
     if not lazy_run or not fetch_lazy_result(multihit_s3_outfile, multihit_local_outfile):
-        correct_number_of_output_columns = 12
-        min_column_number = 0
-        max_tries = 2
-        try_number = 1
-        while min_column_number != correct_number_of_output_columns and try_number <= max_tries:
+        @retry(2)
+        def align_and_verify(correct_number_of_output_columns=12):
             write_to_log("waiting for {} server for chunk {}".format(service, chunk_id))
             max_concurrent = GSNAPL_MAX_CONCURRENT if service == "gsnap" else RAPSEARCH2_MAX_CONCURRENT
             instance_ip = wait_for_server_ip(service, key_path, remote_username, ENVIRONMENT, max_concurrent, chunk_id)
             write_to_log("starting alignment for chunk %s on %s server %s" % (chunk_id, service, instance_ip))
             execute_command(remote_command(commands, key_path, remote_username, instance_ip))
-            # check if every row has correct number of columns (12) in the output file on the remote machine
+            # check if every row has correct number of columns in the output file on the remote machine
             if service == "gsnap":
                 verification_command = "cat %s" % multihit_remote_outfile
             else:
@@ -661,26 +649,19 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, r
                 verification_command = "grep -v '^#' %s" % multihit_remote_outfile
             verification_command += " | awk '{print NF}' | sort -nu | head -n 1"
             min_column_number_string = execute_command_with_output(remote_command(verification_command, key_path, remote_username, instance_ip))
-            min_column_number = interpret_min_column_number_string(min_column_number_string, correct_number_of_output_columns, try_number)
-            try_number += 1
+            min_column_number = interpret_min_column_number_string(min_column_number_string, correct_number_of_output_columns)
+            assert min_column_number == correct_number_of_output_columns, "Chunk %s output corrupt; not copying to S3. Re-start pipeline to try again." % chunk_id
+            return instance_ip
+        instance_ip = align_and_verify()
         # move output from remote machine to local
-        assert min_column_number == correct_number_of_output_columns, "Chunk %s output corrupt; not copying to S3. Re-start pipeline to try again." % chunk_id
         with iostream:
             execute_command(scp(key_path, remote_username, instance_ip, multihit_remote_outfile, multihit_local_outfile))
             execute_command("aws s3 cp --quiet %s %s/" % (multihit_local_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
         write_to_log("finished alignment for chunk %s on %s server %s" % (chunk_id, service, instance_ip))
     return multihit_local_outfile
 
-
-def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path, output_m8, output_summary, fork=True):
-    # TODO: Make this pattern a decorator, ensuring thus-decorated functions always run in subrpocess.
-    if fork:
-        fork = False
-        run_in_subprocess(
-            target=call_hits_m8,
-            args=[input_m8, lineage_map_path, accession2taxid_dict_path, output_m8, output_summary, fork]
-        )
-        return
+@run_in_subprocess
+def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path, output_m8, output_summary):
     lineage_map = shelve.open(lineage_map_path)
     accession2taxid_dict = shelve.open(accession2taxid_dict_path)
     # Helper functions
@@ -887,15 +868,6 @@ def fetch_and_clean_inputs():
     assert len(cleaned_inputs) in (1, 3)
 
     return cleaned_inputs
-
-
-def run_in_subprocess(target, args):
-    p = multiprocessing.Process(target=target, args=args)
-    p.start()
-    p.join()
-    if p.exitcode != 0:
-        raise Exception("Failed {} on {}".format(target.__name__, args))
-    write_to_log("finished {}".format(target.__name__))
 
 
 def run_stage2(lazy_run=True):

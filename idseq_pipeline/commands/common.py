@@ -10,7 +10,8 @@ import os
 import traceback
 import re
 import multiprocessing
-
+from functools import wraps
+import random
 
 
 from idseq_pipeline import __version__ as PIPELINE_VERSION
@@ -210,6 +211,45 @@ class ProgressFile(object):
         if self.tail_subproc:
             self.tail_subproc.kill()
 
+
+def run_in_subprocess(target):
+    """
+    Decorator that forks a job function to a subprocess.
+    For use in conjunction with threading.
+    1. Use for job that needs a lot of CPU, so it gets to run on its own CPU core.
+    2. Typical subprocess caveats apply:
+       a. changes made to global variables won't bee seen by parent process
+       b. use of global threading semaphores/locks/etc is mute, so use their multiprocessing equivalents
+    3. If data from a file is needed, do the I/O before launching subprocesses to avoid accessing the file multiple times
+    """ 
+    def wrapper(*args, **kwargs):
+        p = multiprocessing.Process(target=target, args=args, kwargs=kwargs)
+        p.start()
+        p.join()
+        if p.exitcode != 0:
+            raise Exception("Failed {} on {}, {}".format(target.__name__, args, kwargs))
+        write_to_log("finished {}".format(target.__name__))
+    return wrapper
+
+def retry(n):
+    def decorator(operation, randgen=random.Random().random):
+        # Note the use of a separate random generator for retries so transient
+        # errors won't perturb other random streams used in the application.
+        @wraps(operation)
+        def wrapped_operation(*args, **kwargs):
+            remaining_attempts = n
+            delay = 1.0
+            while remaining_attempts > 1:
+                try:
+                    return operation(*args, **kwargs)
+                except:
+                    time.sleep(delay * (1.0 + randgen()))
+                    delay *= 3.0
+                    remaining_attempts -= 1
+            # The last attempt is outside try/catch so caller can handle exception
+            return operation(*args, **kwargs)
+        return wrapped_operation
+    return decorator
 
 def execute_command_with_output(command, progress_file=None, timeout=None, grace_period=None):
     with CommandTracker() as ct:
