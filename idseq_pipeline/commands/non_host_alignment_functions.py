@@ -39,11 +39,15 @@ MAX_INTERVAL_BETWEEN_DESCRIBE_INSTANCES = 900
 ROOT_DIR = '/mnt'
 DEST_DIR = ROOT_DIR + '/idseq/data' # generated data go here
 REF_DIR = ROOT_DIR + '/idseq/ref' # referene genome / ref databases go here
+# input files
+EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.1.fasta'
+EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.2.fasta'
+EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT3 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.merged.fasta'
 
+EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1 = 'unmapped.gsnap_filter.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.1.fasta'
+EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT2 = 'unmapped.gsnap_filter.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.2.fasta'
+EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT3 = 'unmapped.gsnap_filter.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.merged.fasta'
 # output files
-EXTRACT_UNMAPPED_FROM_SAM_OUT1 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.1.fasta'
-EXTRACT_UNMAPPED_FROM_SAM_OUT2 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.2.fasta'
-EXTRACT_UNMAPPED_FROM_SAM_OUT3 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.merged.fasta'
 UNIDENTIFIED_FASTA_OUT = 'unidentified.fasta'
 DEPRECATED_BOOBYTRAPPED_COMBINED_JSON_OUT = 'idseq_web_sample.json'
 LOGS_OUT_BASENAME = 'log'
@@ -854,8 +858,19 @@ def fetch_input_and_replace_whitespace(input_filename, result):
                 args=["aws s3 cp --quiet {s3_input_path} {s3_output_path}".format(
                     s3_input_path=s3_input_path, s3_output_path=s3_output_path)])
 
+def get_input_file_list():
+    # Check existence of gsnap filter output
+    if check_s3_file_presence(os.path.join(SAMPLE_S3_INPUT_PATH,
+                                           EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1)):
+        return [EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1,
+                EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT2,
+                EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT3]
+    return [EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1,
+            EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2,
+            EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT3]
 
 def fetch_and_clean_inputs():
+    input_file_list = get_input_file_list()
     # Fetch inputs and remove tabs in parallel.
     cleaned_inputs = [
         ["ERROR"],
@@ -863,9 +878,9 @@ def fetch_and_clean_inputs():
         ["ERROR"]
     ]
     input_fetcher_threads = [
-        threading.Thread(target=fetch_input_and_replace_whitespace, args=[EXTRACT_UNMAPPED_FROM_SAM_OUT1, cleaned_inputs[0]]),
-        threading.Thread(target=fetch_input_and_replace_whitespace, args=[EXTRACT_UNMAPPED_FROM_SAM_OUT2, cleaned_inputs[1]]),
-        threading.Thread(target=fetch_input_and_replace_whitespace, args=[EXTRACT_UNMAPPED_FROM_SAM_OUT3, cleaned_inputs[2]])
+        threading.Thread(target=fetch_input_and_replace_whitespace, args=[input_file_list[0], cleaned_inputs[0]]),
+        threading.Thread(target=fetch_input_and_replace_whitespace, args=[input_file_list[1], cleaned_inputs[1]]),
+        threading.Thread(target=fetch_input_and_replace_whitespace, args=[input_file_list[2], cleaned_inputs[2]])
     ]
     for ift in input_fetcher_threads:
         ift.start()
@@ -879,9 +894,9 @@ def fetch_and_clean_inputs():
         assert ci != "ERROR", "Error fetching input {}".format(i)
         assert ci == None or os.path.isfile(ci), "Local file {} not found after download of input {}".format(ci, i)
 
-    assert cleaned_inputs[0] != None, "Input {} not found.  This input is mandatory.".format(EXTRACT_UNMAPPED_FROM_SAM_OUT1)
+    assert cleaned_inputs[0] != None, "Input {} not found.  This input is mandatory.".format(input_file_list[0])
 
-    assert (cleaned_inputs[1] == None) == (cleaned_inputs[2] == None), "Input {} is required when {} is given, and vice versa".format(EXTRACT_UNMAPPED_FROM_SAM_OUT2, EXTRACT_UNMAPPED_FROM_SAM_OUT3)
+    assert (cleaned_inputs[1] == None) == (cleaned_inputs[2] == None), "Input {} is required when {} is given, and vice versa".format(input_file_list[1], input_file_list[2])
 
     cleaned_inputs = filter(None, cleaned_inputs)
     assert len(cleaned_inputs) in (1, 3)

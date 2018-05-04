@@ -84,7 +84,9 @@ class StatsFile(object):
         # return 0.1
 
     def get_remaining_reads(self):
-        return (item for item in self.data if item.get("task") == "run_bowtie2").next().get("reads_after")
+        for item in self.data:
+            if item.get('remaining_reads'):
+                return item['remaining_reads']
 
     def count_reads(self, func_name, before_filename, before_filetype, after_filename, after_filetype):
         records_before = count_reads(before_filename, before_filetype)
@@ -94,6 +96,11 @@ class StatsFile(object):
             write_to_log("Overwriting counts for {}".format(func_name), warning=True)
             self.data = new_data
         self.data.append({'task': func_name, 'reads_before': records_before, 'reads_after': records_after})
+
+    def set_remaining_reads(self):
+        last_entry = self.data[-1] or {}
+        remaining = last_entry.get('reads_after', 0)
+        self.data.append({'remaining_reads': remaining})
 
 
 class MyThread(threading.Thread):
