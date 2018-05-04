@@ -663,9 +663,8 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, r
             try_number += 1
         # move output from remote machine to local
         assert min_column_number == correct_number_of_output_columns, "Chunk %s output corrupt; not copying to S3. Re-start pipeline to try again." % chunk_id
-        with iostream:
-            execute_command(scp(key_path, remote_username, instance_ip, multihit_remote_outfile, multihit_local_outfile))
-            async_handler.launch_aws_cp(multihit_local_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH + "/")
+        execute_command(scp(key_path, remote_username, instance_ip, multihit_remote_outfile, multihit_local_outfile))
+        async_handler.launch_aws_cp(multihit_local_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH + "/")
         write_to_log("finished alignment for chunk %s on %s server %s" % (chunk_id, service, instance_ip))
     return multihit_local_outfile
 
