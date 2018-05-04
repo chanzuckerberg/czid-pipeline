@@ -224,8 +224,10 @@ class AsyncHandler:
         t.start()
 
     def wait_on_all(self):
+        write_to_log("Waiting on AsyncHandler threads...")
         for t in self.threads:
             t.join()
+        write_to_log("AsyncHandler threads finished.")
 
     def launch_aws_cp(self, src, dst):
         self.launch(self.aws_cp_work, (src, dst))
