@@ -10,7 +10,8 @@ import os
 import traceback
 import re
 import multiprocessing
-
+from functools import wraps
+import random
 
 
 from idseq_pipeline import __version__ as PIPELINE_VERSION
@@ -218,6 +219,70 @@ class ProgressFile(object):
             self.tail_subproc.kill()
 
 
+def run_in_subprocess(target):
+    """
+    Decorator that executes a function synchronously in a subprocess.
+    Use case:
+
+        thread 1:
+             compute_something(x1, y1, z1)
+
+        thread 2:
+             compute_something(x2, y2, z2)
+
+        thread 3:
+             compute_something(x3, y3, z3)
+
+    If compute_something() is CPU-intensive, the above threads won't really run
+    in parallel because of the Python global interpreter lock (GIL).  To avoid
+    this problem without changing the above code, simply decorate the definition
+    of compute_something() like so:
+
+         @run_in_subprocess
+         def compute_something(x, y, z):
+             ...
+
+    Typical subprocess limitations or caveats apply:
+       a. The caller can't see any value returned by the decorated function.
+          It should output to a file, a pipe, or a multiprocessing queue.
+       b. Changes made to global variables won't be seen by parent process.
+       c. Use multiprocessing semaphores/locks/etc, not their threading versions.
+
+    Tip: If input from the same file is needed in all invocations of the
+    decorated function, do the I/O before the first call, to avoid accessing
+    the file multiple times.
+    """
+    def wrapper(*args, **kwargs):
+        p = multiprocessing.Process(target=target, args=args, kwargs=kwargs)
+        p.start()
+        p.join()
+        if p.exitcode != 0:
+            raise Exception("Failed {} on {}, {}".format(target.__name__, args, kwargs))
+        write_to_log("finished {}".format(target.__name__))
+    return wrapper
+
+
+def retry(attempts=3, base_delay=1.0, exponential_backoff_delay_multiplier=3.0):
+    def decorator(operation, randgen=random.Random().random):
+        # Note the use of a separate random generator for retries so transient
+        # errors won't perturb other random streams used in the application.
+        @wraps(operation)
+        def wrapped_operation(*args, **kwargs):
+            remaining_attempts = attempts
+            delay = base_delay
+            while remaining_attempts > 1:
+                try:
+                    return operation(*args, **kwargs)
+                except:
+                    time.sleep(delay * (1.0 + randgen()))
+                    delay *= exponential_backoff_delay_multiplier
+                    remaining_attempts -= 1
+            # The last attempt is outside try/catch so caller can handle exception
+            return operation(*args, **kwargs)
+        return wrapped_operation
+    return decorator
+
+
 def execute_command_with_output(command, progress_file=None, timeout=None, grace_period=None):
     with CommandTracker() as ct:
         with print_lock:
@@ -242,6 +307,7 @@ def execute_command_realtime_stdout(command, progress_file=None):
         with ProgressFile(progress_file):
             subprocess.check_call(command, shell=True)
 
+
 def execute_command(command, progress_file=None):
     execute_command_realtime_stdout(command, progress_file)
 
@@ -256,6 +322,7 @@ def check_s3_file_presence(s3_path):
     # this is okay.  When testing for files that are expected not to exist, this incurs
     # a delay due to retries.
     # TODO: Replace this with something more solid.
+    # Note:  Do not use the retry decorator here.
     command = "aws s3 ls %s | wc -l" % s3_path
     MAX_ATTEMPTS = 3
     for attempts in range(MAX_ATTEMPTS):
