@@ -408,19 +408,19 @@ def run_priceseqfilter(input_fqs):
     execute_command_realtime_stdout(" ".join(priceseq_params))
     write_to_log("finished job")
     execute_command("mv %s %s" % (output_files[0], os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1)))
-    async_handler.awsUpload(RESULT_DIR + "/" + PRICESEQFILTER_OUT1, SAMPLE_S3_OUTPUT_PATH)
+    async_handler.launch_aws_cp(RESULT_DIR + "/" + PRICESEQFILTER_OUT1, SAMPLE_S3_OUTPUT_PATH + "/")
     if len(input_fqs) == 2:
         execute_command("mv %s %s" % (output_files[1], os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2)))
-        async_handler.awsUpload(RESULT_DIR + "/" + PRICESEQFILTER_OUT2, SAMPLE_S3_OUTPUT_PATH)
+        async_handler.launch_aws_cp(RESULT_DIR + "/" + PRICESEQFILTER_OUT2, SAMPLE_S3_OUTPUT_PATH + "/")
 
 def run_fq2fa(input_fqs):
     fq2fa(input_fqs[0], os.path.join(RESULT_DIR, FQ2FA_OUT1))
     if len(input_fqs) == 2:
         fq2fa(input_fqs[1], os.path.join(RESULT_DIR, FQ2FA_OUT2))
     write_to_log("finished job")
-    async_handler.awsUpload(RESULT_DIR + "/" + FQ2FA_OUT1, SAMPLE_S3_OUTPUT_PATH)
+    async_handler.launch_aws_cp(RESULT_DIR + "/" + FQ2FA_OUT1, SAMPLE_S3_OUTPUT_PATH + "/")
     if len(input_fqs) == 2:
-        async_handler.awsUpload(RESULT_DIR + "/" + FQ2FA_OUT2, SAMPLE_S3_OUTPUT_PATH)
+        async_handler.launch_aws_cp(RESULT_DIR + "/" + FQ2FA_OUT2, SAMPLE_S3_OUTPUT_PATH + "/")
 
 def run_cdhitdup(input_fas):
     cdhitdup_params = [CDHITDUP,

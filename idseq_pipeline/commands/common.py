@@ -211,6 +211,41 @@ class ProgressFile(object):
             self.tail_subproc.kill()
 
 
+class AsyncHandler:
+    def __init__(self):
+        self.threads = []
+        pass
+
+    def launch(self, target, args):
+        if type(args) == str:
+            args = (args, )
+        t = threading.Thread(target=target, args=args)
+        self.threads.append(t)
+        t.start()
+
+    def wait_on_all(self):
+        for t in self.threads:
+            t.join()
+
+    def launch_aws_cp(self, src, dst):
+        self.launch(self.aws_cp_work, (src, dst))
+
+    def aws_cp_work(self, src, dst):
+        with iostream:
+            execute_command("aws s3 cp --quiet %s %s" % (src, dst))
+
+    def launch_command(self, command):
+        self.launch(execute_command, command)
+
+    def launch_io_command(self, command):
+        self.launch(self.io_work, command)
+
+    def io_work(self, command):
+        with iostream:
+            execute_command(command)
+
+async_handler = AsyncHandler()
+
 def execute_command_with_output(command, progress_file=None, timeout=None, grace_period=None):
     with CommandTracker() as ct:
         with print_lock:
@@ -657,27 +692,3 @@ fill_missing_calls_tests()
 
 def validate_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str):
     return fill_missing_calls(cleaned_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str))
-
-
-class AsyncHandler:
-    def __init__(self):
-        self.threads = []
-        pass
-
-    def launch(self, target, args):
-        t = threading.Thread(target=target, args=args)
-        self.threads.append(t)
-        t.start()
-
-    def wait_on_all(self):
-        for t in self.threads:
-            t.join()
-
-    def awsUpload(self, local, remote):
-        self.launch(execute_command, "aws s3 cp --quiet %s %s" % (local, remote))
-
-    def launchCommand(self, command):
-        self.launch(execute_command, command)
-
-
-async_handler = AsyncHandler()
