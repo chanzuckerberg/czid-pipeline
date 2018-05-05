@@ -829,34 +829,25 @@ def fetch_input_and_replace_whitespace(input_filename, result):
     s3_input_path = os.path.join(SAMPLE_S3_INPUT_PATH, input_filename)
     s3_output_path = os.path.join(SAMPLE_S3_OUTPUT_PATH, input_filename) # usually the same as the input path
     cleaned_input_path = result_dir("nospace.%s" % input_filename)
-    if not check_s3_file_presence(s3_input_path):
-        result[0] = None
-    else:
+    try:
         execute_command("aws s3 cp --quiet {s3_input_path} - | sed 's/[[:blank:]]/{replacement}/g' > {cleaned_input_path}".format(
             replacement=";",
             s3_input_path=s3_input_path,
             cleaned_input_path=cleaned_input_path))
         result[0] = cleaned_input_path
-        # This is extremely rare (debug/development only?) and we don't care if it succeeds
-        if s3_input_path != s3_output_path:
-            threading.Thread(
-                target=execute_command,
-                args=["aws s3 cp --quiet {s3_input_path} {s3_output_path}".format(
-                    s3_input_path=s3_input_path, s3_output_path=s3_output_path)])
+    except:
+        result[0] = None
+        with print_lock:
+            traceback.print_exc()
+    # This is extremely rare (debug/development only?) and we don't care if it succeeds
+    if s3_input_path != s3_output_path:
+        threading.Thread(
+            target=execute_command,
+            args=["aws s3 cp --quiet {s3_input_path} {s3_output_path}".format(
+                s3_input_path=s3_input_path, s3_output_path=s3_output_path)])
 
-def get_input_file_list():
-    # Check existence of gsnap filter output
-    if check_s3_file_presence(os.path.join(SAMPLE_S3_INPUT_PATH,
-                                           EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1)):
-        return [EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1,
-                EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT2,
-                EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT3]
-    return [EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1,
-            EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2,
-            EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT3]
 
-def fetch_and_clean_inputs():
-    input_file_list = get_input_file_list()
+def fetch_and_clean_inputs(input_file_list):
     # Fetch inputs and remove tabs in parallel.
     cleaned_inputs = [
         ["ERROR"],
@@ -907,16 +898,29 @@ def run_stage2(lazy_run=True):
     reference_fetcher_thread = threading.Thread(target=fetch_references)
     reference_fetcher_thread.start()
 
-    cleaned_inputs = fetch_and_clean_inputs()
+    # Import existing job stats
+    stats = StatsFile(STATS_OUT, RESULT_DIR, SAMPLE_S3_INPUT_PATH, SAMPLE_S3_OUTPUT_PATH)
+    stats.load_from_s3()
+
+    if stats.gsnap_ran_in_host_filtering():
+        raw_inputs = [
+            EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1,
+            EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT2,
+            EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT3
+        ]
+    else:
+        raw_inputs = [
+            EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1,
+            EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2,
+            EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT3
+        ]
+
+    cleaned_inputs = fetch_and_clean_inputs(raw_inputs)
 
     gsnapl_input_files = [os.path.basename(f) for f in cleaned_inputs[:2]]
     merged_fasta = cleaned_inputs[-1]
     before_file_name_for_log = cleaned_inputs[0]
     before_file_type_for_log = "fasta_paired" if len(gsnapl_input_files) == 2 else "fasta" # unpaired
-
-    # Import existing job stats
-    stats = StatsFile(STATS_OUT, RESULT_DIR, SAMPLE_S3_INPUT_PATH, SAMPLE_S3_OUTPUT_PATH)
-    stats.load_from_s3()
 
     thread_success = {}
     thread_success_lock = threading.RLock()
