@@ -252,35 +252,33 @@ def run_in_subprocess(target):
     decorated function, do the I/O before the first call, to avoid accessing
     the file multiple times.
     """
+    @wraps(target)
     def wrapper(*args, **kwargs):
         p = multiprocessing.Process(target=target, args=args, kwargs=kwargs)
         p.start()
         p.join()
         if p.exitcode != 0:
             raise Exception("Failed {} on {}, {}".format(target.__name__, args, kwargs))
-        write_to_log("finished {}".format(target.__name__))
     return wrapper
 
 
-def retry(attempts=3, base_delay=1.0, exponential_backoff_delay_multiplier=3.0):
-    def decorator(operation, randgen=random.Random().random):
-        # Note the use of a separate random generator for retries so transient
-        # errors won't perturb other random streams used in the application.
-        @wraps(operation)
-        def wrapped_operation(*args, **kwargs):
-            remaining_attempts = attempts
-            delay = base_delay
-            while remaining_attempts > 1:
-                try:
-                    return operation(*args, **kwargs)
-                except:
-                    time.sleep(delay * (1.0 + randgen()))
-                    delay *= exponential_backoff_delay_multiplier
-                    remaining_attempts -= 1
-            # The last attempt is outside try/catch so caller can handle exception
-            return operation(*args, **kwargs)
-        return wrapped_operation
-    return decorator
+def retry(operation, randgen=random.Random().random):
+    # Note the use of a separate random generator for retries so transient
+    # errors won't perturb other random streams used in the application.
+    @wraps(operation)
+    def wrapped_operation(*args, **kwargs):
+        remaining_attempts = 3
+        delay = 1.0
+        while remaining_attempts > 1:
+            try:
+                return operation(*args, **kwargs)
+            except:
+                time.sleep(delay * (1.0 + randgen()))
+                delay *= 3.0
+                remaining_attempts -= 1
+        # The last attempt is outside try/catch so caller can handle exception
+        return operation(*args, **kwargs)
+    return wrapped_operation
 
 
 def execute_command_with_output(command, progress_file=None, timeout=None, grace_period=None):
