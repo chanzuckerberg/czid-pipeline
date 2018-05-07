@@ -53,8 +53,11 @@ class StatsFile(object):
 
     def load_from_s3(self):
         stats_s3_path = os.path.join(self.s3_input_dir, self.stats_filename)
-        # TODO: This needs retries. As do they all.
-        execute_command("aws s3 cp --quiet %s %s/" % (stats_s3_path, self.local_results_dir))
+        try:
+            execute_command("aws s3 cp --quiet %s %s/" % (stats_s3_path, self.local_results_dir))
+        except:
+            time.sleep(1.0)
+            execute_command("aws s3 cp --quiet %s %s/" % (stats_s3_path, self.local_results_dir))
         self._load()
 
     def _load(self):
@@ -96,14 +99,17 @@ class StatsFile(object):
 
     def set_remaining_reads(self):
         last_entry = self.data[-1] or {}
-        remaining = last_entry.get('reads_after', 0)
+        # We use [] and not get() because, if the last entry doesn't have reads_after,
+        # then we have a bug and should crash rather than produce misleading results.
+        remaining = last_entry['reads_after']
         self.data.append({'remaining_reads': remaining})
 
 
 class MyThread(threading.Thread):
-    def __init__(self, target, args):
+    def __init__(self, target, args, kwargs={}):
         super(MyThread, self).__init__()
         self.args = args
+        self.kwargs = kwargs
         self.target = target
         self.exception = None
         self.completed = False
@@ -111,7 +117,7 @@ class MyThread(threading.Thread):
 
     def run(self):
         try:
-            self.result = self.target(*self.args)
+            self.result = self.target(*self.args, **self.kwargs)
             self.exception = False
         except:
             traceback.print_exc()
@@ -394,7 +400,8 @@ def configure_logger(log_file):
     LOGGER.addHandler(handler)
 
 
-def fetch_from_s3(source, destination, auto_unzip, allow_s3mi=False, mutex=threading.RLock(), locks={}):  #pylint: disable=dangerous-default-value
+def fetch_from_s3(source, destination, auto_unzip, allow_s3mi=False, pipe_filter=None, mutex=threading.RLock(), locks={}):  #pylint: disable=dangerous-default-value
+    #  Use pipe_filter = "| head -50 | md5sum" for example, if all you want is the md5 of the first 50 lines
     with mutex:
         if os.path.exists(destination):
             if os.path.isdir(destination):
@@ -425,18 +432,18 @@ def fetch_from_s3(source, destination, auto_unzip, allow_s3mi=False, mutex=threa
                         install_s3mi()
                     except:
                         allow_s3mi = False
-                if unzip:
-                    try:
-                        assert allow_s3mi
-                        execute_command("s3mi cat %s | gzip -dc > %s" % (source, destination))
-                    except:
-                        execute_command("aws s3 cp --quiet %s - | gzip -dc > %s" % (source, destination))
+                if pipe_filter:
+                    assert pipe_filter.startswith("|")
                 else:
-                    try:
-                        assert allow_s3mi
-                        execute_command("s3mi cp %s %s" % (source, destination))
-                    except:
-                        execute_command("aws s3 cp --quiet %s %s" % (source, destination))
+                    pipe_filter = ""
+                if unzip:
+                    pipe_filter = "| gzip -dc " + pipe_filter
+                try:
+                    assert allow_s3mi
+                    execute_command("s3mi cat {source} {pipe_filter} > {destination}".format(source=source, pipe_filter=pipe_filter, destination=destination))
+                except:
+                    execute_command("rm -f {destination}".format(destination=destination))
+                    execute_command("aws s3 cp --quiet {source} - {pipe_filter} > {destination}".format(source=source, pipe_filter=pipe_filter, destination=destination))
                 return destination
             except subprocess.CalledProcessError:
                 # Most likely the file doesn't exist in S3.
@@ -514,7 +521,9 @@ def run_and_log_work(logparams, target_outputs, lazy_run, func_name, lazy_fetch,
     if was_lazy:
         LOGGER.info("output exists, lazy run")
     else:
-        LOGGER.info("uploaded output")
+        LOGGER.info("non-lazy run completed, output may be in the process of being uploaded")
+
+    return was_lazy
 
 
 def upload_log_file(sample_s3_output_path, lock=threading.RLock()):
