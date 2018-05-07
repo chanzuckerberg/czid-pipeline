@@ -236,9 +236,9 @@ class AsyncHandler:
         write_to_log("AsyncHandler threads finished.")
 
     def launch_aws_upload(self, src, dst):
-        self.launch(self.aws_cp_work, (src, dst))
+        self.launch(self.aws_upload_work, (src, dst))
 
-    def aws_cp_work(self, src, dst):
+    def aws_upload_work(self, src, dst):
         with iostream:
             execute_command("aws s3 cp --quiet %s %s" % (src, dst))
 

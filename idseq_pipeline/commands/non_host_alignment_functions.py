@@ -1099,6 +1099,8 @@ def run_stage2(lazy_run=True):
     t_annotation.join()
     assert thread_succeeded("annotation")
 
+    async_handler.wait_on_all()
+
     # copy log file -- after work is done
     stats.save_to_s3()
     upload_log_file(SAMPLE_S3_OUTPUT_PATH)
