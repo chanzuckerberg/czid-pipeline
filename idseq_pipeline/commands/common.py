@@ -217,8 +217,6 @@ class AsyncHandler:
         pass
 
     def launch(self, target, args):
-        if type(args) == str:
-            args = (args, )
         t = threading.Thread(target=target, args=args)
         self.threads.append(t)
         t.start()
@@ -229,7 +227,7 @@ class AsyncHandler:
             t.join()
         write_to_log("AsyncHandler threads finished.")
 
-    def launch_aws_cp(self, src, dst):
+    def launch_aws_upload(self, src, dst):
         self.launch(self.aws_cp_work, (src, dst))
 
     def aws_cp_work(self, src, dst):
@@ -238,13 +236,6 @@ class AsyncHandler:
 
     def launch_command(self, command):
         self.launch(execute_command, command)
-
-    def launch_io_command(self, command):
-        self.launch(self.io_work, command)
-
-    def io_work(self, command):
-        with iostream:
-            execute_command(command)
 
 async_handler = AsyncHandler()
 
