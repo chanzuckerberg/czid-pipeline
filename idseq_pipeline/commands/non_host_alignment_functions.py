@@ -39,11 +39,15 @@ MAX_INTERVAL_BETWEEN_DESCRIBE_INSTANCES = 900
 ROOT_DIR = '/mnt'
 DEST_DIR = ROOT_DIR + '/idseq/data' # generated data go here
 REF_DIR = ROOT_DIR + '/idseq/ref' # referene genome / ref databases go here
+# input files
+EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.1.fasta'
+EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.2.fasta'
+EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT3 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.merged.fasta'
 
+EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1 = 'unmapped.gsnap_filter.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.1.fasta'
+EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT2 = 'unmapped.gsnap_filter.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.2.fasta'
+EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT3 = 'unmapped.gsnap_filter.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.merged.fasta'
 # output files
-EXTRACT_UNMAPPED_FROM_SAM_OUT1 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.1.fasta'
-EXTRACT_UNMAPPED_FROM_SAM_OUT2 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.2.fasta'
-EXTRACT_UNMAPPED_FROM_SAM_OUT3 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.merged.fasta'
 UNIDENTIFIED_FASTA_OUT = 'unidentified.fasta'
 DEPRECATED_BOOBYTRAPPED_COMBINED_JSON_OUT = 'idseq_web_sample.json'
 LOGS_OUT_BASENAME = 'log'
@@ -294,16 +298,8 @@ def annotate_fasta_with_accessions(merged_input_fasta, nt_m8, nr_m8, output_fast
                 sequence_data = input_fasta_f.readline()
     async_handler.launch_aws_upload(output_fasta, SAMPLE_S3_OUTPUT_PATH + "/")
 
-
-def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, count_type, lineage_map_path, deuterostome_path, total_reads, remaining_reads, output_file, fork=True):
-    # TODO: Make this pattern a decorator, ensuring thus-decorated functions always run in subrpocess.
-    if fork:
-        fork = False
-        run_in_subprocess(
-            target=generate_taxon_count_json_from_m8,
-            args=[m8_file, hit_level_file, e_value_type, count_type, lineage_map_path, deuterostome_path, total_reads, remaining_reads, output_file, fork]
-        )
-        return
+@run_in_subprocess
+def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, count_type, lineage_map_path, deuterostome_path, total_reads, remaining_reads, output_file):
     if SKIP_DEUTERO_FILTER:
         def any_hits_to_remove(_hits):
             return False
@@ -453,6 +449,7 @@ def fetch_key(environment, mutex=threading.RLock()):
         return key_path
 
 
+@retry
 def get_server_ips_work(service_name, environment):
     tag = "service"
     value = "%s-%s" % (service_name, environment_for_aligners(environment))
@@ -668,15 +665,8 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, r
     return multihit_local_outfile
 
 
-def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path, output_m8, output_summary, fork=True):
-    # TODO: Make this pattern a decorator, ensuring thus-decorated functions always run in subrpocess.
-    if fork:
-        fork = False
-        run_in_subprocess(
-            target=call_hits_m8,
-            args=[input_m8, lineage_map_path, accession2taxid_dict_path, output_m8, output_summary, fork]
-        )
-        return
+@run_in_subprocess
+def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path, output_m8, output_summary):
     lineage_map = shelve.open(lineage_map_path)
     accession2taxid_dict = shelve.open(accession2taxid_dict_path)
     # Helper functions
@@ -845,8 +835,19 @@ def fetch_input_and_replace_whitespace(input_filename, result):
         if s3_input_path != s3_output_path:
             async_handler.launch_aws_upload(s3_input_path, s3_output_path)
 
+def get_input_file_list():
+    # Check existence of gsnap filter output
+    if check_s3_file_presence(os.path.join(SAMPLE_S3_INPUT_PATH,
+                                           EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1)):
+        return [EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1,
+                EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT2,
+                EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT3]
+    return [EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1,
+            EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2,
+            EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT3]
 
 def fetch_and_clean_inputs():
+    input_file_list = get_input_file_list()
     # Fetch inputs and remove tabs in parallel.
     cleaned_inputs = [
         ["ERROR"],
@@ -854,9 +855,9 @@ def fetch_and_clean_inputs():
         ["ERROR"]
     ]
     input_fetcher_threads = [
-        threading.Thread(target=fetch_input_and_replace_whitespace, args=[EXTRACT_UNMAPPED_FROM_SAM_OUT1, cleaned_inputs[0]]),
-        threading.Thread(target=fetch_input_and_replace_whitespace, args=[EXTRACT_UNMAPPED_FROM_SAM_OUT2, cleaned_inputs[1]]),
-        threading.Thread(target=fetch_input_and_replace_whitespace, args=[EXTRACT_UNMAPPED_FROM_SAM_OUT3, cleaned_inputs[2]])
+        threading.Thread(target=fetch_input_and_replace_whitespace, args=[input_file_list[0], cleaned_inputs[0]]),
+        threading.Thread(target=fetch_input_and_replace_whitespace, args=[input_file_list[1], cleaned_inputs[1]]),
+        threading.Thread(target=fetch_input_and_replace_whitespace, args=[input_file_list[2], cleaned_inputs[2]])
     ]
     for ift in input_fetcher_threads:
         ift.start()
@@ -870,23 +871,14 @@ def fetch_and_clean_inputs():
         assert ci != "ERROR", "Error fetching input {}".format(i)
         assert ci == None or os.path.isfile(ci), "Local file {} not found after download of input {}".format(ci, i)
 
-    assert cleaned_inputs[0] != None, "Input {} not found.  This input is mandatory.".format(EXTRACT_UNMAPPED_FROM_SAM_OUT1)
+    assert cleaned_inputs[0] != None, "Input {} not found.  This input is mandatory.".format(input_file_list[0])
 
-    assert (cleaned_inputs[1] == None) == (cleaned_inputs[2] == None), "Input {} is required when {} is given, and vice versa".format(EXTRACT_UNMAPPED_FROM_SAM_OUT2, EXTRACT_UNMAPPED_FROM_SAM_OUT3)
+    assert (cleaned_inputs[1] == None) == (cleaned_inputs[2] == None), "Input {} is required when {} is given, and vice versa".format(input_file_list[1], input_file_list[2])
 
     cleaned_inputs = filter(None, cleaned_inputs)
     assert len(cleaned_inputs) in (1, 3)
 
     return cleaned_inputs
-
-
-def run_in_subprocess(target, args):
-    p = multiprocessing.Process(target=target, args=args)
-    p.start()
-    p.join()
-    if p.exitcode != 0:
-        raise Exception("Failed {} on {}".format(target.__name__, args))
-    write_to_log("finished {}".format(target.__name__))
 
 
 def run_stage2(lazy_run=True):

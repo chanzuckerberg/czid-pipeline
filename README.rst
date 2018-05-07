@@ -29,6 +29,8 @@ When merging a commit to master, you need to increase the version number in `ids
 
 Release notes
 -------------
+- 1.7.0
+    - Add capability to  further filter out host reads by filtering all the hits from gsnapping host genomes. (i.e. gsnap hg38/patron5 for humans)
 
 - 1.6.3 ... 1.6.1
     - Handle bogus 0-length alignments output by gsnap without crashing.
