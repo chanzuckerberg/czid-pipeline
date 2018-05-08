@@ -1102,5 +1102,6 @@ def run_stage2(lazy_run=True):
     async_handler.wait_on_all()
 
     # copy log file -- after work is done
+    write_to_log("Non-host alignment complete")
     stats.save_to_s3()
     upload_log_file(SAMPLE_S3_OUTPUT_PATH)

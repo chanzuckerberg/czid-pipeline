@@ -225,7 +225,7 @@ class AsyncHandler:
         pass
 
     def launch(self, target, args):
-        t = threading.Thread(target=target, args=args)
+        t = MyThread(target=target, args=args)
         self.threads.append(t)
         t.start()
 
@@ -233,6 +233,7 @@ class AsyncHandler:
         write_to_log("Waiting on AsyncHandler threads...")
         for t in self.threads:
             t.join()
+            assert t.completed and not t.exception
         write_to_log("AsyncHandler threads finished.")
 
     def launch_aws_upload(self, src, dst):
@@ -244,6 +245,7 @@ class AsyncHandler:
 
     def launch_command(self, command):
         self.launch(execute_command, command)
+
 
 async_handler = AsyncHandler()
 
