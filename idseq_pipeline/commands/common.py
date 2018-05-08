@@ -10,17 +10,17 @@ import os
 import traceback
 import re
 import multiprocessing
-
+from functools import wraps
+import random
 
 
 from idseq_pipeline import __version__ as PIPELINE_VERSION
 bucket = "s3://idseq-database"
 NCBITOOL_S3_PATH = bucket + "/ncbitool" # S3 location of ncbitool executable
-base_dt = '2018-04-01-utc-1522569777-unixtime__2018-04-04-utc-1522862260-unixtime'
+base_dt = '2018-02-15-utc-1518652800-unixtime__2018-02-15-utc-1518652800-unixtime'
 base_s3 = bucket + "/alignment_data"
 ACCESSION2TAXID = ("%s/%s/accession2taxid.db" % (base_s3, base_dt))
 base_s3 = bucket + "/taxonomy"
-base_dt = '2018-02-15-utc-1518652800-unixtime__2018-02-15-utc-1518652800-unixtime'
 LINEAGE_SHELF = ("%s/%s/taxid-lineages.db" % (base_s3, base_dt))
 INVALID_CALL_BASE_ID = -(10**8) # don't run into -2e9 limit of mysql database. current largest taxid is around 2e6 so should be fine
 
@@ -85,7 +85,9 @@ class StatsFile(object):
         # return 0.1
 
     def get_remaining_reads(self):
-        return (item for item in self.data if item.get("task") == "run_bowtie2").next().get("reads_after")
+        for item in self.data:
+            if item.get('remaining_reads'):
+                return item['remaining_reads']
 
     def count_reads(self, func_name, before_filename, before_filetype, after_filename, after_filetype):
         records_before = count_reads(before_filename, before_filetype)
@@ -95,6 +97,11 @@ class StatsFile(object):
             write_to_log("Overwriting counts for {}".format(func_name), warning=True)
             self.data = new_data
         self.data.append({'task': func_name, 'reads_before': records_before, 'reads_after': records_after})
+
+    def set_remaining_reads(self):
+        last_entry = self.data[-1] or {}
+        remaining = last_entry.get('reads_after', 0)
+        self.data.append({'remaining_reads': remaining})
 
 
 class MyThread(threading.Thread):
@@ -212,6 +219,68 @@ class ProgressFile(object):
             self.tail_subproc.kill()
 
 
+def run_in_subprocess(target):
+    """
+    Decorator that executes a function synchronously in a subprocess.
+    Use case:
+
+        thread 1:
+             compute_something(x1, y1, z1)
+
+        thread 2:
+             compute_something(x2, y2, z2)
+
+        thread 3:
+             compute_something(x3, y3, z3)
+
+    If compute_something() is CPU-intensive, the above threads won't really run
+    in parallel because of the Python global interpreter lock (GIL).  To avoid
+    this problem without changing the above code, simply decorate the definition
+    of compute_something() like so:
+
+         @run_in_subprocess
+         def compute_something(x, y, z):
+             ...
+
+    Typical subprocess limitations or caveats apply:
+       a. The caller can't see any value returned by the decorated function.
+          It should output to a file, a pipe, or a multiprocessing queue.
+       b. Changes made to global variables won't be seen by parent process.
+       c. Use multiprocessing semaphores/locks/etc, not their threading versions.
+
+    Tip: If input from the same file is needed in all invocations of the
+    decorated function, do the I/O before the first call, to avoid accessing
+    the file multiple times.
+    """
+    @wraps(target)
+    def wrapper(*args, **kwargs):
+        p = multiprocessing.Process(target=target, args=args, kwargs=kwargs)
+        p.start()
+        p.join()
+        if p.exitcode != 0:
+            raise Exception("Failed {} on {}, {}".format(target.__name__, args, kwargs))
+    return wrapper
+
+
+def retry(operation, randgen=random.Random().random):
+    # Note the use of a separate random generator for retries so transient
+    # errors won't perturb other random streams used in the application.
+    @wraps(operation)
+    def wrapped_operation(*args, **kwargs):
+        remaining_attempts = 3
+        delay = 1.0
+        while remaining_attempts > 1:
+            try:
+                return operation(*args, **kwargs)
+            except:
+                time.sleep(delay * (1.0 + randgen()))
+                delay *= 3.0
+                remaining_attempts -= 1
+        # The last attempt is outside try/catch so caller can handle exception
+        return operation(*args, **kwargs)
+    return wrapped_operation
+
+
 def execute_command_with_output(command, progress_file=None, timeout=None, grace_period=None):
     with CommandTracker() as ct:
         with print_lock:
@@ -236,6 +305,7 @@ def execute_command_realtime_stdout(command, progress_file=None):
         with ProgressFile(progress_file):
             subprocess.check_call(command, shell=True)
 
+
 def execute_command(command, progress_file=None):
     execute_command_realtime_stdout(command, progress_file)
 
@@ -250,6 +320,7 @@ def check_s3_file_presence(s3_path):
     # this is okay.  When testing for files that are expected not to exist, this incurs
     # a delay due to retries.
     # TODO: Replace this with something more solid.
+    # Note:  Do not use the retry decorator here.
     command = "aws s3 ls %s | wc -l" % s3_path
     MAX_ATTEMPTS = 3
     for attempts in range(MAX_ATTEMPTS):
@@ -624,15 +695,15 @@ def cleaned_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str):
     return result
 
 
-def fill_missing_calls(cleaned_taxid_lineage):
+def fill_missing_calls(cleaned_lineage):
     """replace missing calls with virtual taxids as shown in fill_missing_calls_tests."""
-    result = list(cleaned_taxid_lineage)
-    tax_level = len(cleaned_taxid_lineage)
+    result = list(cleaned_lineage)
+    tax_level = len(cleaned_lineage)
     closest_real_hit_just_above_me = -1
     def blank(taxid_int):
         return 0 > taxid_int > INVALID_CALL_BASE_ID
     while tax_level > 0:
-        me = int(cleaned_taxid_lineage[tax_level - 1])
+        me = int(cleaned_lineage[tax_level - 1])
         if me >= 0:
             closest_real_hit_just_above_me = me
         elif closest_real_hit_just_above_me >= 0 and blank(me):

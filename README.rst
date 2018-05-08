@@ -29,13 +29,18 @@ When merging a commit to master, you need to increase the version number in `ids
 
 Release notes
 -------------
-
 - 1.8.0
     - Perform de-novo assembly using SPAdes for taxa with >= 100 reads
     - Perform de-novo assembly using SPAdes for all non-host reads taken together
 
 - 1.7.0
-    - Update to GMAP-GSNAP 2018-03-25.
+    - Add capability to  further filter out host reads by filtering all the hits from gsnapping host genomes. (i.e. gsnap hg38/patron5 for humans)
+
+- 1.6.3 ... 1.6.1
+    - Handle bogus 0-length alignments output by gsnap without crashing.
+    - Fix crash for reruns which reuse compatible results from a previous run.
+    - Fix crash for samples with unpaired reads.
+    - Improve hit calling performance.
 
 - 1.6.0
     - Fix fasta downloads broken by release 1.5.0, making sure only

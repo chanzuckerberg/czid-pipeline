@@ -24,10 +24,8 @@ INPUT_DIR = SAMPLE_DIR + '/inputs'
 RESULT_DIR = SAMPLE_DIR + '/results'
 DEFAULT_LOGPARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH}
 
-base_s3 = "s3://idseq-database/alignment_data"
-base_dt = "2018-04-01-utc-1522569777-unixtime__2018-04-04-utc-1522862260-unixtime"
-NT_LOC_DB = os.environ.get('NT_LOC_DB', base_s3 + "/" + base_dt + "/nt_loc.db")
-NT_DB = os.environ.get('NT_DB', base_s3 + "/" + base_dt + "/nt")
+NT_LOC_DB = os.environ.get('NT_LOC_DB', "s3://idseq-database/20170824/blast_db/nt_loc.db")
+NT_DB = os.environ.get('NT_DB', "s3://idseq-database/20170824/blast_db/nt")
 
 # input files
 ACCESSION_ANNOTATED_FASTA = 'accessions.rapsearch2.gsnapl.fasta'

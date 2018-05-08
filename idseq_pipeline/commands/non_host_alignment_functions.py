@@ -39,11 +39,15 @@ MAX_INTERVAL_BETWEEN_DESCRIBE_INSTANCES = 900
 ROOT_DIR = '/mnt'
 DEST_DIR = ROOT_DIR + '/idseq/data' # generated data go here
 REF_DIR = ROOT_DIR + '/idseq/ref' # referene genome / ref databases go here
+# input files
+EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.1.fasta'
+EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.2.fasta'
+EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT3 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.merged.fasta'
 
+EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1 = 'unmapped.gsnap_filter.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.1.fasta'
+EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT2 = 'unmapped.gsnap_filter.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.2.fasta'
+EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT3 = 'unmapped.gsnap_filter.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.merged.fasta'
 # output files
-EXTRACT_UNMAPPED_FROM_SAM_OUT1 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.1.fasta'
-EXTRACT_UNMAPPED_FROM_SAM_OUT2 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.2.fasta'
-EXTRACT_UNMAPPED_FROM_SAM_OUT3 = 'unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.merged.fasta'
 UNIDENTIFIED_FASTA_OUT = 'unidentified.fasta'
 DEPRECATED_BOOBYTRAPPED_COMBINED_JSON_OUT = 'idseq_web_sample.json'
 LOGS_OUT_BASENAME = 'log'
@@ -91,7 +95,7 @@ random.seed(hash(SAMPLE_NAME))
 ## machine taking the job, possibly out of sync with the newest version in S3.
 
 base_s3 = 's3://idseq-database/alignment_indexes'
-base_dt = '2018-04-01-utc-1522569777-unixtime__2018-04-04-utc-1522862260-unixtime'
+base_dt = '2018-02-15-utc-1518652800-unixtime__2018-02-15-utc-1518652800-unixtime'
 GSNAP_VERSION_FILE_S3 = ("%s/%s/nt_k16.version.txt" % (base_s3, base_dt))
 RAPSEARCH_VERSION_FILE_S3 = ("%s/%s/nr_rapsearch.version.txt" % (base_s3, base_dt))
 
@@ -166,7 +170,8 @@ def subsample_helper(input_file, records_to_keep, type_, output_file):
 
 
 # Note dedicated random stream for just this function, so that arbitrary other use of randomness (e.g. for I/O retry delays) will not perturb the subsampling stream
-def subsample_single_fasta(input_file, target_n_reads, randgen=random.Random(x=hash(SAMPLE_NAME))):
+def subsample_single_fasta(input_files_basename, target_n_reads, randgen=random.Random(x=hash(SAMPLE_NAME))):
+    input_file = result_dir(input_files_basename)
     total_records = count_lines(input_file) // 2 # each fasta record spans 2 lines
     write_to_log("total unpaired reads: %d" % total_records)
     write_to_log("target reads: %d" % target_n_reads)
@@ -233,6 +238,8 @@ def log_corrupt(m8_file, line):
 
 
 def iterate_m8(m8_file, debug_caller=None, logging_interval=25000000):
+    invalid_hits = 0
+    last_invalid_line = None
     with open(m8_file, 'rb') as m8f:
         line_count = 0
         for line in m8f:
@@ -245,10 +252,22 @@ def iterate_m8(m8_file, debug_caller=None, logging_interval=25000000):
             assert len(parts) >= 12, log_corrupt(m8_file, line)
             read_id = parts[0]
             accession_id = parts[1]
+            percent_id = float(parts[2])
+            alignment_length = int(parts[3])
             e_value = float(parts[10])
+            # GSNAP outputs these sometimes, and usually they are not the only assingment, so rather
+            # than killing the job, we just skip them.  If we don't filter these out here, they will
+            # override the good data when computing min(evalue), pollute averages computed in the json,
+            # and cause the webapp loader to crash as the RAILS JSON parser cannot handle NaNs.
+            if alignment_length <= 0 or not -0.25 < percent_id < 100.25 or e_value != e_value:
+                invalid_hits += 1
+                last_invalid_line = line
+                continue
             if debug_caller and line_count % logging_interval == 0:
                 write_to_log("Scanned {} m8 lines from {} for {}, and going.".format(line_count, m8_file, debug_caller))
-            yield (read_id, accession_id, e_value, line)
+            yield (read_id, accession_id, percent_id, alignment_length, e_value, line)
+    if invalid_hits:
+        write_to_log("Found {} invalid hits in {};  last invalid hit line: {}".format(invalid_hits, m8_file, last_invalid_line), warning=True)
     if debug_caller:
         write_to_log("Scanned all {} m8 lines from {} for {}.".format(line_count, m8_file, debug_caller))
 
@@ -256,7 +275,7 @@ def iterate_m8(m8_file, debug_caller=None, logging_interval=25000000):
 def annotate_fasta_with_accessions(merged_input_fasta, nt_m8, nr_m8, output_fasta):
 
     def get_map(m8_file):
-        return dict((read_id, accession_id) for read_id, accession_id, _1, _2 in iterate_m8(m8_file, "annotate_fasta_with_accessions"))
+        return dict((read_id, accession_id) for read_id, accession_id, _percent_id, _alignment_length, _e_value, _line in iterate_m8(m8_file, "annotate_fasta_with_accessions"))
 
     nt_map = get_map(nt_m8)
     nr_map = get_map(nr_m8)
@@ -281,16 +300,8 @@ def annotate_fasta_with_accessions(merged_input_fasta, nt_m8, nr_m8, output_fast
     execute_command("aws s3 cp --quiet %s %s/" % (output_fasta, SAMPLE_S3_OUTPUT_PATH))
 
 
-
-def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, count_type, lineage_map_path, deuterostome_path, total_reads, remaining_reads, output_file, fork=True):
-    # TODO: Make this pattern a decorator, ensuring thus-decorated functions always run in subrpocess.
-    if fork:
-        fork = False
-        run_in_subprocess(
-            target=generate_taxon_count_json_from_m8,
-            args=[m8_file, hit_level_file, e_value_type, count_type, lineage_map_path, deuterostome_path, total_reads, remaining_reads, output_file, fork]
-        )
-        return
+@run_in_subprocess
+def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, count_type, lineage_map_path, deuterostome_path, total_reads, remaining_reads, output_file):
     if SKIP_DEUTERO_FILTER:
         def any_hits_to_remove(_hits):
             return False
@@ -310,6 +321,8 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
     lineage_map = shelve.open(lineage_map_path)
     LINEAGE_WILDCARDS = ("-100", "-200", "-300")
     NUM_RANKS = len(LINEAGE_WILDCARDS)
+    # See https://en.wikipedia.org/wiki/Double-precision_floating-point_format
+    MIN_NORMAL_POSITIVE_DOUBLE = 2.0 ** -1022
     while hit_line and m8_line:
         # Retrieve data values from files:
         hit_line_columns = hit_line.rstrip("\n").split("\t")
@@ -325,7 +338,12 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
         percent_identity = float(m8_line_columns[2])
         alignment_length = float(m8_line_columns[3])
         e_value = float(m8_line_columns[10])
+        # These have been filtered out before the creation of m8_f and hit_f
+        assert alignment_length > 0
+        assert -0.25 < percent_identity < 100.25
+        assert e_value == e_value
         if e_value_type != 'log10':
+            assert MIN_NORMAL_POSITIVE_DOUBLE <= e_value  # Subtle, but this excludes positive subnorms.
             e_value = math.log10(e_value)
 
         # Retrieve the taxon lineage and mark meaningless calls with fake taxids.
@@ -341,9 +359,9 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
                 if not agg_bucket:
                     agg_bucket = {
                         'count': 0,
-                        'sum_percent_identity': 0,
-                        'sum_alignment_length': 0,
-                        'sum_e_value': 0
+                        'sum_percent_identity': 0.0,
+                        'sum_alignment_length': 0.0,
+                        'sum_e_value': 0.0
                     }
                     aggregation[agg_key] = agg_bucket
                 agg_bucket['count'] += 1
@@ -359,6 +377,7 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
     # Produce the final output
     taxon_counts_attributes = []
     for agg_key, agg_bucket in aggregation.iteritems():
+        count = agg_bucket['count']
         tax_level = NUM_RANKS - len(agg_key) + 1
         taxon_counts_attributes.append({# TODO: Extend taxonomic ranks as indicated on the commented out lines.
             "tax_id": agg_key[0],
@@ -371,10 +390,10 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
             # 'phyllum_taxid' : agg_key[6 - tax_level] if tax_level <= 6 else "-600",
             # 'kingdom_taxid' : agg_key[7 - tax_level] if tax_level <= 7 else "-700",
             # 'domain_taxid' : agg_key[8 - tax_level] if tax_level <= 8 else "-800",
-            "count": agg_bucket['count'],
-            "percent_identity": agg_bucket['sum_percent_identity'] / agg_bucket['count'],
-            "alignment_length": agg_bucket['sum_alignment_length'] / agg_bucket['count'],
-            "e_value": agg_bucket['sum_e_value'] / agg_bucket['count'],
+            "count": count,
+            "percent_identity": agg_bucket['sum_percent_identity'] / count,
+            "alignment_length": agg_bucket['sum_alignment_length'] / count,
+            "e_value": agg_bucket['sum_e_value'] / count,
             "count_type": count_type})
     output_dict = {
         "pipeline_output": {
@@ -433,6 +452,7 @@ def fetch_key(environment, mutex=threading.RLock()):
         return key_path
 
 
+@retry
 def get_server_ips_work(service_name, environment):
     tag = "service"
     value = "%s-%s" % (service_name, environment_for_aligners(environment))
@@ -606,11 +626,11 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, r
     if service == "gsnap":
         commands = "mkdir -p {remote_work_dir} ; \
             {download_input_from_s3} ; \
-            {remote_home_dir}/bin/gsnapl -A m8 --batch=0 --use-shared-memory=0 --gmap-mode=none --npaths=100 --ordered -t 32 --max-mismatches=40 -D {remote_index_dir} -d nt_k16 {remote_input_files} > {multihit_remote_outfile}"
+            {remote_home_dir}/bin/gsnapl -A m8 --batch=0 --use-shared-memory=0 --gmap-mode=none --npaths=100 --ordered -t 32 --maxsearch=1000 --max-mismatches=40 -D {remote_index_dir} -d nt_k16 {remote_input_files} > {multihit_remote_outfile}"
     else:
         commands = "mkdir -p {remote_work_dir} ; \
             {download_input_from_s3} ; \
-            /usr/local/bin/rapsearch -d {remote_index_dir}/nr_rapsearch -e -6 -l 10 -a T -b 0 -v 100 -z 24 -q {remote_input_files} -o {multihit_remote_outfile}"
+            /usr/local/bin/rapsearch -d {remote_index_dir}/nr_rapsearch -e -6 -l 10 -a T -b 0 -v 50 -z 24 -q {remote_input_files} -o {multihit_remote_outfile}"
     commands = commands.format(
         remote_work_dir=remote_work_dir,
         download_input_from_s3=download_input_from_s3,
@@ -645,28 +665,29 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, r
         with iostream:
             execute_command(scp(key_path, remote_username, instance_ip, multihit_remote_outfile, multihit_local_outfile))
             execute_command("aws s3 cp --quiet %s %s/" % (multihit_local_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
-    write_to_log("finished alignment for chunk %s on %s server %s" % (chunk_id, service, instance_ip))
+        write_to_log("finished alignment for chunk %s on %s server %s" % (chunk_id, service, instance_ip))
     return multihit_local_outfile
 
 
-def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path, output_m8, output_summary, fork=True):
-    # TODO: Make this pattern a decorator, ensuring thus-decorated functions always run in subrpocess.
-    if fork:
-        fork = False
-        run_in_subprocess(
-            target=call_hits_m8,
-            args=[input_m8, lineage_map_path, accession2taxid_dict_path, output_m8, output_summary, fork]
-        )
-        return
+@run_in_subprocess
+def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path, output_m8, output_summary):
     lineage_map = shelve.open(lineage_map_path)
     accession2taxid_dict = shelve.open(accession2taxid_dict_path)
     # Helper functions
     # TODO: Represent taxids by numbers instead of strings to greatly reduce memory footprint
     # and increase speed.
     NULL_TAXIDS = ("-100", "-200", "-300")
+    lineage_cache = {}
+    def get_lineage(accession_id):
+        if accession_id in lineage_cache:
+            result = lineage_cache[accession_id]
+        else:
+            accession_taxid = accession2taxid_dict.get(accession_id.split(".")[0], "NA")
+            result = lineage_map.get(accession_taxid, NULL_TAXIDS)
+            lineage_cache[accession_id] = result
+        return result
     def accumulate(hits, accession_id):
-        accession_taxid = accession2taxid_dict.get(accession_id.split(".")[0], "NA")
-        lineage_taxids = lineage_map.get(accession_taxid, NULL_TAXIDS)
+        lineage_taxids = get_lineage(accession_id)
         for level, taxid_at_level in enumerate(lineage_taxids):
             if int(taxid_at_level) < 0:
                 # When an accession doesn't provide species level info, it doesn't contradict
@@ -682,7 +703,7 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path, output_m
         return -1, "-1", None
     # Read input_m8 and group hits by read id
     m8 = defaultdict(list)
-    for read_id, accession_id, e_value, _ in iterate_m8(input_m8, "call_hits_m8_initial_scan"):
+    for read_id, accession_id, _percent_id, _alignment_length, e_value, _line in iterate_m8(input_m8, "call_hits_m8_initial_scan"):
         m8[read_id].append((accession_id, e_value))
     # Deduplicate m8 and summarize hits
     summary = {}
@@ -703,7 +724,7 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path, output_m
     emitted = set()
     with open(output_m8, "wb") as outf:
         with open(output_summary, "wb") as outf_sum:
-            for read_id, accession_id, e_value, line in iterate_m8(input_m8, "call_hits_m8_emit_deduped_and_summarized_hits"):
+            for read_id, accession_id, _percent_id, _alignment_length, e_value, line in iterate_m8(input_m8, "call_hits_m8_emit_deduped_and_summarized_hits"):
                 if read_id not in emitted:
                     best_e_value, (hit_level, taxid, best_accession_id) = summary[read_id]
                     if best_e_value == e_value and best_accession_id in (None, accession_id):
@@ -823,8 +844,19 @@ def fetch_input_and_replace_whitespace(input_filename, result):
                 args=["aws s3 cp --quiet {s3_input_path} {s3_output_path}".format(
                     s3_input_path=s3_input_path, s3_output_path=s3_output_path)])
 
+def get_input_file_list():
+    # Check existence of gsnap filter output
+    if check_s3_file_presence(os.path.join(SAMPLE_S3_INPUT_PATH,
+                                           EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1)):
+        return [EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1,
+                EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT2,
+                EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT3]
+    return [EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1,
+            EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2,
+            EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT3]
 
 def fetch_and_clean_inputs():
+    input_file_list = get_input_file_list()
     # Fetch inputs and remove tabs in parallel.
     cleaned_inputs = [
         ["ERROR"],
@@ -832,9 +864,9 @@ def fetch_and_clean_inputs():
         ["ERROR"]
     ]
     input_fetcher_threads = [
-        threading.Thread(target=fetch_input_and_replace_whitespace, args=[EXTRACT_UNMAPPED_FROM_SAM_OUT1, cleaned_inputs[0]]),
-        threading.Thread(target=fetch_input_and_replace_whitespace, args=[EXTRACT_UNMAPPED_FROM_SAM_OUT2, cleaned_inputs[1]]),
-        threading.Thread(target=fetch_input_and_replace_whitespace, args=[EXTRACT_UNMAPPED_FROM_SAM_OUT3, cleaned_inputs[2]])
+        threading.Thread(target=fetch_input_and_replace_whitespace, args=[input_file_list[0], cleaned_inputs[0]]),
+        threading.Thread(target=fetch_input_and_replace_whitespace, args=[input_file_list[1], cleaned_inputs[1]]),
+        threading.Thread(target=fetch_input_and_replace_whitespace, args=[input_file_list[2], cleaned_inputs[2]])
     ]
     for ift in input_fetcher_threads:
         ift.start()
@@ -848,23 +880,14 @@ def fetch_and_clean_inputs():
         assert ci != "ERROR", "Error fetching input {}".format(i)
         assert ci == None or os.path.isfile(ci), "Local file {} not found after download of input {}".format(ci, i)
 
-    assert cleaned_inputs[0] != None, "Input {} not found.  This input is mandatory.".format(EXTRACT_UNMAPPED_FROM_SAM_OUT1)
+    assert cleaned_inputs[0] != None, "Input {} not found.  This input is mandatory.".format(input_file_list[0])
 
-    assert (cleaned_inputs[1] == None) == (cleaned_inputs[2] == None), "Input {} is required when {} is given, and vice versa".format(EXTRACT_UNMAPPED_FROM_SAM_OUT2, EXTRACT_UNMAPPED_FROM_SAM_OUT3)
+    assert (cleaned_inputs[1] == None) == (cleaned_inputs[2] == None), "Input {} is required when {} is given, and vice versa".format(input_file_list[1], input_file_list[2])
 
     cleaned_inputs = filter(None, cleaned_inputs)
     assert len(cleaned_inputs) in (1, 3)
 
     return cleaned_inputs
-
-
-def run_in_subprocess(target, args):
-    p = multiprocessing.Process(target=target, args=args)
-    p.start()
-    p.join()
-    if p.exitcode != 0:
-        raise Exception("Failed {} on {}".format(target.__name__, args))
-    write_to_log("finished {}".format(target.__name__))
 
 
 def run_stage2(lazy_run=True):
@@ -886,7 +909,7 @@ def run_stage2(lazy_run=True):
 
     cleaned_inputs = fetch_and_clean_inputs()
 
-    gsnapl_input_files = [os.path.basename(f) for f in cleaned_inputs[:-1]]
+    gsnapl_input_files = [os.path.basename(f) for f in cleaned_inputs[:2]]
     merged_fasta = cleaned_inputs[-1]
     before_file_name_for_log = cleaned_inputs[0]
     before_file_type_for_log = "fasta_paired" if len(gsnapl_input_files) == 2 else "fasta" # unpaired
