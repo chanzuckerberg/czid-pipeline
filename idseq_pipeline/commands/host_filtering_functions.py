@@ -75,6 +75,8 @@ BOWTIE2 = "bowtie2"
 
 # pipeline configuration
 LZW_FRACTION_CUTOFF = 0.45
+MAX_INPUT_LINES = 3*10**8 # must be multiple of 4 (fastq)
+INPUT_TRUNCATED_FILE = 'input_truncated_to_%s' % str(MAX_INPUT_LINES)
 
 # convenience functions
 def fq2fa(input_fastq, output_fasta):
@@ -597,6 +599,14 @@ def run_stage1(lazy_run=True):
     if len(fastq_files) not in [1, 2]:
         write_to_log("Number of input files was neither 1 nor 2. Aborting computation.")
         return # only support either 1 file or 2 (paired) files
+
+    # Truncate files if they are too long
+    for f in fastq_files:
+        initial_size = os.path.getsize(f)
+        execute_command("sed -i '%s,$ d' %s" % (str(MAX_INPUT_LINES + 1), f))
+        final_size = os.path.getsize(f)
+    if final_size < initial_size:
+        execute_command("echo '' | aws s3 cp - %s/%s" % (SAMPLE_S3_OUTPUT_PATH, INPUT_TRUNCATED_FILE))
 
     # Record total number of input reads
     initial_file_type_for_log = "fastq" if "fastq" in FILE_TYPE else "fasta"
