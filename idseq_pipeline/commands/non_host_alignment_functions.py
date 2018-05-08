@@ -830,10 +830,13 @@ def fetch_input_and_replace_whitespace(input_filename, result):
     s3_output_path = os.path.join(SAMPLE_S3_OUTPUT_PATH, input_filename) # usually the same as the input path
     cleaned_input_path = result_dir("nospace.%s" % input_filename)
     try:
-        execute_command("aws s3 cp --quiet {s3_input_path} - | sed 's/[[:blank:]]/{replacement}/g' > {cleaned_input_path}".format(
+        stdouterr = execute_command_with_output("aws s3 cp --quiet {s3_input_path} - | sed 's/[[:blank:]]/{replacement}/g' > {cleaned_input_path}".format(
             replacement=";",
             s3_input_path=s3_input_path,
-            cleaned_input_path=cleaned_input_path))
+            cleaned_input_path=cleaned_input_path), merge_stderr=True)
+        # If the file doesn't exist in s3, the above command, sadly, doesn't crash.  But it outputs "download failed" on stderr.
+        assert "download failed" not in stdouterr, "Failed to download {}".format(s3_input_path)
+        assert os.path.getsize(cleaned_input_path) > 0, "Downloaded zero bytes from {}".format(s3_input_path)
         result[0] = cleaned_input_path
     except:
         result[0] = None

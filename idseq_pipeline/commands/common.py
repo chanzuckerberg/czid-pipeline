@@ -74,19 +74,31 @@ class StatsFile(object):
             self._save()
             execute_command("aws s3 cp --quiet %s %s/" % (self.stats_path, self.s3_output_dir))
 
-    def get_item(self, function_name):
+    def get_item_value(self, key):
         for item in self.data:
-            if item.get(function_name):
-                return item[function_name]
+            if item.get(key):
+                return item[key]
+
+    def get_item_for_task(self, function_name):
+        for item in self.data:
+            if item.get("task") == function_name:
+                return item
 
     def get_total_reads(self):
-        return self.get_item('total_reads')
+        # New style
+        tr = self.get_item_value("total_reads")
+        if tr != None:
+            return int(tr)
+        # For compatibility
+        item = self.get_item_for_task("run_star")
+        if item != None:
+            return int(item["reads_before"])
 
     def get_remaining_reads(self):
-        return self.get_item('remaining_reads')
+        return int(self.get_item_value('remaining_reads'))
 
     def gsnap_ran_in_host_filtering(self):
-        return self.get_item("run_gsnap_filter") != None
+        return self.get_item_for_task("run_gsnap_filter") != None
 
     def count_reads(self, func_name, before_filename, before_filetype, after_filename, after_filetype):
         records_before = count_reads(before_filename, before_filetype)
@@ -106,10 +118,13 @@ class StatsFile(object):
 
 
 class MyThread(threading.Thread):
-    def __init__(self, target, args, kwargs={}):
+    def __init__(self, target, args, kwargs=None):
         super(MyThread, self).__init__()
         self.args = args
-        self.kwargs = kwargs
+        if kwargs == None:
+            self.kwargs = {}
+        else:
+            self.kwargs = kwargs
         self.target = target
         self.exception = None
         self.completed = False
@@ -286,7 +301,7 @@ def retry(operation, randgen=random.Random().random):
     return wrapped_operation
 
 
-def execute_command(command, progress_file=None, timeout=None, grace_period=None, with_output=False):
+def execute_command(command, progress_file=None, timeout=None, grace_period=None, capture_stdout=False, merge_stderr=False):
     with CommandTracker() as ct:
         with print_lock:
             print "Command {}: {}".format(ct.id, command)
@@ -295,9 +310,9 @@ def execute_command(command, progress_file=None, timeout=None, grace_period=None
                 ct.timeout = timeout
             if grace_period:
                 ct.grace_period = grace_period
-            if with_output:
-                # Capture only stdout.  Child stderr = parent stderr.   Child input = parent stdin.
-                ct.proc = subprocess.Popen(command, shell=True, stdin=sys.stdin.fileno(), stdout=subprocess.PIPE, stderr=sys.stderr.fileno())
+            if capture_stdout:
+                # Capture only stdout.  Child stderr = parent stderr, unless merge_stderr specified.   Child input = parent stdin.
+                ct.proc = subprocess.Popen(command, shell=True, stdin=sys.stdin.fileno(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT if merge_stderr else sys.stderr.fileno())
                 stdout, _ = ct.proc.communicate()
             else:
                 # Capture nothing.  Child inherits parent stdin/out/err.
@@ -306,12 +321,12 @@ def execute_command(command, progress_file=None, timeout=None, grace_period=None
                 stdout = None
             if ct.proc.returncode:
                 raise subprocess.CalledProcessError(ct.proc.returncode, command, stdout)
-            if with_output:
+            if capture_stdout:
                 return stdout
 
 
-def execute_command_with_output(command, progress_file=None, timeout=None, grace_period=None):
-    return execute_command(command, progress_file, timeout, grace_period, with_output=True)
+def execute_command_with_output(command, progress_file=None, timeout=None, grace_period=None, merge_stderr=False):
+    return execute_command(command, progress_file, timeout, grace_period, capture_stdout=True, merge_stderr=merge_stderr)
 
 
 def remote_command(base_command, key_path, remote_username, instance_ip):
@@ -400,8 +415,7 @@ def configure_logger(log_file):
     LOGGER.addHandler(handler)
 
 
-def fetch_from_s3(source, destination, auto_unzip, allow_s3mi=False, pipe_filter=None, mutex=threading.RLock(), locks={}):  #pylint: disable=dangerous-default-value
-    #  Use pipe_filter = "| head -50 | md5sum" for example, if all you want is the md5 of the first 50 lines
+def fetch_from_s3(source, destination, auto_unzip, allow_s3mi=False, mutex=threading.RLock(), locks={}):  #pylint: disable=dangerous-default-value
     with mutex:
         if os.path.exists(destination):
             if os.path.isdir(destination):
@@ -432,17 +446,14 @@ def fetch_from_s3(source, destination, auto_unzip, allow_s3mi=False, pipe_filter
                         install_s3mi()
                     except:
                         allow_s3mi = False
-                if pipe_filter:
-                    assert pipe_filter.startswith("|")
+                if unzip:
+                    pipe_filter = "| gzip -dc "
                 else:
                     pipe_filter = ""
-                if unzip:
-                    pipe_filter = "| gzip -dc " + pipe_filter
                 try:
                     assert allow_s3mi
                     execute_command("s3mi cat {source} {pipe_filter} > {destination}".format(source=source, pipe_filter=pipe_filter, destination=destination))
                 except:
-                    execute_command("rm -f {destination}".format(destination=destination))
                     execute_command("aws s3 cp --quiet {source} - {pipe_filter} > {destination}".format(source=source, pipe_filter=pipe_filter, destination=destination))
                 return destination
             except subprocess.CalledProcessError:

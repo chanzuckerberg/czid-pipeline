@@ -28,7 +28,8 @@ STATS_IN = 'total_reads.json'
 STATS_OUT = 'stats.json'
 VERSION_OUT = 'versions.json'
 PIPELINE_VERSION_OUT = 'pipeline_version.txt'
-MAX_INPUT_READS = 75 * 1000 * 1000
+MAX_INPUT_READS = 10 * 1000 * 1000
+INPUT_TRUNCATED_FILE = 'input_truncated.txt'
 
 # arguments from environment variables
 INPUT_BUCKET = os.environ.get('INPUT_BUCKET')
@@ -645,7 +646,7 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats, 
     def uploader_check_wait_all():
         for t in uploader_threads:
             t.join()
-        for filename, status in uploader_status.itervalues():
+        for filename, status in uploader_status.iteritems():
             assert status == "success", "Bad upload status {} for file {}".format(status, filename)
     if prefiltered:
         # Move input in place of bowtie output (as it represents bowtie output from another run).
@@ -795,17 +796,25 @@ def run_stage1(lazy_run=True):
         assert False, "Input file extension, possibly after unzipping, is neither fasta nor fastq: {}".format(unzipped_file_extension)
     command = "aws s3 ls %s/ | grep '\\.%s$'" % (SAMPLE_S3_INPUT_PATH, FILE_TYPE)
     output = execute_command_with_output(command).rstrip().split("\n")
+    truncated_inputs = [False]
+    initial_sizes = []
+    truncated_inputs_lock = threading.RLock()
+    def fetch_input(input_basename):
+        fastq_file = fetch_from_s3(os.path.join(SAMPLE_S3_INPUT_PATH, input_basename), FASTQ_DIR, allow_s3mi=True, auto_unzip=True)
+        with truncated_inputs_lock:
+            initial_sizes.append(os.path.getsize(fastq_file))
+    def truncate_input(fastq_file):
+        initial_size = os.path.getsize(fastq_file)
+        #TODO:  FASTA can have multiline reads.  https://github.com/chanzuckerberg/idseq-pipeline/issues/177
+        execute_command("sed -i '%d,$ d' %s" % (max_lines + 1, fastq_file))
+        final_size = os.path.getsize(fastq_file)
+        with truncated_inputs_lock:
+            truncated_inputs[0] = truncated_inputs[0] or (initial_size != final_size)
     input_fetchers = []
     for line in output:
         m = re.match(".*?([^ ]*." + re.escape(FILE_TYPE) + ")", line)
         if m:
-            kwargs = {
-                'allow_s3mi': True,
-                'auto_unzip': True,
-                'pipe_filter': "| head -n {max_lines}".format(max_lines=max_lines)
-            }
-            args = [os.path.join(SAMPLE_S3_INPUT_PATH, m.group(1)), FASTQ_DIR]
-            t = MyThread(target=fetch_from_s3, args=args, kwargs=kwargs)
+            t = MyThread(target=fetch_input, args=[m.group(1)])
             t.start()
             input_fetchers.append(t)
         else:
@@ -813,13 +822,26 @@ def run_stage1(lazy_run=True):
     for t in input_fetchers:
         t.join()
         assert t.completed and not t.exception
-    # Downloaded files here are unzipped.
-    fastq_files = execute_command_with_output("ls %s/*.%s" % (FASTQ_DIR, unzipped_file_extension)).rstrip().split("\n")
 
+    # Downloaded files here are unzipped but not yet truncated.
+    fastq_files = execute_command_with_output("ls %s/*.%s" % (FASTQ_DIR, unzipped_file_extension)).rstrip().split("\n")
     # Identify input files and characteristics
     if len(fastq_files) not in [1, 2]:
         write_to_log("Number of input files was neither 1 nor 2. Aborting computation.")
         return # only support either 1 file or 2 (paired) files
+
+    if max(initial_sizes) > 10*1000*1000*1000:
+        # Truncate very large files to the same number of reads.
+        truncators = []
+        for f in fastq_files:
+            t = MyThread(target=truncate_input, args=[os.path.join(FASTQ_DIR, f)])
+            t.start()
+            truncators.append(t)
+        for t in truncators:
+            t.join()
+            assert t.completed and not t.exception
+        if truncated_inputs[0]:
+            execute_command("echo %d | aws s3 cp - %s/%s" % (MAX_INPUT_READS * len(fastq_files), SAMPLE_S3_OUTPUT_PATH, INPUT_TRUNCATED_FILE))
 
     initial_file_type_for_log = "fastq" if "fastq" in FILE_TYPE else "fasta"
     if len(fastq_files) == 2:
