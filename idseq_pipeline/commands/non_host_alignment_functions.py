@@ -979,6 +979,9 @@ def run_stage2(lazy_run=True):
                                           stats.get_remaining_reads(),
                                           result_dir(MULTIHIT_NT_JSON_OUT))
 
+        with thread_success_lock:
+            thread_success["gsnap"] = True
+
 
     def run_rapsearch2():
         logparams = return_merged_dict(
@@ -1025,6 +1028,9 @@ def run_stage2(lazy_run=True):
                                           stats.get_remaining_reads(),
                                           result_dir(MULTIHIT_NR_JSON_OUT))
 
+        with thread_success_lock:
+            thread_success["rapsearch2"] = True
+
 
     def run_additional_steps():
 
@@ -1041,6 +1047,9 @@ def run_stage2(lazy_run=True):
         src = RESULT_DIR + "/" + DEPRECATED_BOOBYTRAPPED_COMBINED_JSON_OUT
         dst = SAMPLE_S3_OUTPUT_PATH + "/"
         async_handler.launch_aws_upload(src, dst)
+
+        with thread_success_lock:
+            thread_success["additional_steps"] = True
 
 
     def run_annotation_steps():
@@ -1064,6 +1073,9 @@ def run_stage2(lazy_run=True):
                           before_filetype="fasta",
                           after_filename=result_dir(UNIDENTIFIED_FASTA_OUT),
                           after_filetype="fasta")
+
+        with thread_success_lock:
+            thread_success["annotation"] = True
 
 
     t_gsnap = threading.Thread(target=run_gsnap)
