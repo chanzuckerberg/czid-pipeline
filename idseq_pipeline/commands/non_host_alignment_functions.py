@@ -927,6 +927,7 @@ def run_stage2(lazy_run=True):
         if len(gsnapl_input_files) == 2:
             async_handler.launch_aws_upload(merged_fasta, SAMPLE_S3_OUTPUT_PATH + "/")
 
+    write_to_log("Before deuterostome fetcher")
     deuterostome_fetcher = threading.Thread(target=fetch_deuterostome_file)
     deuterostome_fetcher.start()
 
