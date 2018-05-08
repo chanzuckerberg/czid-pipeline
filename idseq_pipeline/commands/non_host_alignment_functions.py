@@ -835,9 +835,11 @@ def fetch_input_and_replace_whitespace(input_filename, result):
             s3_input_path=s3_input_path,
             cleaned_input_path=cleaned_input_path), merge_stderr=True)
         # If the file doesn't exist in s3, the above command, sadly, doesn't crash.  But it outputs "download failed" on stderr.
-        assert "download failed" not in stdouterr, "Failed to download {}".format(s3_input_path)
-        assert os.path.getsize(cleaned_input_path) > 0, "Downloaded zero bytes from {}".format(s3_input_path)
-        result[0] = cleaned_input_path
+        if "download failed" in stdouterr or os.path.getsize(cleaned_input_path) == 0:
+            write_to_log("Failed to download {}".format(s3_input_path), warning=True)
+            result[0] = None
+        else:
+            result[0] = cleaned_input_path
     except:
         result[0] = None
         with print_lock:

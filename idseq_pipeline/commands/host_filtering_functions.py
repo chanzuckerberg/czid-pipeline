@@ -28,7 +28,7 @@ STATS_IN = 'total_reads.json'
 STATS_OUT = 'stats.json'
 VERSION_OUT = 'versions.json'
 PIPELINE_VERSION_OUT = 'pipeline_version.txt'
-MAX_INPUT_READS = 10 * 1000 * 1000
+MAX_INPUT_READS = 75 * 1000 * 1000
 INPUT_TRUNCATED_FILE = 'input_truncated.txt'
 
 # arguments from environment variables
@@ -528,7 +528,7 @@ def run_lzw(input_fas, uploader_start):
         uploader_start(os.path.join(RESULT_DIR, LZW_OUT2), SAMPLE_S3_OUTPUT_PATH + "/")
     write_to_log("finished job")
 
-def run_bowtie2(input_fas):
+def run_bowtie2(input_fas, uploader_start):
     # check if genome downloaded already
     genome_dir = fetch_genome(BOWTIE2_GENOME)
 
@@ -564,6 +564,11 @@ def run_bowtie2(input_fas):
         generate_unmapped_pairs_from_sam(RESULT_DIR + '/' + BOWTIE2_OUT, output_prefix)
     else:
         generate_unmapped_singles_from_sam(RESULT_DIR + '/' + BOWTIE2_OUT, output_prefix)
+    uploader_start(os.path.join(RESULT_DIR, BOWTIE2_OUT), SAMPLE_S3_OUTPUT_PATH + "/")
+    uploader_start(os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1), SAMPLE_S3_OUTPUT_PATH + "/")
+    if len(input_fas) == 2:
+        uploader_start(os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2), SAMPLE_S3_OUTPUT_PATH + "/")
+        uploader_start(os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT3), SAMPLE_S3_OUTPUT_PATH + "/")
     write_to_log("extracted unmapped fragments from SAM file")
 
 
@@ -655,9 +660,9 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats, 
         for i, fn in enumerate(fastq_files):
             assert fn.endswith(".fasta") or fn.endswith(".fasta.gz"), "Prefiltered input is not a fasta file: {fn}".format(fn=fn)
             if fn.endswith(".fasta"):
-                execute_command("mv {fn} {bto}".format(fn=fn, bto=btos[i]))
+                execute_command("mv {fn} {bto}".format(fn=fn, bto=os.path.join(RESULT_DIR, btos[i])))
             else:
-                t = MyThread(target=unzip_to_file, args=[fn, btos[i]])
+                t = MyThread(target=unzip_to_file, args=[fn, os.path.join(RESULT_DIR, btos[i])])
                 t.start()
                 unzippers.append(t)
         for t in unzippers:
@@ -735,21 +740,12 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats, 
         else:
             input_files = [os.path.join(RESULT_DIR, LZW_OUT1)]
         # Note:  Bowtie2 does not upload its results.  We do it here.
-        bowtie2_was_lazy = run_and_log_s3(logparams, target_outputs["run_bowtie2"], lazy_run, SAMPLE_S3_OUTPUT_PATH, run_bowtie2, input_files)
-
-    # Upload bowtie outputs.  This happens even if bowtie didn't run, provided the inputs are postfiltered fastas.
-    if prefiltered or not bowtie2_was_lazy:
-        uploader_start(os.path.join(RESULT_DIR, BOWTIE2_OUT), SAMPLE_S3_OUTPUT_PATH + "/")
-        uploader_start(os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1), SAMPLE_S3_OUTPUT_PATH + "/")
-        if number_of_input_files == 2:
-            uploader_start(os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2), SAMPLE_S3_OUTPUT_PATH + "/")
-            uploader_start(os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT3), SAMPLE_S3_OUTPUT_PATH + "/")
-
-    stats.count_reads("run_bowtie2",
-                      before_filename=os.path.join(RESULT_DIR, LZW_OUT1),
-                      before_filetype="fasta_paired",
-                      after_filename=os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1),
-                      after_filetype="fasta_paired")
+        run_and_log_s3(logparams, target_outputs["run_bowtie2"], lazy_run, SAMPLE_S3_OUTPUT_PATH, run_bowtie2, input_files, uploader_start)
+        stats.count_reads("run_bowtie2",
+                          before_filename=os.path.join(RESULT_DIR, LZW_OUT1),
+                          before_filetype="fasta_paired",
+                          after_filename=os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1),
+                          after_filetype="fasta_paired")
 
     # run gsnap against host genomes (only available for human as of 5/1/2018)
     # gsnap may run again even for prefiltered inputs
@@ -766,6 +762,7 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats, 
                           after_filename=os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1),
                           after_filetype="fasta_paired")
     except SkipGsnap:
+        assert not prefiltered, "Skipping gsnap is not supported for prefilterd input.  Make sure to specify host genome."
         pass
 
     # finalize the remaing reads
@@ -830,7 +827,7 @@ def run_stage1(lazy_run=True):
         write_to_log("Number of input files was neither 1 nor 2. Aborting computation.")
         return # only support either 1 file or 2 (paired) files
 
-    if max(initial_sizes) > 10*1000*1000*1000:
+    if max(initial_sizes) > 30*1000*1000*1000:
         # Truncate very large files to the same number of reads.
         truncators = []
         for f in fastq_files:
