@@ -124,6 +124,26 @@ class MyThread(threading.Thread):
             self.completed = True
 
 
+class MyProcess(multiprocessing.Process):
+    def __init__(self, target, args):
+        super(MyProcess, self).__init__()
+        self.args = args
+        self.target = target
+        self.exception = None
+        self.completed = False
+        self.result = None
+
+    def run(self):
+        try:
+            self.result = self.target(*self.args)
+            self.exception = False
+        except:
+            traceback.print_exc()
+            self.exception = True
+        finally:
+            self.completed = True
+
+
 class Updater(object):
 
     def __init__(self, update_period, update_function):
@@ -221,21 +241,21 @@ class ProgressFile(object):
 
 class AsyncHandler:
     def __init__(self):
-        self.threads = []
+        self.processes = []
         pass
 
     def launch(self, target, args):
-        t = MyThread(target=target, args=args)
-        self.threads.append(t)
+        t = MyProcess(target=target, args=args)
+        self.processes.append(t)
         t.start()
 
     def wait_on_all(self):
-        write_to_log("Waiting on AsyncHandler threads...")
-        for t in self.threads:
+        write_to_log("Waiting on AsyncHandler processes...")
+        for t in self.processes:
             t.join()
             assert t.completed
             assert not t.exception
-        write_to_log("AsyncHandler threads finished.")
+        write_to_log("AsyncHandler processes finished.")
 
     def launch_aws_upload(self, src, dst):
         self.launch(self.aws_upload_work, (src, dst))
