@@ -194,28 +194,27 @@ def combine_json(input_json_list, output_json):
 
 def run_generate_align_viz(input_fasta, input_m8, output_dir):
     nt_loc_db = fetch_reference(NT_LOC_DB)
-    summary_file_name = accessionid2seq_functions.generate_alignment_viz_json(NT_DB, nt_loc_db, "NT",
-                                                                              input_m8, input_fasta, output_dir)
+    summary_file_name = accessionid2seq_functions.generate_alignment_viz_json(NT_DB, nt_loc_db, "NT", input_m8, input_fasta, output_dir)
     # copy the data over
-    execute_command("aws s3 cp --quiet %s %s/align_viz --recursive" % (output_dir, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp --quiet %s %s/" % (summary_file_name, SAMPLE_S3_OUTPUT_PATH))
+    async_handler.launch_aws_upload(output_dir, SAMPLE_S3_OUTPUT_PATH + "/align_viz --recursive")
+    async_handler.launch_aws_upload(summary_file_name, SAMPLE_S3_OUTPUT_PATH + "/")
 
 def run_generate_taxid_fasta_from_hit_summaries(input_fasta, hit_summary_files, output_fasta):
     lineage_path = fetch_reference(LINEAGE_SHELF)
     generate_taxid_fasta_from_hit_summaries(input_fasta, hit_summary_files, lineage_path, output_fasta)
     logging.getLogger().info("finished job")
-    execute_command("aws s3 cp --quiet %s %s/" % (output_fasta, SAMPLE_S3_OUTPUT_PATH))
+    async_handler.launch_aws_upload(output_fasta, SAMPLE_S3_OUTPUT_PATH + "/")
 
 def run_generate_taxid_locator(input_fasta, taxid_field, hit_type, output_fasta, output_json):
     generate_taxid_locator(input_fasta, taxid_field, hit_type, output_fasta, output_json)
     logging.getLogger().info("finished job")
-    execute_command("aws s3 cp --quiet %s %s/" % (output_fasta, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp --quiet %s %s/" % (output_json, SAMPLE_S3_OUTPUT_PATH))
+    async_handler.launch_aws_upload(output_fasta, SAMPLE_S3_OUTPUT_PATH + "/")
+    async_handler.launch_aws_upload(output_json, SAMPLE_S3_OUTPUT_PATH + "/")
 
 def run_combine_json(input_json_list, output_json):
     combine_json(input_json_list, output_json)
     logging.getLogger().info("finished job")
-    execute_command("aws s3 cp --quiet %s %s/" % (output_json, SAMPLE_S3_OUTPUT_PATH))
+    async_handler.launch_aws_upload(output_json, SAMPLE_S3_OUTPUT_PATH + "/")
 
 def run_stage3(lazy_run=False):
 

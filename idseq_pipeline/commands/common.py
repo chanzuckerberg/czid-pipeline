@@ -245,7 +245,7 @@ class AsyncHandler:
         pass
 
     def launch(self, target, args):
-        t = MyProcess(target=target, args=args)
+        t = MyThread(target=target, args=args)
         self.processes.append(t)
         t.start()
 
