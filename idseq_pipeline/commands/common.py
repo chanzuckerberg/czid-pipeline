@@ -37,7 +37,7 @@ print_lock = multiprocessing.RLock()
 
 # peak network & storage perf for a typical small instance is saturated by just a few concurrent streams
 MAX_CONCURRENT_COPY_OPERATIONS = 8
-iostream = threading.Semaphore(MAX_CONCURRENT_COPY_OPERATIONS)
+iostream = multiprocessing.Semaphore(MAX_CONCURRENT_COPY_OPERATIONS)
 
 
 class StatsFile(object):
@@ -107,6 +107,26 @@ class StatsFile(object):
 class MyThread(threading.Thread):
     def __init__(self, target, args):
         super(MyThread, self).__init__()
+        self.args = args
+        self.target = target
+        self.exception = None
+        self.completed = False
+        self.result = None
+
+    def run(self):
+        try:
+            self.result = self.target(*self.args)
+            self.exception = False
+        except:
+            traceback.print_exc()
+            self.exception = True
+        finally:
+            self.completed = True
+
+
+class MyProcess(multiprocessing.Process):
+    def __init__(self, target, args):
+        super(MyProcess, self).__init__()
         self.args = args
         self.target = target
         self.exception = None
@@ -219,6 +239,38 @@ class ProgressFile(object):
             self.tail_subproc.kill()
 
 
+class AsyncHandler:
+    def __init__(self):
+        self.processes = []
+        pass
+
+    def launch(self, target, args):
+        t = MyProcess(target=target, args=args)
+        self.processes.append(t)
+        t.start()
+
+    def wait_on_all(self):
+        write_to_log("Waiting on AsyncHandler processes...")
+        for t in self.processes:
+            t.join()
+            assert t.completed
+            assert not t.exception
+        write_to_log("AsyncHandler processes finished.")
+
+    def launch_aws_upload(self, src, dst):
+        self.launch(self.aws_upload_work, (src, dst))
+
+    def aws_upload_work(self, src, dst):
+        with iostream:
+            execute_command("aws s3 cp --quiet %s %s" % (src, dst))
+
+    def launch_command(self, command):
+        self.launch(execute_command, command)
+
+
+async_handler = AsyncHandler()
+
+
 def run_in_subprocess(target):
     """
     Decorator that executes a function synchronously in a subprocess.
@@ -280,7 +332,7 @@ def retry(operation, randgen=random.Random().random):
         return operation(*args, **kwargs)
     return wrapped_operation
 
-
+  
 def execute_command_with_output(command, progress_file=None, timeout=None, grace_period=None):
     with CommandTracker() as ct:
         with print_lock:

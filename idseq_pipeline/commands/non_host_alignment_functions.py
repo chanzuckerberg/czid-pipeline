@@ -296,9 +296,7 @@ def annotate_fasta_with_accessions(merged_input_fasta, nt_m8, nr_m8, output_fast
                 output_fasta_f.write(sequence_data)
                 sequence_name = input_fasta_f.readline()
                 sequence_data = input_fasta_f.readline()
-
-    execute_command("aws s3 cp --quiet %s %s/" % (output_fasta, SAMPLE_S3_OUTPUT_PATH))
-
+    async_handler.launch_aws_upload(output_fasta, SAMPLE_S3_OUTPUT_PATH + "/")
 
 @run_in_subprocess
 def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, count_type, lineage_map_path, deuterostome_path, total_reads, remaining_reads, output_file):
@@ -404,7 +402,8 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
     }
     with open(output_file, 'wb') as outf:
         json.dump(output_dict, outf)
-    execute_command("aws s3 cp --quiet %s %s/" % (output_file, SAMPLE_S3_OUTPUT_PATH))
+    # execute_command("aws s3 cp --quiet %s %s/" % (output_file, SAMPLE_S3_OUTPUT_PATH))
+    async_handler.launch_aws_upload(output_file, SAMPLE_S3_OUTPUT_PATH + "/")
 
 
 def combine_pipeline_output_json(inputPath1, inputPath2, outputPath, stats):
@@ -426,8 +425,7 @@ def combine_pipeline_output_json(inputPath1, inputPath2, outputPath, stats):
     }
     with open(outputPath, 'wb') as outf:
         json.dump(output_dict, outf)
-    execute_command("aws s3 cp --quiet %s %s/" % (outputPath, SAMPLE_S3_OUTPUT_PATH))
-
+    async_handler.launch_aws_upload(outputPath, SAMPLE_S3_OUTPUT_PATH + "/")
 
 
 def read_file_into_set(file_name):
@@ -662,9 +660,8 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir, r
             try_number += 1
         # move output from remote machine to local
         assert min_column_number == correct_number_of_output_columns, "Chunk %s output corrupt; not copying to S3. Re-start pipeline to try again." % chunk_id
-        with iostream:
-            execute_command(scp(key_path, remote_username, instance_ip, multihit_remote_outfile, multihit_local_outfile))
-            execute_command("aws s3 cp --quiet %s %s/" % (multihit_local_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
+        execute_command(scp(key_path, remote_username, instance_ip, multihit_remote_outfile, multihit_local_outfile))
+        async_handler.launch_aws_upload(multihit_local_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH + "/")
         write_to_log("finished alignment for chunk %s on %s server %s" % (chunk_id, service, instance_ip))
     return multihit_local_outfile
 
@@ -731,9 +728,10 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path, output_m
                         emitted.add(read_id)
                         outf.write(line)
                         outf_sum.write("{read_id}\t{hit_level}\t{taxid}\n".format(read_id=read_id, hit_level=hit_level, taxid=taxid))
-    execute_command("aws s3 cp --quiet %s %s/" % (output_m8, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp --quiet %s %s/" % (output_summary, SAMPLE_S3_OUTPUT_PATH))
-
+    async_handler.launch_aws_upload(output_m8, SAMPLE_S3_OUTPUT_PATH + "/")
+    async_handler.launch_aws_upload(output_summary, SAMPLE_S3_OUTPUT_PATH + "/")
+    # execute_command("aws s3 cp --quiet %s %s/" % (output_m8, SAMPLE_S3_OUTPUT_PATH))
+    # execute_command("aws s3 cp --quiet %s %s/" % (output_summary, SAMPLE_S3_OUTPUT_PATH))
 
 
 def run_remotely(input_files, service, lazy_run):
@@ -778,8 +776,7 @@ def run_remotely(input_files, service, lazy_run):
         check_for_errors(mutex, chunk_output_files, input_chunks, service)
     assert None not in chunk_output_files
     concatenate_files(chunk_output_files, result_dir(output_file))
-    with iostream:
-        execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, output_file, SAMPLE_S3_OUTPUT_PATH))
+    async_handler.launch_aws_upload(RESULT_DIR + "/" + output_file, SAMPLE_S3_OUTPUT_PATH + "/")
 
 
 def fetch_deuterostome_file(lock=threading.RLock()):  #pylint: disable=dangerous-default-value
@@ -818,7 +815,7 @@ def run_generate_unidentified_fasta(input_fa, output_fa):
     #TODO  remove annotated fasta intermediate file and replace > with : below
     subprocess.check_output("grep -A 1 '>NR::NT::' %s | sed '/^--$/d' > %s" % (input_fa, output_fa), shell=True)
     write_to_log("finished job")
-    execute_command("aws s3 cp --quiet %s %s/" % (output_fa, SAMPLE_S3_OUTPUT_PATH))
+    async_handler.launch_aws_upload(output_fa, SAMPLE_S3_OUTPUT_PATH + "/")
 
 
 def get_alignment_version_s3_path():
@@ -839,10 +836,7 @@ def fetch_input_and_replace_whitespace(input_filename, result):
         result[0] = cleaned_input_path
         # This is extremely rare (debug/development only?) and we don't care if it succeeds
         if s3_input_path != s3_output_path:
-            threading.Thread(
-                target=execute_command,
-                args=["aws s3 cp --quiet {s3_input_path} {s3_output_path}".format(
-                    s3_input_path=s3_input_path, s3_output_path=s3_output_path)])
+            async_handler.launch_aws_upload(s3_input_path, s3_output_path)
 
 def get_input_file_list():
     # Check existence of gsnap filter output
@@ -921,13 +915,6 @@ def run_stage2(lazy_run=True):
     thread_success = {}
     thread_success_lock = threading.RLock()
 
-    uploader_threads = {}
-
-    def upload(thread_name, local_path, s3_path):
-        execute_command("aws s3 cp --quiet {local_path} {s3_path}".format(local_path=local_path, s3_path=s3_path))
-        with thread_success_lock:
-            thread_success[thread_name] = True
-
     # subsample if specified
     if SUBSAMPLE:
         target_n_reads = int(SUBSAMPLE)
@@ -939,14 +926,11 @@ def run_stage2(lazy_run=True):
         gsnapl_input_files = subsampled_gsnapl_input_files
         merged_fasta = result_dir(subsampled_merged_fasta)
         for i, f in enumerate(gsnapl_input_files):
-            thread_name = "uploader_{}".format(i)
-            uploader_threads[thread_name] = threading.Thread(target=upload, args=[thread_name, result_dir(f), SAMPLE_S3_OUTPUT_PATH + "/"])
-            uploader_threads[thread_name].start()
+            async_handler.launch_aws_upload(result_dir(f), SAMPLE_S3_OUTPUT_PATH + "/")
         if len(gsnapl_input_files) == 2:
-            thread_name = "uploader_{}".format(len(gsnapl_input_files))
-            uploader_threads[thread_name] = threading.Thread(target=upload, args=[thread_name, merged_fasta, SAMPLE_S3_OUTPUT_PATH + "/"])
-            uploader_threads[thread_name].start()
+            async_handler.launch_aws_upload(merged_fasta, SAMPLE_S3_OUTPUT_PATH + "/")
 
+    write_to_log("Before deuterostome fetcher")
     deuterostome_fetcher = threading.Thread(target=fetch_deuterostome_file)
     deuterostome_fetcher.start()
 
@@ -1063,7 +1047,9 @@ def run_stage2(lazy_run=True):
         execute_command("echo This file is deprecated since pipeline version 1.5.  Please use {new} instead. > {deprecated}".format(
             deprecated=result_dir(DEPRECATED_BOOBYTRAPPED_COMBINED_JSON_OUT),
             new=MULTIHIT_COMBINED_JSON_OUT))
-        execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, DEPRECATED_BOOBYTRAPPED_COMBINED_JSON_OUT, SAMPLE_S3_OUTPUT_PATH))
+        src = RESULT_DIR + "/" + DEPRECATED_BOOBYTRAPPED_COMBINED_JSON_OUT
+        dst = SAMPLE_S3_OUTPUT_PATH + "/"
+        async_handler.launch_aws_upload(src, dst)
 
         with thread_success_lock:
             thread_success["additional_steps"] = True
@@ -1094,6 +1080,7 @@ def run_stage2(lazy_run=True):
         with thread_success_lock:
             thread_success["annotation"] = True
 
+
     t_gsnap = threading.Thread(target=run_gsnap)
     t_rapsearch2 = threading.Thread(target=run_rapsearch2)
     t_additional_steps = threading.Thread(target=run_additional_steps)
@@ -1117,10 +1104,9 @@ def run_stage2(lazy_run=True):
     t_annotation.join()
     assert thread_succeeded("annotation")
 
-    for thread_name, t in uploader_threads.items():
-        t.join()
-        assert thread_succeeded(thread_name), "thread {} failed".format(thread_name)
+    async_handler.wait_on_all()
 
     # copy log file -- after work is done
+    write_to_log("Non-host alignment complete")
     stats.save_to_s3()
     upload_log_file(SAMPLE_S3_OUTPUT_PATH)
