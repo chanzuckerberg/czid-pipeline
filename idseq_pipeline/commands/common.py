@@ -241,6 +241,7 @@ class AsyncHandler:
 
     def aws_upload_work(self, src, dst):
         with iostream:
+            write_to_log("SEMAPHORE VAL: " + iostream.value())
             execute_command("aws s3 cp --quiet %s %s" % (src, dst))
 
     def launch_command(self, command):
