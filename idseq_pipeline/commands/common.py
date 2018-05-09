@@ -37,7 +37,7 @@ print_lock = multiprocessing.RLock()
 
 # peak network & storage perf for a typical small instance is saturated by just a few concurrent streams
 MAX_CONCURRENT_COPY_OPERATIONS = 8
-iostream = threading.Semaphore(MAX_CONCURRENT_COPY_OPERATIONS)
+iostream = multiprocessing.Semaphore(MAX_CONCURRENT_COPY_OPERATIONS)
 
 
 class StatsFile(object):
