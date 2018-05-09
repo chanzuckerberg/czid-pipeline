@@ -29,7 +29,7 @@ When merging a commit to master, you need to increase the version number in `ids
 
 Release notes
 -------------
-- 1.8.0
+- 1.11.0
     - Perform de-novo assembly using SPAdes for taxa with >= 100 reads
     - Perform de-novo assembly using SPAdes for all non-host reads taken together
 
