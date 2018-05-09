@@ -127,10 +127,7 @@ def run_stage4():
         output_fasta = os.path.join(RESULT_DIR, taxid + ".cleaned-scaffolds.fasta")
         if spades(input_fasta, spades_output):
             clean_scaffolds(spades_output, max_read_length(input_fasta), output_fasta)
-            if taxid == 'all':
-                output_s3 = "%s/%s-%s" % (SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, taxid)
-            else:
-                output_s3 = "%s/%s/%s" % (SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, taxid)
+            output_s3 = "%s/%s/%s" % (SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, taxid)
             execute_command("aws s3 cp --quiet %s %s" % (output_fasta, output_s3))
 
     # Finally, upload status file so web app knows we're done
