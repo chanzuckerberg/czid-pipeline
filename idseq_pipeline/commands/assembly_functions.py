@@ -13,6 +13,7 @@ SPADES_DIR = ROOT_DIR + '/spades' # outputs of SPAdes assemblies go here
 # parameters
 ASSEMBLY_READ_THRESHOLD = 100
 MAX_TAXIDS_TO_ASSEMBLE = 100
+MAX_NONHOST_READS = 10**5
 
 # arguments from environment variables
 ALIGNMENT_S3_PATH = os.environ.get('ALIGNMENT_S3_PATH').rstrip('/')
@@ -62,7 +63,7 @@ def run_stage4():
             pipeline_output = json.load(f)
         taxon_counts = pipeline_output['pipeline_output']['taxon_counts_attributes']
         sorted_taxids_to_assemble = get_taxids_to_assemble(taxon_counts)
-        # Get reads for those taxids
+        # Get reads for the taxids chosen for assembly
         output = {}
         hit_delimiters = ['_nt', '_nr'] # annotations are like e.g. "genus_nt:543:"
         for taxid in sorted_taxids_to_assemble:
@@ -75,10 +76,12 @@ def run_stage4():
                 output[taxid] = partial_fasta
             except:
                 print "WARNING: taxid %s was not found in the annotated fasta" % taxid
-        # Also include the full fasta as an input to assembly
-        if not lazy_run or not check_s3_file_presence(os.path.join(SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, 'all')):
-            output['all'] = full_fasta
-            sorted_taxids_to_assemble.append('all')
+        # Also include the full fasta as an input to assembly if it is not too large
+        nonhost_reads = pipeline_output['pipeline_output']['remaining_reads']:
+        if nonhost_reads <= MAX_NONHOST_READS:
+            if not lazy_run or not check_s3_file_presence(os.path.join(SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, 'all')):
+                output['all'] = full_fasta
+                sorted_taxids_to_assemble.append('all')
         sorted_taxids_to_assemble = [item for item in sorted_taxids_to_assemble if item in output.keys()]
         return output, sorted_taxids_to_assemble
 
