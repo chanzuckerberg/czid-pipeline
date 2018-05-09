@@ -100,7 +100,7 @@ def parse_hits(hit_summary_files):
 def generate_taxid_fasta_from_hit_summaries(input_fasta_file, hit_summary_files, lineagePath, output_fasta_file):
     lineage_map = shelve.open(lineagePath)
     valid_hits = parse_hits(hit_summary_files)
-    NULL_LINEAGE = ("-100", "-200", "-300")
+
     def get_valid_lineage(read_id, count_type):
         # If the read aligned to something, then it would be present in the summary file
         # for count type, and correspondingly in valid_hits[count_type], even if the
