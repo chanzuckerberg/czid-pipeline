@@ -402,8 +402,8 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
     }
     with open(output_file, 'wb') as outf:
         json.dump(output_dict, outf)
-    # execute_command("aws s3 cp --quiet %s %s/" % (output_file, SAMPLE_S3_OUTPUT_PATH))
-    async_handler.launch_aws_upload(output_file, SAMPLE_S3_OUTPUT_PATH + "/")
+    execute_command("aws s3 cp --quiet %s %s/" % (output_file, SAMPLE_S3_OUTPUT_PATH))
+    # async_handler.launch_aws_upload(output_file, SAMPLE_S3_OUTPUT_PATH + "/")
 
 
 def combine_pipeline_output_json(inputPath1, inputPath2, outputPath, stats):
@@ -728,10 +728,10 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path, output_m
                         emitted.add(read_id)
                         outf.write(line)
                         outf_sum.write("{read_id}\t{hit_level}\t{taxid}\n".format(read_id=read_id, hit_level=hit_level, taxid=taxid))
-    async_handler.launch_aws_upload(output_m8, SAMPLE_S3_OUTPUT_PATH + "/")
-    async_handler.launch_aws_upload(output_summary, SAMPLE_S3_OUTPUT_PATH + "/")
-    # execute_command("aws s3 cp --quiet %s %s/" % (output_m8, SAMPLE_S3_OUTPUT_PATH))
-    # execute_command("aws s3 cp --quiet %s %s/" % (output_summary, SAMPLE_S3_OUTPUT_PATH))
+    # async_handler.launch_aws_upload(output_m8, SAMPLE_S3_OUTPUT_PATH + "/")
+    # async_handler.launch_aws_upload(output_summary, SAMPLE_S3_OUTPUT_PATH + "/")
+    execute_command("aws s3 cp --quiet %s %s/" % (output_m8, SAMPLE_S3_OUTPUT_PATH))
+    execute_command("aws s3 cp --quiet %s %s/" % (output_summary, SAMPLE_S3_OUTPUT_PATH))
 
 
 def run_remotely(input_files, service, lazy_run):
