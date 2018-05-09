@@ -37,7 +37,7 @@ print_lock = multiprocessing.RLock()
 
 # peak network & storage perf for a typical small instance is saturated by just a few concurrent streams
 MAX_CONCURRENT_COPY_OPERATIONS = 8
-iostream = threading.Semaphore(MAX_CONCURRENT_COPY_OPERATIONS)
+iostream = multiprocessing.Semaphore(MAX_CONCURRENT_COPY_OPERATIONS)
 
 
 class StatsFile(object):
@@ -53,7 +53,10 @@ class StatsFile(object):
 
     def load_from_s3(self):
         stats_s3_path = os.path.join(self.s3_input_dir, self.stats_filename)
-        if check_s3_file_presence(stats_s3_path):
+        try:
+            execute_command("aws s3 cp --quiet %s %s/" % (stats_s3_path, self.local_results_dir))
+        except:
+            time.sleep(1.0)
             execute_command("aws s3 cp --quiet %s %s/" % (stats_s3_path, self.local_results_dir))
         self._load()
 
@@ -71,23 +74,31 @@ class StatsFile(object):
             self._save()
             execute_command("aws s3 cp --quiet %s %s/" % (self.stats_path, self.s3_output_dir))
 
+    def get_item_value(self, key):
+        for item in self.data:
+            if item.get(key):
+                return item[key]
+
+    def get_item_for_task(self, function_name):
+        for item in self.data:
+            if item.get("task") == function_name:
+                return item
+
     def get_total_reads(self):
-        for item in self.data:
-            if "total_reads" in item:
-                return item["total_reads"]
-        # check run star if total reads not available
-        for item in self.data:
-            if item.get("task") == 'run_star':
-                return item["reads_before"]
-        # if no entry for run_star, host-filtering was skipped: use "remaining_reads" instead
-        return self.get_remaining_reads()
-        # previous fall-back value didn't fit into integer type of SQL dfatabase:
-        # return 0.1
+        # New style
+        tr = self.get_item_value("total_reads")
+        if tr != None:
+            return int(tr)
+        # For compatibility
+        item = self.get_item_for_task("run_star")
+        if item != None:
+            return int(item["reads_before"])
 
     def get_remaining_reads(self):
-        for item in self.data:
-            if item.get('remaining_reads'):
-                return item['remaining_reads']
+        return int(self.get_item_value('remaining_reads'))
+
+    def gsnap_ran_in_host_filtering(self):
+        return self.get_item_for_task("run_gsnap_filter") != None
 
     def count_reads(self, func_name, before_filename, before_filetype, after_filename, after_filetype):
         records_before = count_reads(before_filename, before_filetype)
@@ -100,14 +111,20 @@ class StatsFile(object):
 
     def set_remaining_reads(self):
         last_entry = self.data[-1] or {}
-        remaining = last_entry.get('reads_after', 0)
+        # We use [] and not get() because, if the last entry doesn't have reads_after,
+        # then we have a bug and should crash rather than produce misleading results.
+        remaining = last_entry['reads_after']
         self.data.append({'remaining_reads': remaining})
 
 
 class MyThread(threading.Thread):
-    def __init__(self, target, args):
+    def __init__(self, target, args, kwargs=None):
         super(MyThread, self).__init__()
         self.args = args
+        if kwargs == None:
+            self.kwargs = {}
+        else:
+            self.kwargs = kwargs
         self.target = target
         self.exception = None
         self.completed = False
@@ -115,7 +132,7 @@ class MyThread(threading.Thread):
 
     def run(self):
         try:
-            self.result = self.target(*self.args)
+            self.result = self.target(*self.args, **self.kwargs)
             self.exception = False
         except:
             traceback.print_exc()
@@ -130,9 +147,12 @@ class Updater(object):
         self.update_period = update_period
         self.update_function = update_function
         self.timer_thread = None
+        self.exited = False
         self.t_start = time.time()
 
     def relaunch(self, initial_launch=False):
+        if self.exited:
+            return
         if self.timer_thread and not initial_launch:
             t_elapsed = time.time() - self.t_start
             self.update_function(t_elapsed)
@@ -145,12 +165,13 @@ class Updater(object):
 
     def __exit__(self, *args):
         self.timer_thread.cancel()
+        self.exited = True
 
 
 class CommandTracker(Updater):
 
-    lock = threading.RLock()
-    count = 0
+    lock = multiprocessing.RLock()
+    count = multiprocessing.Value('i', 0)
 
     def __init__(self, update_period=15):
         super(CommandTracker, self).__init__(update_period, self.print_update_and_enforce_timeout)
@@ -161,8 +182,8 @@ class CommandTracker(Updater):
         self.t_sigkill_sent = None
         self.grace_period = update_period / 2.0
         with CommandTracker.lock:
-            self.id = CommandTracker.count
-            CommandTracker.count += 1
+            self.id = CommandTracker.count.value
+            CommandTracker.count.value += 1
 
     def print_update_and_enforce_timeout(self, t_elapsed):
         with print_lock:
@@ -176,9 +197,7 @@ class CommandTracker(Updater):
         self.enforce_timeout(t_elapsed)
 
     def enforce_timeout(self, t_elapsed):
-        if self.timeout == None:
-            return
-        if not self.proc or t_elapsed <= self.timeout or self.proc.poll() != None:
+        if self.timeout == None or not self.proc or t_elapsed <= self.timeout or self.proc.poll() != None:
             # Unregistered subprocess, subprocess not yet timed out, or subprocess already exited.
             pass
         elif not self.t_sigterm_sent:
@@ -216,6 +235,7 @@ class ProgressFile(object):
 
     def __exit__(self, *args):
         if self.tail_subproc:
+            # TODO: Do we need to join the tail subproc after killing it?
             self.tail_subproc.kill()
 
 
@@ -281,55 +301,36 @@ def retry(operation, randgen=random.Random().random):
     return wrapped_operation
 
 
-def execute_command_with_output(command, progress_file=None, timeout=None, grace_period=None):
+def execute_command(command, progress_file=None, timeout=None, grace_period=None, capture_stdout=False, merge_stderr=False):
     with CommandTracker() as ct:
         with print_lock:
             print "Command {}: {}".format(ct.id, command)
         with ProgressFile(progress_file):
-            # Capture only stdout.   Send stderr to parent stderr.   Take input from parent stdin.
-            ct.proc = subprocess.Popen(command, shell=True, stdin=sys.stdin.fileno(), stdout=subprocess.PIPE, stderr=sys.stderr.fileno())
             if timeout:
                 ct.timeout = timeout
             if grace_period:
                 ct.grace_period = grace_period
-            stdout, _undefined = ct.proc.communicate()
+            if capture_stdout:
+                # Capture only stdout.  Child stderr = parent stderr, unless merge_stderr specified.   Child input = parent stdin.
+                ct.proc = subprocess.Popen(command, shell=True, stdin=sys.stdin.fileno(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT if merge_stderr else sys.stderr.fileno())
+                stdout, _ = ct.proc.communicate()
+            else:
+                # Capture nothing.  Child inherits parent stdin/out/err.
+                ct.proc = subprocess.Popen(command, shell=True)
+                ct.proc.wait()
+                stdout = None
             if ct.proc.returncode:
                 raise subprocess.CalledProcessError(ct.proc.returncode, command, stdout)
-            return stdout
+            if capture_stdout:
+                return stdout
 
 
-def execute_command_realtime_stdout(command, progress_file=None):
-    with CommandTracker() as ct:
-        with print_lock:
-            print "Command {}: {}".format(ct.id, command)
-        with ProgressFile(progress_file):
-            subprocess.check_call(command, shell=True)
-
-
-def execute_command(command, progress_file=None):
-    execute_command_realtime_stdout(command, progress_file)
+def execute_command_with_output(command, progress_file=None, timeout=None, grace_period=None, merge_stderr=False):
+    return execute_command(command, progress_file, timeout, grace_period, capture_stdout=True, merge_stderr=merge_stderr)
 
 
 def remote_command(base_command, key_path, remote_username, instance_ip):
     return 'ssh -o "StrictHostKeyChecking no" -o "ConnectTimeout 15" -i %s %s@%s "%s"' % (key_path, remote_username, instance_ip, base_command)
-
-
-def check_s3_file_presence(s3_path):
-    # This approach does not distinguish operatonal error (rate limit etc) from situations
-    # when the file legitimately does not exist.  When testing for files that should exist
-    # this is okay.  When testing for files that are expected not to exist, this incurs
-    # a delay due to retries.
-    # TODO: Replace this with something more solid.
-    # Note:  Do not use the retry decorator here.
-    command = "aws s3 ls %s | wc -l" % s3_path
-    MAX_ATTEMPTS = 3
-    for attempts in range(MAX_ATTEMPTS):
-        try:
-            return int(execute_command_with_output(command).rstrip())
-        except:
-            if attempts == MAX_ATTEMPTS - 1:
-                time.sleep(2)
-    return 0
 
 
 def scp(key_path, remote_username, instance_ip, remote_path, local_path):
@@ -446,17 +447,14 @@ def fetch_from_s3(source, destination, auto_unzip, allow_s3mi=False, mutex=threa
                     except:
                         allow_s3mi = False
                 if unzip:
-                    try:
-                        assert allow_s3mi
-                        execute_command("s3mi cat %s | gzip -dc > %s" % (source, destination))
-                    except:
-                        execute_command("aws s3 cp --quiet %s - | gzip -dc > %s" % (source, destination))
+                    pipe_filter = "| gzip -dc "
                 else:
-                    try:
-                        assert allow_s3mi
-                        execute_command("s3mi cp %s %s" % (source, destination))
-                    except:
-                        execute_command("aws s3 cp --quiet %s %s" % (source, destination))
+                    pipe_filter = ""
+                try:
+                    assert allow_s3mi
+                    execute_command("s3mi cat {source} {pipe_filter} > {destination}".format(source=source, pipe_filter=pipe_filter, destination=destination))
+                except:
+                    execute_command("aws s3 cp --quiet {source} - {pipe_filter} > {destination}".format(source=source, pipe_filter=pipe_filter, destination=destination))
                 return destination
             except subprocess.CalledProcessError:
                 # Most likely the file doesn't exist in S3.
@@ -534,7 +532,9 @@ def run_and_log_work(logparams, target_outputs, lazy_run, func_name, lazy_fetch,
     if was_lazy:
         LOGGER.info("output exists, lazy run")
     else:
-        LOGGER.info("uploaded output")
+        LOGGER.info("non-lazy run completed, output may be in the process of being uploaded")
+
+    return was_lazy
 
 
 def upload_log_file(sample_s3_output_path, lock=threading.RLock()):
