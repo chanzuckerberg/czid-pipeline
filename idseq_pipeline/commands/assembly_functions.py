@@ -68,7 +68,7 @@ def run_stage4():
         output = {}
         hit_delimiters = ['_nt', '_nr'] # annotations are like e.g. "genus_nt:543:"
         try:
-            previously_assembled_taxids = execute_command_with_output("aws s3 ls %s/%s/" % (SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR)).rstrip("\n").split("\n")
+            previously_assembled_taxids = execute_command_with_output("aws s3 ls %s/%s/ | awk '{print $4}'" % (SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR)).rstrip("\n").split("\n")
         except:
             traceback.print_exc()
             previously_assembled_taxids = []
