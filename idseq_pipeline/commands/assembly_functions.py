@@ -59,6 +59,22 @@ def run_stage4():
             sorted_filtered_taxids = sorted_filtered_taxids[:top]
         return sorted_filtered_taxids
 
+    def max_read_length(input_fasta, n=2):
+        ''' get read length by looking at first n records '''
+        record_number = 0
+        read_length = 0
+        max_length = 0
+        with open(input_fasta, 'rb') as f:
+            while record_number <= n:
+                line = f.readline()
+                if line.startswith('>'):
+                    max_length = max(max_length, read_length)
+                    read_length = 0
+                    record_number += 1
+                else:
+                   read_length += length_without_newlines(line)
+        return max_length
+
     def make_inputs_for_assembly(lazy_run=True):
         with open(pipeline_output_json) as f:
             pipeline_output = json.load(f)
@@ -89,7 +105,8 @@ def run_stage4():
                 output['all'] = full_fasta
                 sorted_taxids_to_assemble.append('all')
         sorted_taxids_to_assemble = [item for item in sorted_taxids_to_assemble if item in output.keys()]
-        return output, sorted_taxids_to_assemble
+        min_contig_length = max_read_length(full_fasta)
+        return output, sorted_taxids_to_assemble, min_contig_length
 
     def length_without_newlines(sequence):
         return len(sequence.replace("\n",""))
@@ -114,22 +131,6 @@ def run_stage4():
                    line = input_f.readline()
                 conditional_write_record(name, sequence, output_f)
 
-    def max_read_length(input_fasta, n=2):
-        ''' get read length by looking at first n records '''
-        record_number = 0
-        read_length = 0
-        max_length = 0
-        with open(input_fasta, 'rb') as f:
-            while record_number <= n:
-                line = f.readline()
-                if line.startswith('>'):
-                    max_length = max(max_length, read_length)
-                    read_length = 0
-                    record_number += 1
-                else:
-                   read_length += length_without_newlines(line)
-        return max_length
-
     def spades(input_fasta, output_fasta):
         tmp_output_dir = input_fasta + "_temp_output"
         tmp_output_file = tmp_output_dir + "/scaffolds.fasta"
@@ -142,7 +143,7 @@ def run_stage4():
             return False
 
     # run assembly
-    inputs, sorted_taxids = make_inputs_for_assembly()
+    inputs, sorted_taxids, min_contig_length = make_inputs_for_assembly()
     assembly_logfile = os.path.join(RESULT_DIR, ASSEMBLY_LOGFILE)
     with open(assembly_logfile, "wb") as log_f: ######################################################################## temporary
         for taxid in sorted_taxids:
@@ -152,7 +153,7 @@ def run_stage4():
             spades_output = os.path.join(RESULT_DIR, taxid + ".scaffolds.fasta")
             output_fasta = os.path.join(RESULT_DIR, taxid + ".cleaned-scaffolds.fasta")
             if spades(input_fasta, spades_output):
-                clean_scaffolds(spades_output, max_read_length(input_fasta), output_fasta)
+                clean_scaffolds(spades_output, min_contig_length, output_fasta)
                 end_time = time.time() ################################################################################# temporary
                 succeeded = True ####################################################################################### temporary
                 output_s3 = "%s/%s/%s" % (SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, taxid)
