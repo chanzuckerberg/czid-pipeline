@@ -59,6 +59,12 @@ def run_stage4():
             sorted_filtered_taxids = sorted_filtered_taxids[:top]
         return sorted_filtered_taxids
 
+    def s3_result_exists(s3_path):
+        try:
+            return int(execute_command_with_output("aws s3 ls %s | wc -l" % s3_path).rstrip())
+        except:
+            return 0
+
     def make_inputs_for_assembly(lazy_run=True):
         with open(pipeline_output_json) as f:
             pipeline_output = json.load(f)
@@ -68,7 +74,7 @@ def run_stage4():
         output = {}
         hit_delimiters = ['_nt', '_nr'] # annotations are like e.g. "genus_nt:543:"
         for taxid in sorted_taxids_to_assemble:
-            if lazy_run and check_s3_file_presence(os.path.join(SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, taxid)):
+            if lazy_run and s3_result_exists(os.path.join(SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, taxid)):
                 continue
             pattern = '\|'.join(['%s:%s:' % (delimiter, taxid) for delimiter in hit_delimiters])
             partial_fasta =  os.path.join(RESULT_DIR, taxid + ".fasta")
@@ -80,7 +86,7 @@ def run_stage4():
         # Also include the full fasta as an input to assembly if it is not too large
         nonhost_reads = pipeline_output['pipeline_output']['remaining_reads']
         if nonhost_reads <= MAX_NONHOST_READS:
-            if not lazy_run or not check_s3_file_presence(os.path.join(SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, 'all')):
+            if not lazy_run or not s3_result_exists(os.path.join(SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, 'all')):
                 output['all'] = full_fasta
                 sorted_taxids_to_assemble.append('all')
         sorted_taxids_to_assemble = [item for item in sorted_taxids_to_assemble if item in output.keys()]
