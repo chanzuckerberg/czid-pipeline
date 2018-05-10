@@ -143,7 +143,7 @@ def run_stage4():
 
     # run assembly
     inputs, sorted_taxids = make_inputs_for_assembly()
-    assembly_logfile = os.path.join(SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_LOGFILE)
+    assembly_logfile = os.path.join(RESULT_DIR, ASSEMBLY_LOGFILE)
     with open(assembly_logfile, "wb") as log_f: ######################################################################## temporary
         for taxid in sorted_taxids:
             input_fasta = inputs[taxid]
@@ -161,6 +161,7 @@ def run_stage4():
                 end_time = time.time() ################################################################################# temporary
                 succeeded = False ###################################################################################### temporary
             log_f.write("%s\t%s\t%s\t%s\n" % (input_fasta, str(number_reads), succeeded, str(end_time - start_time))) ## temporary
+    execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, ASSEMBLY_LOGFILE, SAMPLE_S3_OUTPUT_PATH)) ############# temporary
 
     # Finally, upload status file so web app knows we're done
     execute_command("echo '' | aws s3 cp --quiet - %s/%s-%s" % (SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, STATUS_FILE))
