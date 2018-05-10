@@ -125,7 +125,7 @@ def run_stage4():
                 if line.startswith('>'):
                     max_length = max(max_length, read_length)
                     read_length = 0
-                    i += 1
+                    record_number += 1
                 else:
                    read_length += length_without_newlines(line)
         return max_length
