@@ -72,7 +72,6 @@ def run_stage4():
         except:
             traceback.print_exc()
             previously_assembled_taxids = []
-        print previously_assembled_taxids
         for taxid in sorted_taxids_to_assemble:
             if lazy_run and taxid in previously_assembled_taxids:
                 continue
@@ -90,6 +89,7 @@ def run_stage4():
                 output['all'] = full_fasta
                 sorted_taxids_to_assemble.append('all')
         sorted_taxids_to_assemble = [item for item in sorted_taxids_to_assemble if item in output.keys()]
+        print sorted_taxids_to_assemble
         return output, sorted_taxids_to_assemble
 
     def length_without_newlines(sequence):
