@@ -32,6 +32,7 @@ TAXID_ANNOT_FASTA = 'taxid_annot.fasta'
 SAMPLE_S3_OUTPUT_PATH = POSTPROCESS_S3_PATH
 ASSEMBLY_DIR = 'assembly'
 STATUS_FILE = 'job-complete'
+ASSEMBLY_LOGFILE = 'assembly.log'
 
 def run_stage4():
 
@@ -77,7 +78,7 @@ def run_stage4():
             except:
                 print "WARNING: taxid %s was not found in the annotated fasta" % taxid
         # Also include the full fasta as an input to assembly if it is not too large
-        nonhost_reads = pipeline_output['pipeline_output']['remaining_reads']:
+        nonhost_reads = pipeline_output['pipeline_output']['remaining_reads']
         if nonhost_reads <= MAX_NONHOST_READS:
             if not lazy_run or not check_s3_file_presence(os.path.join(SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, 'all')):
                 output['all'] = full_fasta
@@ -136,6 +137,7 @@ def run_stage4():
             return False
 
     inputs, sorted_taxids = make_inputs_for_assembly()
+    assembly_logfile = os.path.join(SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_LOGFILE)
     for taxid in sorted_taxids:
         input_fasta = inputs[taxid]
         spades_output = os.path.join(RESULT_DIR, taxid + ".scaffolds.fasta")
