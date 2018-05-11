@@ -13,7 +13,7 @@ SPADES_DIR = ROOT_DIR + '/spades' # outputs of SPAdes assemblies go here
 # parameters
 ASSEMBLY_READ_THRESHOLD = 100
 MAX_TAXIDS_TO_ASSEMBLE = 100
-MAX_NONHOST_READS = 10**6
+MAX_NONHOST_READS = 2*10**7
 
 # arguments from environment variables
 ALIGNMENT_S3_PATH = os.environ.get('ALIGNMENT_S3_PATH').rstrip('/')
