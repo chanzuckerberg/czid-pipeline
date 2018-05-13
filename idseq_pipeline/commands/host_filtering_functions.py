@@ -28,7 +28,7 @@ STATS_IN = 'total_reads.json'
 STATS_OUT = 'stats.json'
 VERSION_OUT = 'versions.json'
 PIPELINE_VERSION_OUT = 'pipeline_version.txt'
-MAX_INPUT_READS = 75 * 1000 * 1000
+MAX_INPUT_READS = 5 * 1000 * 1000
 INPUT_TRUNCATED_FILE = 'input_truncated.txt'
 
 # arguments from environment variables
@@ -510,7 +510,9 @@ def run_cdhitdup(input_fas, uploader_start):
     if len(input_fas) == 2:
         cdhitdup_params.extend(['-i2', input_fas[1],
                                 '-o2', RESULT_DIR + '/' + CDHITDUP_OUT2])
-    execute_command(" ".join(cdhitdup_params))
+    cdhitlog = os.path.join(RESULT_DIR, "cdhitdup.log")
+    execute_command(" ".join(cdhitdup_params) + " > " + cdhitlog)
+    execute_command("aws s3 cp --quiet {cdhitlog} {s3path}/".format(cdhitlog=cdhitlog, s3path=SAMPLE_S3_OUTPUT_PATH))
     uploader_start(os.path.join(RESULT_DIR, CDHITDUP_OUT1), SAMPLE_S3_OUTPUT_PATH + "/")
     if len(input_fas) == 2:
         uploader_start(os.path.join(RESULT_DIR, CDHITDUP_OUT2), SAMPLE_S3_OUTPUT_PATH + "/")
@@ -538,7 +540,7 @@ def run_bowtie2(input_fas, uploader_start):
     # When we are doing a lazy rerun, this function gets skipped, and the fetching of gsnap
     # genome is not initiated.  That's brilliant -- we don't fetch the gsnap genome if
     # we won't be needing it, and lazy reruns are very quick.
-    threading.Thread(target=fetch_genome, args=[GSNAP_GENOME]).start()
+    # TODO: uncomment threading.Thread(target=fetch_genome, args=[GSNAP_GENOME]).start()
     # the file structure looks like "bowtie2_genome/GRCh38.primary_assembly.genome.3.bt2"
     # the code below will handle up to "bowtie2_genome/GRCh38.primary_assembly.genome.99.bt2" but not 100
     local_genome_dir_ls = execute_command_with_output("ls {genome_dir}/*.bt2*".format(genome_dir=genome_dir))
@@ -578,6 +580,7 @@ class SkipGsnap(Exception):
 
 
 def run_gsnap_filter(input_fas, uploader_start):
+    raise SkipGsnap()
     # Unpack the gsnap genome
     genome_dir = fetch_genome(GSNAP_GENOME, strict=False)
     if genome_dir == None:
@@ -763,7 +766,6 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats, 
                           after_filetype="fasta_paired")
     except SkipGsnap:
         assert not prefiltered, "Skipping gsnap is not supported for prefilterd input.  Make sure to specify host genome."
-        pass
 
     # finalize the remaing reads
     stats.set_remaining_reads()
@@ -827,7 +829,7 @@ def run_stage1(lazy_run=True):
         write_to_log("Number of input files was neither 1 nor 2. Aborting computation.")
         return # only support either 1 file or 2 (paired) files
 
-    if max(initial_sizes) > 30*1000*1000*1000:
+    if max(initial_sizes) > 5*1000*1000*1000:
         # Truncate very large files to the same number of reads.
         truncators = []
         for f in fastq_files:
