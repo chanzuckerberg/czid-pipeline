@@ -13,7 +13,6 @@ import multiprocessing
 from functools import wraps
 import random
 
-
 from idseq_pipeline import __version__ as PIPELINE_VERSION
 bucket = "s3://idseq-database"
 NCBITOOL_S3_PATH = bucket + "/ncbitool" # S3 location of ncbitool executable

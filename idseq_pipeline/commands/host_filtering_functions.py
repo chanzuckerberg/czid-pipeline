@@ -227,11 +227,16 @@ def run_star_part(output_dir, genome_dir, fastq_files, count_genes=False):
                            '--genomeDir', genome_dir,
                            '--readFilesIn', " ".join(fastq_files)]
     if fastq_files[0][-3:] == '.gz':
-        star_command_params += ['--readFilesCommand', 'zcat']
+        if "fasta" in fastq_files[0]:
+            max_lines = MAX_INPUT_READS * 2
+        else:
+            max_lines = MAX_INPUT_READS * 4
+        # create a custom decompressor which does "zcat $input_file | head - ${max_lines}"
+        execute_command("echo 'zcat ${2} | head -${1}' > %s/gzhead; " % genome_dir)
+        star_command_params += ['--readFilesCommand', '"sh %s/gzhead %d"' % (genome_dir, max_lines)]
     if count_genes and os.path.isfile("%s/sjdbList.fromGTF.out.tab" % genome_dir):
         star_command_params += ['--quantMode', 'GeneCounts']
     execute_command(" ".join(star_command_params), os.path.join(output_dir, "Log.progress.out"))
-
 
 def uncompressed(s3genome):
     if s3genome.endswith(".gz"):
@@ -783,31 +788,13 @@ def run_stage1(lazy_run=True):
     log_file = "%s/%s.%s.txt" % (RESULT_DIR, LOGS_OUT_BASENAME, AWS_BATCH_JOB_ID)
     configure_logger(log_file)
 
-    # Download fastqs
-    unzipped_file_extension = os.path.splitext(FILE_TYPE)[0].lower()
-    if unzipped_file_extension == "fasta":
-        max_lines = MAX_INPUT_READS * 2
-    elif unzipped_file_extension == "fastq":
-        max_lines = MAX_INPUT_READS * 4
-    else:
-        assert False, "Input file extension, possibly after unzipping, is neither fasta nor fastq: {}".format(unzipped_file_extension)
     command = "aws s3 ls %s/ | grep '\\.%s$'" % (SAMPLE_S3_INPUT_PATH, FILE_TYPE)
     output = execute_command_with_output(command).rstrip().split("\n")
-    truncated_inputs = [False]
-    initial_sizes = []
-    truncated_inputs_lock = threading.RLock()
-    def fetch_input(input_basename):
-        fastq_file = fetch_from_s3(os.path.join(SAMPLE_S3_INPUT_PATH, input_basename), FASTQ_DIR, allow_s3mi=True, auto_unzip=True)
-        with truncated_inputs_lock:
-            initial_sizes.append(os.path.getsize(fastq_file))
-    def truncate_input(fastq_file):
-        initial_size = os.path.getsize(fastq_file)
-        #TODO:  FASTA can have multiline reads.  https://github.com/chanzuckerberg/idseq-pipeline/issues/177
-        execute_command("sed -i '%d,$ d' %s" % (max_lines + 1, fastq_file))
-        final_size = os.path.getsize(fastq_file)
-        with truncated_inputs_lock:
-            truncated_inputs[0] = truncated_inputs[0] or (initial_size != final_size)
     input_fetchers = []
+
+    def fetch_input(input_basename):
+        fastq_file = fetch_from_s3(os.path.join(SAMPLE_S3_INPUT_PATH, input_basename), FASTQ_DIR, allow_s3mi=True, auto_unzip=False)
+
     for line in output:
         m = re.match(".*?([^ ]*." + re.escape(FILE_TYPE) + ")", line)
         if m:
@@ -821,25 +808,7 @@ def run_stage1(lazy_run=True):
         assert t.completed and not t.exception
 
     # Downloaded files here are unzipped but not yet truncated.
-    fastq_files = execute_command_with_output("ls %s/*.%s" % (FASTQ_DIR, unzipped_file_extension)).rstrip().split("\n")
-    # Identify input files and characteristics
-    if len(fastq_files) not in [1, 2]:
-        write_to_log("Number of input files was neither 1 nor 2. Aborting computation.")
-        return # only support either 1 file or 2 (paired) files
-
-    if max(initial_sizes) > 30*1000*1000*1000:
-        # Truncate very large files to the same number of reads.
-        truncators = []
-        for f in fastq_files:
-            t = MyThread(target=truncate_input, args=[os.path.join(FASTQ_DIR, f)])
-            t.start()
-            truncators.append(t)
-        for t in truncators:
-            t.join()
-            assert t.completed and not t.exception
-        if truncated_inputs[0]:
-            execute_command("echo %d | aws s3 cp - %s/%s" % (MAX_INPUT_READS * len(fastq_files), SAMPLE_S3_OUTPUT_PATH, INPUT_TRUNCATED_FILE))
-
+    fastq_files = execute_command_with_output("ls %s/*.%s" % (FASTQ_DIR, FILE_TYPE)).rstrip().split("\n")
     initial_file_type_for_log = "fastq" if "fastq" in FILE_TYPE else "fasta"
     if len(fastq_files) == 2:
         initial_file_type_for_log += "_paired"
