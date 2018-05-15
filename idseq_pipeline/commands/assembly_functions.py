@@ -164,7 +164,7 @@ def run_stage4():
         else:
             end_time = time.time()
             succeeded = False
-        assembly_logger.info("%s\t%s\t%s\t%s\n" % (input_fasta, str(number_reads), succeeded, str(end_time - start_time)))
+        assembly_logger.info("%s\t%s\t%s\t%s" % (input_fasta, str(number_reads), succeeded, str(end_time - start_time)))
     execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, ASSEMBLY_LOGFILE, SAMPLE_S3_OUTPUT_PATH))
 
     # Finally, upload status file so web app knows we're done
