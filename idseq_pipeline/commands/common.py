@@ -39,6 +39,15 @@ print_lock = multiprocessing.RLock()
 MAX_CONCURRENT_COPY_OPERATIONS = 8
 iostream = multiprocessing.Semaphore(MAX_CONCURRENT_COPY_OPERATIONS)
 
+# definitions for integration with web app
+TAX_LEVEL_SPECIES = 1
+TAX_LEVEL_GENUS = 2
+TAX_LEVEL_FAMILY = 3
+NULL_SPECIES_ID = -100
+NULL_GENUS_ID = -200
+NULL_FAMILY_ID = -300
+NULL_LINEAGE = (str(NULL_SPECIES_ID), str(NULL_GENUS_ID), str(NULL_FAMILY_ID))
+
 
 class StatsFile(object):
 
