@@ -146,6 +146,8 @@ def run_stage4():
     inputs, sorted_taxids, min_contig_length = make_inputs_for_assembly()
     assembly_logger = logging.getLogger('assembly')
     assembly_handler = logging.FileHandler(os.path.join(RESULT_DIR, ASSEMBLY_LOGFILE))
+    assembly_logger.setLevel(logging.INFO)
+    assembly_handler.setLevel(logging.INFO)
     assembly_logger.addHandler(assembly_handler)
     for taxid in sorted_taxids:
         input_fasta = inputs[taxid]
