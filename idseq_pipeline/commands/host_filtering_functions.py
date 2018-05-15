@@ -809,6 +809,10 @@ def run_stage1(lazy_run=True):
 
     # Downloaded files here are unzipped but not yet truncated.
     fastq_files = execute_command_with_output("ls %s/*.%s" % (FASTQ_DIR, FILE_TYPE)).rstrip().split("\n")
+    if len(fastq_files) not in [1, 2]:
+        write_to_log("Number of input files was neither 1 nor 2. Aborting computation.")
+        return # only support either 1 file or 2 (paired) files
+
     initial_file_type_for_log = "fastq" if "fastq" in FILE_TYPE else "fasta"
     if len(fastq_files) == 2:
         initial_file_type_for_log += "_paired"
