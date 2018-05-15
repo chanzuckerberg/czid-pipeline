@@ -144,25 +144,26 @@ def run_stage4():
 
     # run assembly
     inputs, sorted_taxids, min_contig_length = make_inputs_for_assembly()
-    assembly_logfile = os.path.join(RESULT_DIR, ASSEMBLY_LOGFILE)
-    with open(assembly_logfile, "wb") as log_f: ######################################################################## temporary
-        for taxid in sorted_taxids:
-            input_fasta = inputs[taxid]
-            number_reads = int(execute_command_with_output("grep '^>' %s | wc -l" % input_fasta)) ###################### temporary
-            start_time = time.time() ################################################################################### temporary
-            spades_output = os.path.join(RESULT_DIR, taxid + ".scaffolds.fasta")
-            output_fasta = os.path.join(RESULT_DIR, taxid + ".cleaned-scaffolds.fasta")
-            if spades(input_fasta, spades_output):
-                clean_scaffolds(spades_output, min_contig_length, output_fasta)
-                end_time = time.time() ################################################################################# temporary
-                succeeded = True ####################################################################################### temporary
-                output_s3 = "%s/%s/%s" % (SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, taxid)
-                execute_command("aws s3 cp --quiet %s %s" % (output_fasta, output_s3))
-            else: ###################################################################################################### temporary
-                end_time = time.time() ################################################################################# temporary
-                succeeded = False ###################################################################################### temporary
-            log_f.write("%s\t%s\t%s\t%s\n" % (input_fasta, str(number_reads), succeeded, str(end_time - start_time))) ## temporary
-    execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, ASSEMBLY_LOGFILE, SAMPLE_S3_OUTPUT_PATH)) ############# temporary
+    assembly_logger = logging.getLogger('assembly')
+    assembly_handler = logging.FileHandler(os.path.join(RESULT_DIR, ASSEMBLY_LOGFILE))
+    assembly_logger.addHandler(assembly_handler)
+    for taxid in sorted_taxids:
+        input_fasta = inputs[taxid]
+        number_reads = int(execute_command_with_output("grep '^>' %s | wc -l" % input_fasta))
+        start_time = time.time()
+        spades_output = os.path.join(RESULT_DIR, taxid + ".scaffolds.fasta")
+        output_fasta = os.path.join(RESULT_DIR, taxid + ".cleaned-scaffolds.fasta")
+        if spades(input_fasta, spades_output):
+            clean_scaffolds(spades_output, min_contig_length, output_fasta)
+            end_time = time.time()
+            succeeded = True
+            output_s3 = "%s/%s/%s" % (SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, taxid)
+            execute_command("aws s3 cp --quiet %s %s" % (output_fasta, output_s3))
+        else:
+            end_time = time.time()
+            succeeded = False
+        assembly_logger.info("%s\t%s\t%s\t%s\n" % (input_fasta, str(number_reads), succeeded, str(end_time - start_time)))
+    execute_command("aws s3 cp --quiet %s/%s %s/" % (RESULT_DIR, ASSEMBLY_LOGFILE, SAMPLE_S3_OUTPUT_PATH))
 
     # Finally, upload status file so web app knows we're done
     execute_command("echo '' | aws s3 cp --quiet - %s/%s-%s" % (SAMPLE_S3_OUTPUT_PATH, ASSEMBLY_DIR, STATUS_FILE))
