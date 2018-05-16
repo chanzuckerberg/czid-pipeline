@@ -827,12 +827,13 @@ def run_stage1(lazy_run=True):
         write_to_log("Post-filtered input with {total_reads} original total reads.".format(total_reads=total_reads))
     except:
         stats_in = None
-        total_reads = count_reads(fastq_files[0], initial_file_type_for_log)
         write_to_log("Unfiltered input with {total_reads} total reads.".format(total_reads=total_reads))
 
     # Record total number of input reads
     stats = StatsFile(STATS_OUT, RESULT_DIR, None, SAMPLE_S3_OUTPUT_PATH)
-    stats.data.append({'total_reads': total_reads})
+
+    #total_reads = count_reads(fastq_files[0], initial_file_type_for_log)
+    #stats.data.append({'total_reads': total_reads})
 
     # run host filtering
     run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats, stats_in != None)
