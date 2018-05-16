@@ -112,14 +112,6 @@ base_dt = '2018-02-15-utc-1518652800-unixtime__2018-02-15-utc-1518652800-unixtim
 DEUTEROSTOME_TAXIDS = ("%s/%s/deuterostome_taxids.txt" % (base_s3, base_dt))
 # from common import LINEAGE_SHELF
 
-# definitions for integration with web app
-TAX_LEVEL_SPECIES = 1
-TAX_LEVEL_GENUS = 2
-TAX_LEVEL_FAMILY = 3
-MISSING_GENUS_ID = -200
-MISSING_FAMILY_ID = -300
-
-
 # convenience functions
 def count_lines(input_file):
     return int(execute_command_with_output("wc -l %s" % input_file).strip().split()[0])
@@ -319,8 +311,7 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
     hit_line = hit_f.readline()
     m8_line = m8_f.readline()
     lineage_map = shelve.open(lineage_map_path)
-    LINEAGE_WILDCARDS = ("-100", "-200", "-300")
-    NUM_RANKS = len(LINEAGE_WILDCARDS)
+    NUM_RANKS = len(NULL_LINEAGE)
     # See https://en.wikipedia.org/wiki/Double-precision_floating-point_format
     MIN_NORMAL_POSITIVE_DOUBLE = 2.0 ** -1022
     while hit_line and m8_line:
@@ -347,7 +338,7 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
             e_value = math.log10(e_value)
 
         # Retrieve the taxon lineage and mark meaningless calls with fake taxids.
-        hit_taxids_all_levels = lineage_map.get(hit_taxid, LINEAGE_WILDCARDS)
+        hit_taxids_all_levels = lineage_map.get(hit_taxid, NULL_LINEAGE)
         cleaned_hit_taxids_all_levels = validate_taxid_lineage(hit_taxids_all_levels, hit_taxid, hit_level)
         assert NUM_RANKS == len(cleaned_hit_taxids_all_levels)
 
@@ -676,14 +667,13 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path, output_m
     # Helper functions
     # TODO: Represent taxids by numbers instead of strings to greatly reduce memory footprint
     # and increase speed.
-    NULL_TAXIDS = ("-100", "-200", "-300")
     lineage_cache = {}
     def get_lineage(accession_id):
         if accession_id in lineage_cache:
             result = lineage_cache[accession_id]
         else:
             accession_taxid = accession2taxid_dict.get(accession_id.split(".")[0], "NA")
-            result = lineage_map.get(accession_taxid, NULL_TAXIDS)
+            result = lineage_map.get(accession_taxid, NULL_LINEAGE)
             lineage_cache[accession_id] = result
         return result
     def accumulate(hits, accession_id):
