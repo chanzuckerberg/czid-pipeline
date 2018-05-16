@@ -6,7 +6,7 @@ class Host_filtering(Base):
 
     def run(self):
         from .host_filtering_functions import *
-
+        # TODO: move unbuffer/upload_commit sha to decorator @prerun
         unbuffer_stdout()
         upload_commit_sha(self.version, SAMPLE_S3_OUTPUT_PATH)
         upload_pipeline_version_file()
