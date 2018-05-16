@@ -538,7 +538,7 @@ def run_bowtie2(input_fas, uploader_start):
     # When we are doing a lazy rerun, this function gets skipped, and the fetching of gsnap
     # genome is not initiated.  That's brilliant -- we don't fetch the gsnap genome if
     # we won't be needing it, and lazy reruns are very quick.
-    threading.Thread(target=fetch_genome, args=[GSNAP_GENOME]).start()
+    # threading.Thread(target=fetch_genome, args=[GSNAP_GENOME]).start()
     # the file structure looks like "bowtie2_genome/GRCh38.primary_assembly.genome.3.bt2"
     # the code below will handle up to "bowtie2_genome/GRCh38.primary_assembly.genome.99.bt2" but not 100
     local_genome_dir_ls = execute_command_with_output("ls {genome_dir}/*.bt2*".format(genome_dir=genome_dir))
@@ -578,6 +578,7 @@ class SkipGsnap(Exception):
 
 
 def run_gsnap_filter(input_fas, uploader_start):
+    raise SkipGsnap()
     # Unpack the gsnap genome
     genome_dir = fetch_genome(GSNAP_GENOME, strict=False)
     if genome_dir == None:
