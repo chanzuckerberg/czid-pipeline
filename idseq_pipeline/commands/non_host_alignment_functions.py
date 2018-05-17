@@ -429,9 +429,9 @@ def read_file_into_set(file_name):
 
 
 def environment_for_aligners(_environment):
-    if _environment in ['alpha', 'production']
+    if _environment in ['alpha', 'production']:
       return 'production'
-    elif _environment in ['staging', 'prod']
+    elif _environment in ['staging', 'prod']:
       return 'prod'
     return ''
 
