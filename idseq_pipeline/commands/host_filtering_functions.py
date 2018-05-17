@@ -211,6 +211,13 @@ def generate_unmapped_pairs_from_sam(sam_file, output_prefix):
                 with open(sam_file, 'rb') as samf:
                     generate_unmapped_pairs_from_sam_work(output_read_1, output_read_2, output_merged_read, samf)
 
+def max_input_lines(input_file):
+    ''' Returning number of lines corresponding to MAX_INPUT_READS based on file type '''
+    if "fasta" in input_file:
+        return MAX_INPUT_READS * 2
+    # assume it's fastq
+    return MAX_INPUT_READS * 4
+
 
 # job functions
 def run_star_part(output_dir, genome_dir, fastq_files, count_genes=False):
@@ -227,12 +234,9 @@ def run_star_part(output_dir, genome_dir, fastq_files, count_genes=False):
                            '--genomeDir', genome_dir,
                            '--readFilesIn', " ".join(fastq_files)]
     if fastq_files[0][-3:] == '.gz':
-        if "fasta" in fastq_files[0]:
-            max_lines = MAX_INPUT_READS * 2
-        else:
-            max_lines = MAX_INPUT_READS * 4
         # create a custom decompressor which does "zcat $input_file | head - ${max_lines}"
         execute_command("echo 'zcat ${2} | head -${1}' > %s/gzhead; " % genome_dir)
+        max_lines = max_input_lines(fastq_files[0])
         star_command_params += ['--readFilesCommand', '"sh %s/gzhead %d"' % (genome_dir, max_lines)]
     if count_genes and os.path.isfile("%s/sjdbList.fromGTF.out.tab" % genome_dir):
         star_command_params += ['--quantMode', 'GeneCounts']
@@ -426,7 +430,17 @@ def sync_pairs(fastq_files, max_discrepancies=0):
     return output_filenames
 
 
-def run_star(fastq_files, uploader_start):
+def extract_total_counts_from_star_output(result_dir, num_fastqs, total_counts_from_star):
+    ''' Grab the total reads from the Log.final.out file '''
+    log_file = os.path.join(result_dir, "Log.final.out")
+    total_reads = execute_command_with_output("grep 'Number of input reads' %s" % log_file).split("\t")[1]
+    total_reads = int(total_reads)
+    if total_reads == MAX_INPUT_READS: # if it's exactly the same. it must have been truncated
+        total_counts_from_star['truncated'] = 1
+    total_counts_from_star['total_reads'] = total_reads * num_fastqs
+
+def run_star(fastq_files, uploader_start, total_counts_from_star):
+    ''' Run STAR to filter out host '''
     star_outputs = [STAR_COUNTS_OUT, STAR_OUT1, STAR_OUT2]
     num_fastqs = len(fastq_files)
     gene_count_output = None
@@ -454,8 +468,11 @@ def run_star(fastq_files, uploader_start):
         # run part 0 in gene-counting mode:
         # (a) ERCCs are doped into part 0 and we want their counts
         # (b) if there is only 1 part (e.g. human), the host gene counts also make sense
+        # (c) at part 0, we can also extract out total input reads and if the total_counts is exactly the
+        #     same as MAX_INPUT_READS then we know the input file is truncated.
         if part_idx == 0:
             gene_count_file = os.path.join(tmp_result_dir, "ReadsPerGene.out.tab")
+            extract_total_counts_from_star_output(tmp_result_dir, num_fastqs, total_counts_from_star)
             if os.path.isfile(gene_count_file):
                 gene_count_output = gene_count_file
 
@@ -675,17 +692,26 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats, 
             assert t.completed and not t.exception
     else:
         # run STAR
+        total_counts_from_star = {} # getting total_reads and file truncation status from STAR
         logparams = return_merged_dict(
             DEFAULT_LOGPARAMS,
             {"title": "STAR",
              "version_file_s3": STAR_BOWTIE_VERSION_FILE_S3,
              "output_version_file": os.path.join(RESULT_DIR, VERSION_OUT)})
-        run_and_log_s3(logparams, target_outputs["run_star"], lazy_run, SAMPLE_S3_OUTPUT_PATH, run_star, fastq_files, uploader_start)
+        run_and_log_s3(logparams, target_outputs["run_star"], lazy_run, SAMPLE_S3_OUTPUT_PATH,
+                       run_star, fastq_files, uploader_start, total_counts_from_star)
+        stats.data.append(total_counts_from_star)
         stats.count_reads("run_star",
                           before_filename=fastq_files[0],
                           before_filetype=initial_file_type_for_log,
                           after_filename=os.path.join(RESULT_DIR, STAR_OUT1),
                           after_filetype=initial_file_type_for_log)
+
+        if total_counts_from_star.get('truncated'):
+            # upload thr truncation file to notify web of that the input files is truncated
+            execute_command("echo %d | aws s3 cp - %s/%s" % (total_counts_from_star['total_reads'],
+                                                             SAMPLE_S3_OUTPUT_PATH,
+                                                             INPUT_TRUNCATED_FILE))
 
         # run priceseqfilter
         logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "PriceSeqFilter"})
@@ -793,7 +819,7 @@ def run_stage1(lazy_run=True):
     input_fetchers = []
 
     def fetch_input(input_basename):
-        fastq_file = fetch_from_s3(os.path.join(SAMPLE_S3_INPUT_PATH, input_basename), FASTQ_DIR, allow_s3mi=True, auto_unzip=False)
+        fetch_from_s3(os.path.join(SAMPLE_S3_INPUT_PATH, input_basename), FASTQ_DIR, allow_s3mi=True, auto_unzip=False)
 
     for line in output:
         m = re.match(".*?([^ ]*." + re.escape(FILE_TYPE) + ")", line)
@@ -807,7 +833,6 @@ def run_stage1(lazy_run=True):
         t.join()
         assert t.completed and not t.exception
 
-    # Downloaded files here are unzipped but not yet truncated.
     fastq_files = execute_command_with_output("ls %s/*.%s" % (FASTQ_DIR, FILE_TYPE)).rstrip().split("\n")
     if len(fastq_files) not in [1, 2]:
         write_to_log("Number of input files was neither 1 nor 2. Aborting computation.")
@@ -817,23 +842,22 @@ def run_stage1(lazy_run=True):
     if len(fastq_files) == 2:
         initial_file_type_for_log += "_paired"
 
+    # Instantiate a stats instance
+    stats = StatsFile(STATS_OUT, RESULT_DIR, None, SAMPLE_S3_OUTPUT_PATH)
+
     # Download total_reads.json input, if present.  This is only provided with post-filtered inputs,
     # where we don't have the reads prior to host filtering.
+    # Record total number of input reads
     try:
         stats_in = StatsFile(STATS_IN, RESULT_DIR, SAMPLE_S3_INPUT_PATH, SAMPLE_S3_OUTPUT_PATH)
         stats_in.load_from_s3()
         total_reads = stats_in.get_total_reads()
         assert total_reads == int(total_reads)
+        stats.data.append({'total_reads': total_reads})
         write_to_log("Post-filtered input with {total_reads} original total reads.".format(total_reads=total_reads))
     except:
         stats_in = None
         write_to_log("Unfiltered input with {total_reads} total reads.".format(total_reads=total_reads))
-
-    # Record total number of input reads
-    stats = StatsFile(STATS_OUT, RESULT_DIR, None, SAMPLE_S3_OUTPUT_PATH)
-
-    #total_reads = count_reads(fastq_files[0], initial_file_type_for_log)
-    #stats.data.append({'total_reads': total_reads})
 
     # run host filtering
     run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats, stats_in != None)
