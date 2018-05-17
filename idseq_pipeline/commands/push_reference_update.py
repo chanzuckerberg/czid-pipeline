@@ -55,7 +55,6 @@ class Push_reference_update(Base):
         dest = os.environ["DEST_PREFIX"] + "/alignment_indexes/" + date
         os.environ["INPUT_FASTA_S3"] = os.environ["URL_PREFIX"] + self.nt
         os.environ["SERVER_IP"] = os.environ["GSNAP_SERVER_IP"]
-        os.environ["KEY_S3_PATH"] = "s3://idseq-secrets/idseq-production.pem"
         os.environ["OUTPUT_PATH_S3"] = dest
         os.environ["OUTPUT_NAME"] = "nt_k16"
         os.system("idseq_pipeline gsnap_indexing")
@@ -64,7 +63,6 @@ class Push_reference_update(Base):
         dest = os.environ["DEST_PREFIX"] + "/alignment_indexes/" + date
         os.environ["INPUT_FASTA_S3"] = os.environ["URL_PREFIX"] + self.nr
         os.environ["SERVER_IP"] = os.environ["RAPSEARCH_SERVER_IP"]
-        os.environ["KEY_S3_PATH"] = "s3://czbiohub-infectious-disease/idseq-alpha.pem"
         os.environ["OUTPUT_PATH_S3"] = dest
         os.environ["OUTPUT_NAME"] = "nr_rapsearch"
         os.system("idseq_pipeline rapsearch_indexing")
