@@ -420,7 +420,6 @@ def combine_pipeline_output_json(inputPath1, inputPath2, outputPath, stats):
     execute_command("aws s3 cp --quiet %s %s/" % (outputPath, SAMPLE_S3_OUTPUT_PATH))
 
 
-
 def read_file_into_set(file_name):
     with open(file_name) as f:
         S = set(x.rstrip() for x in f)

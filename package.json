@@ -1,0 +1,11 @@
+{
+  "lint-staged": {
+    "*.{py}": [
+      "yapf -i",
+      "git add"
+    ]
+  },
+  "devDependencies": {
+    "husky": "^0.14.3"
+  }
+}

@@ -337,6 +337,111 @@ def get_sequence_by_accession_id_s3(accession_id, nt_loc_dict, nt_bucket, nt_key
                     pass
     return (seq_len, seq_name)
 
+
+def generate_alignment_viz_json_trash(nt_file, nt_loc_db, db_type,
+                                annotated_m8, annotated_fasta,
+                                output_json_dir):
+    """Generate alignment details from the reference sequence, m8 and annotated fasta """
+    # Go through annotated_fasta with a db_type (NT/NR match).  Infer the family/genus/species info
+
+    if db_type != 'NT' and db_type != 'NR':
+        return
+
+    read2seq = parse_reads(annotated_fasta, db_type)
+
+    print("Read to Seq dictionary size: %d" % len(read2seq))
+
+    # Go through m8 file infer the alignment info. grab the fasta sequence, lineage info
+    groups = {}
+    line_count = 0
+    nt_loc_dict = shelve.open(nt_loc_db)
+    with open(annotated_m8, 'r') as m8f:
+        for line in m8f:
+            line_count += 1
+            if line_count % 100000 == 0:
+                print("%d lines in the m8 file processed." % line_count)
+            line_columns = line.rstrip().split("\t")
+            read_id = line_columns[0]
+            seq_info = read2seq.get(read_id)
+            if seq_info:
+                accession_id = line_columns[1]
+                metrics = line_columns[2:]
+                # "ad" is short for "accession_dict" aka "accession_info"
+                ad = groups.get(accession_id, {'reads': []})
+                sequence, ad['family_id'], ad['genus_id'], ad['species_id'] = seq_info
+                ref_start = int(metrics[-4])
+                ref_end = int(metrics[-3])
+                if ref_start > ref_end: # SWAP
+                    (ref_start, ref_end) = (ref_end, ref_start)
+                ref_start -= 1
+                prev_start = (ref_start - REF_DISPLAY_RANGE) if (ref_start - REF_DISPLAY_RANGE) > 0 else 0
+                post_end = ref_end + REF_DISPLAY_RANGE
+                ad['reads'].append([read_id, sequence, metrics, (prev_start, ref_start, ref_end, post_end)])
+                ad['ref_link'] = "https://www.ncbi.nlm.nih.gov/nuccore/%s?report=fasta" % accession_id
+                groups[accession_id] = ad
+
+    print("%d lines in the m8 file" % line_count)
+    print("%d unique accession ids" % len(groups))
+
+    if nt_file.startswith("s3://"):
+        get_sequences_by_accession_list_from_s3(groups, nt_loc_dict, nt_file)
+    else:
+        get_sequences_by_accession_list_from_file(groups, nt_loc_dict, nt_file)
+
+    result_dict = {}
+    to_be_deleted = []
+    error_count = 0
+    for accession_id, ad in groups.iteritems():
+        ad['coverage_summary'] = calculate_alignment_coverage(ad)
+    for accession_id, ad in groups.iteritems():
+        try:
+            tmp_file = 'accession-%s' % accession_id
+            if ad['ref_seq_len'] <= MAX_SEQ_DISPLAY_SIZE and 'ref_seq' not in ad:
+                if ad['ref_seq_len'] == 0:
+                    ad['ref_seq'] = "REFERENCE SEQUENCE NOT FOUND"
+                else:
+                    with open(tmp_file, "rb") as tf:
+                        ad['ref_seq'] = tf.read()
+                    to_be_deleted.append(tmp_file)
+            if 'ref_seq' in ad:
+                ref_seq = ad['ref_seq']
+                for read in ad['reads']:
+                    prev_start, ref_start, ref_end, post_end = read[3]
+                    read[3] = [ref_seq[prev_start:ref_start], ref_seq[ref_start:ref_end], ref_seq[ref_end:post_end]]
+            else:
+                # the reference sequence is too long to read entirely in RAM, so we only read the mapped segments
+                tmp_file = 'accession-%s' % accession_id
+                with open(tmp_file, "rb") as tf:
+                    for read in ad['reads']:
+                        prev_start, ref_start, ref_end, post_end = read[3]
+                        tf.seek(prev_start, 0)
+                        segment = tf.read(post_end - prev_start)
+                        read[3] = [
+                            segment[0:(ref_start - prev_start)],
+                            segment[(ref_start - prev_start):(ref_end - prev_start)],
+                            segment[(ref_end - prev_start):(post_end - prev_start)]
+                        ]
+                to_be_deleted.append(tmp_file)
+            if ad['ref_seq_len'] > MAX_SEQ_DISPLAY_SIZE:
+                ad['ref_seq'] = '...Reference Seq Too Long ...'
+        except:
+            ad['ref_seq'] = "ERROR ACCESSING REFERENCE SEQUENCE FOR ACCESSION ID {}".format(accession_id)
+            if error_count == 0:
+                # print stack trace for first error
+                traceback.print_exc()
+            error_count += 1
+        finally:
+            family_id = ad.pop('family_id')
+            genus_id = ad.pop('genus_id')
+            species_id = ad.pop('species_id')
+            family_dict = result_dict.get(family_id, {})
+            genus_dict = family_dict.get(genus_id, {})
+            species_dict = genus_dict.get(species_id, {})
+            species_dict[accession_id] = ad
+            genus_dict[species_id] = species_dict
+            family_dict[genus_id] = genus_dict
+            result_dict[family_id] = family_dict
+
 def accessionid2seq_main(arguments):
 
     # Make work directory
