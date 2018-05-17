@@ -47,13 +47,13 @@ Examples:
 
   INPUT_FASTA_S3=ftp://ftp.ensembl.org/pub/release-77/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz OUTPUT_PATH_S3=s3://czbiohub-infectious-disease/references/human HOST_NAME=human idseq_pipeline host_indexing
 
-  INPUT_FASTA_S3=/blast/db/FASTA/nt.gz SERVER_IP=34.211.67.166 KEY_S3_PATH=s3://idseq-secrets/idseq-production.pem OUTPUT_PATH_S3=s3://czbiohub-infectious-disease/references OUTPUT_NAME=nt_k16 idseq_pipeline gsnap_indexing
+  INPUT_FASTA_S3=/blast/db/FASTA/nt.gz SERVER_IP=34.211.67.166 KEY_S3_PATH=<keypath> OUTPUT_PATH_S3=s3://czbiohub-infectious-disease/references OUTPUT_NAME=nt_k16 idseq_pipeline gsnap_indexing
 
-  INPUT_FASTA_S3=/blast/db/FASTA/nr.gz SERVER_IP=54.191.193.210 KEY_S3_PATH=s3://czbiohub-infectious-disease/idseq-alpha.pem OUTPUT_PATH_S3=s3://czbiohub-infectious-disease/references OUTPUT_NAME=nr_rapsearch idseq_pipeline rapsearch_indexing
+  INPUT_FASTA_S3=/blast/db/FASTA/nr.gz SERVER_IP=54.191.193.210 KEY_S3_PATH=<keypath> OUTPUT_PATH_S3=s3://czbiohub-infectious-disease/references OUTPUT_NAME=nr_rapsearch idseq_pipeline rapsearch_indexing
 
   OUTPUT_PATH_S3=s3://czbiohub-infectious-disease/references INPUT=/pub/taxonomy/taxdump.tar.gz idseq_pipeline lineages
 
-  INPUT_FASTA_S3='s3://czbiohub-ncbi-store/blast/db/FASTA/vector.gz' ACCESSION2TAXID_DB_S3_PATH='s3://czbiohub-infectious-disease/references/accession2taxid.db.gz' idseq_pipeline blacklist
+  INPUT_FASTA_S3='s3://czbiohub-ncbi-store/blast/db/FASTA/vector.gz' ACCESSION2TAXID_DB_S3_PATH='s3://czbiohub-infectious-disease/references/accession2taxid.db' idseq_pipeline blacklist
 
   idseq_pipeline curate_accessionid2seq --s3_db_path s3://yunfang-workdir/curate_accessionid2seq/nt.sample --s3_db_loc_path s3://yunfang-workdir/curate_accessionid2seq/nt.sample.db
 

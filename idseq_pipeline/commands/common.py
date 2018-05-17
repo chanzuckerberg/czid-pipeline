@@ -9,17 +9,19 @@ import gzip
 import os
 import traceback
 import re
-
-
+import multiprocessing
+from functools import wraps
+import random
 
 from idseq_pipeline import __version__ as PIPELINE_VERSION
 bucket = "s3://idseq-database"
 NCBITOOL_S3_PATH = bucket + "/ncbitool" # S3 location of ncbitool executable
 base_dt = '2018-02-15-utc-1518652800-unixtime__2018-02-15-utc-1518652800-unixtime'
 base_s3 = bucket + "/alignment_data"
-ACCESSION2TAXID = ("%s/%s/accession2taxid.db.gz" % (base_s3, base_dt))
+ACCESSION2TAXID = ("%s/%s/accession2taxid.db" % (base_s3, base_dt))
 base_s3 = bucket + "/taxonomy"
 LINEAGE_SHELF = ("%s/%s/taxid-lineages.db" % (base_s3, base_dt))
+INVALID_CALL_BASE_ID = -(10**8) # don't run into -2e9 limit of mysql database. current largest taxid is around 2e6 so should be fine
 
 VERSION_NONE = -1
 
@@ -30,11 +32,20 @@ REF_DIR = ROOT_DIR + '/idseq/ref' # referene genome / ref databases go here
 
 OUTPUT_VERSIONS = []
 
-print_lock = threading.RLock()
+print_lock = multiprocessing.RLock()
 
 # peak network & storage perf for a typical small instance is saturated by just a few concurrent streams
 MAX_CONCURRENT_COPY_OPERATIONS = 8
-iostream = threading.Semaphore(MAX_CONCURRENT_COPY_OPERATIONS)
+iostream = multiprocessing.Semaphore(MAX_CONCURRENT_COPY_OPERATIONS)
+
+# definitions for integration with web app
+TAX_LEVEL_SPECIES = 1
+TAX_LEVEL_GENUS = 2
+TAX_LEVEL_FAMILY = 3
+NULL_SPECIES_ID = -100
+NULL_GENUS_ID = -200
+NULL_FAMILY_ID = -300
+NULL_LINEAGE = (str(NULL_SPECIES_ID), str(NULL_GENUS_ID), str(NULL_FAMILY_ID))
 
 
 class StatsFile(object):
@@ -50,7 +61,10 @@ class StatsFile(object):
 
     def load_from_s3(self):
         stats_s3_path = os.path.join(self.s3_input_dir, self.stats_filename)
-        if check_s3_file_presence(stats_s3_path):
+        try:
+            execute_command("aws s3 cp --quiet %s %s/" % (stats_s3_path, self.local_results_dir))
+        except:
+            time.sleep(1.0)
             execute_command("aws s3 cp --quiet %s %s/" % (stats_s3_path, self.local_results_dir))
         self._load()
 
@@ -68,21 +82,31 @@ class StatsFile(object):
             self._save()
             execute_command("aws s3 cp --quiet %s %s/" % (self.stats_path, self.s3_output_dir))
 
+    def get_item_value(self, key):
+        for item in self.data:
+            if item.get(key):
+                return item[key]
+
+    def get_item_for_task(self, function_name):
+        for item in self.data:
+            if item.get("task") == function_name:
+                return item
+
     def get_total_reads(self):
-        for item in self.data:
-            if "total_reads" in item:
-                return item["total_reads"]
-        # check run star if total reads not available
-        for item in self.data:
-            if item.get("task") == 'run_star':
-                return item["reads_before"]
-        # if no entry for run_star, host-filtering was skipped: use "remaining_reads" instead
-        return self.get_remaining_reads()
-        # previous fall-back value didn't fit into integer type of SQL dfatabase:
-        # return 0.1
+        # New style
+        tr = self.get_item_value("total_reads")
+        if tr != None:
+            return int(tr)
+        # For compatibility
+        item = self.get_item_for_task("run_star")
+        if item != None:
+            return int(item["reads_before"])
 
     def get_remaining_reads(self):
-        return (item for item in self.data if item.get("task") == "run_gsnapl_remotely").next().get("reads_before")
+        return int(self.get_item_value('remaining_reads'))
+
+    def gsnap_ran_in_host_filtering(self):
+        return self.get_item_for_task("run_gsnap_filter") != None
 
     def count_reads(self, func_name, before_filename, before_filetype, after_filename, after_filetype):
         records_before = count_reads(before_filename, before_filetype)
@@ -93,11 +117,22 @@ class StatsFile(object):
             self.data = new_data
         self.data.append({'task': func_name, 'reads_before': records_before, 'reads_after': records_after})
 
+    def set_remaining_reads(self):
+        last_entry = self.data[-1] or {}
+        # We use [] and not get() because, if the last entry doesn't have reads_after,
+        # then we have a bug and should crash rather than produce misleading results.
+        remaining = last_entry['reads_after']
+        self.data.append({'remaining_reads': remaining})
+
 
 class MyThread(threading.Thread):
-    def __init__(self, target, args):
+    def __init__(self, target, args, kwargs=None):
         super(MyThread, self).__init__()
         self.args = args
+        if kwargs == None:
+            self.kwargs = {}
+        else:
+            self.kwargs = kwargs
         self.target = target
         self.exception = None
         self.completed = False
@@ -105,7 +140,7 @@ class MyThread(threading.Thread):
 
     def run(self):
         try:
-            self.result = self.target(*self.args)
+            self.result = self.target(*self.args, **self.kwargs)
             self.exception = False
         except:
             traceback.print_exc()
@@ -120,9 +155,12 @@ class Updater(object):
         self.update_period = update_period
         self.update_function = update_function
         self.timer_thread = None
+        self.exited = False
         self.t_start = time.time()
 
     def relaunch(self, initial_launch=False):
+        if self.exited:
+            return
         if self.timer_thread and not initial_launch:
             t_elapsed = time.time() - self.t_start
             self.update_function(t_elapsed)
@@ -135,12 +173,13 @@ class Updater(object):
 
     def __exit__(self, *args):
         self.timer_thread.cancel()
+        self.exited = True
 
 
 class CommandTracker(Updater):
 
-    lock = threading.RLock()
-    count = 0
+    lock = multiprocessing.RLock()
+    count = multiprocessing.Value('i', 0)
 
     def __init__(self, update_period=15):
         super(CommandTracker, self).__init__(update_period, self.print_update_and_enforce_timeout)
@@ -151,8 +190,8 @@ class CommandTracker(Updater):
         self.t_sigkill_sent = None
         self.grace_period = update_period / 2.0
         with CommandTracker.lock:
-            self.id = CommandTracker.count
-            CommandTracker.count += 1
+            self.id = CommandTracker.count.value
+            CommandTracker.count.value += 1
 
     def print_update_and_enforce_timeout(self, t_elapsed):
         with print_lock:
@@ -166,7 +205,7 @@ class CommandTracker(Updater):
         self.enforce_timeout(t_elapsed)
 
     def enforce_timeout(self, t_elapsed):
-        if not self.proc or t_elapsed <= self.timeout or self.proc.poll() != None:
+        if self.timeout == None or not self.proc or t_elapsed <= self.timeout or self.proc.poll() != None:
             # Unregistered subprocess, subprocess not yet timed out, or subprocess already exited.
             pass
         elif not self.t_sigterm_sent:
@@ -204,47 +243,102 @@ class ProgressFile(object):
 
     def __exit__(self, *args):
         if self.tail_subproc:
+            # TODO: Do we need to join the tail subproc after killing it?
             self.tail_subproc.kill()
 
 
-def execute_command_with_output(command, progress_file=None, timeout=None, grace_period=None):
+def run_in_subprocess(target):
+    """
+    Decorator that executes a function synchronously in a subprocess.
+    Use case:
+
+        thread 1:
+             compute_something(x1, y1, z1)
+
+        thread 2:
+             compute_something(x2, y2, z2)
+
+        thread 3:
+             compute_something(x3, y3, z3)
+
+    If compute_something() is CPU-intensive, the above threads won't really run
+    in parallel because of the Python global interpreter lock (GIL).  To avoid
+    this problem without changing the above code, simply decorate the definition
+    of compute_something() like so:
+
+         @run_in_subprocess
+         def compute_something(x, y, z):
+             ...
+
+    Typical subprocess limitations or caveats apply:
+       a. The caller can't see any value returned by the decorated function.
+          It should output to a file, a pipe, or a multiprocessing queue.
+       b. Changes made to global variables won't be seen by parent process.
+       c. Use multiprocessing semaphores/locks/etc, not their threading versions.
+
+    Tip: If input from the same file is needed in all invocations of the
+    decorated function, do the I/O before the first call, to avoid accessing
+    the file multiple times.
+    """
+    @wraps(target)
+    def wrapper(*args, **kwargs):
+        p = multiprocessing.Process(target=target, args=args, kwargs=kwargs)
+        p.start()
+        p.join()
+        if p.exitcode != 0:
+            raise Exception("Failed {} on {}, {}".format(target.__name__, args, kwargs))
+    return wrapper
+
+
+def retry(operation, randgen=random.Random().random):
+    # Note the use of a separate random generator for retries so transient
+    # errors won't perturb other random streams used in the application.
+    @wraps(operation)
+    def wrapped_operation(*args, **kwargs):
+        remaining_attempts = 3
+        delay = 1.0
+        while remaining_attempts > 1:
+            try:
+                return operation(*args, **kwargs)
+            except:
+                time.sleep(delay * (1.0 + randgen()))
+                delay *= 3.0
+                remaining_attempts -= 1
+        # The last attempt is outside try/catch so caller can handle exception
+        return operation(*args, **kwargs)
+    return wrapped_operation
+
+
+def execute_command(command, progress_file=None, timeout=None, grace_period=None, capture_stdout=False, merge_stderr=False):
     with CommandTracker() as ct:
         with print_lock:
             print "Command {}: {}".format(ct.id, command)
         with ProgressFile(progress_file):
-            # Capture only stdout.   Send stderr to parent stderr.   Take input from parent stdin.
-            ct.proc = subprocess.Popen(command, shell=True, stdin=sys.stdin.fileno(), stdout=subprocess.PIPE, stderr=sys.stderr.fileno())
             if timeout:
                 ct.timeout = timeout
             if grace_period:
                 ct.grace_period = grace_period
-            stdout, _undefined = ct.proc.communicate()
+            if capture_stdout:
+                # Capture only stdout.  Child stderr = parent stderr, unless merge_stderr specified.   Child input = parent stdin.
+                ct.proc = subprocess.Popen(command, shell=True, stdin=sys.stdin.fileno(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT if merge_stderr else sys.stderr.fileno())
+                stdout, _ = ct.proc.communicate()
+            else:
+                # Capture nothing.  Child inherits parent stdin/out/err.
+                ct.proc = subprocess.Popen(command, shell=True)
+                ct.proc.wait()
+                stdout = None
             if ct.proc.returncode:
                 raise subprocess.CalledProcessError(ct.proc.returncode, command, stdout)
-            return stdout
+            if capture_stdout:
+                return stdout
 
 
-def execute_command_realtime_stdout(command, progress_file=None):
-    with CommandTracker() as ct:
-        with print_lock:
-            print "Command {}: {}".format(ct.id, command)
-        with ProgressFile(progress_file):
-            subprocess.check_call(command, shell=True)
-
-def execute_command(command, progress_file=None):
-    execute_command_realtime_stdout(command, progress_file)
+def execute_command_with_output(command, progress_file=None, timeout=None, grace_period=None, merge_stderr=False):
+    return execute_command(command, progress_file, timeout, grace_period, capture_stdout=True, merge_stderr=merge_stderr)
 
 
 def remote_command(base_command, key_path, remote_username, instance_ip):
     return 'ssh -o "StrictHostKeyChecking no" -o "ConnectTimeout 15" -i %s %s@%s "%s"' % (key_path, remote_username, instance_ip, base_command)
-
-
-def check_s3_file_presence(s3_path):
-    command = "aws s3 ls %s | wc -l" % s3_path
-    try:
-        return int(execute_command_with_output(command).rstrip())
-    except:
-        return 0
 
 
 def scp(key_path, remote_username, instance_ip, remote_path, local_path):
@@ -282,21 +376,6 @@ def percent_str(percent):
     except:
         return str(percent)
 
-def extract_m8_readid(read_id_column):
-    # Get raw read ID without our annotations:
-    # If m8 is from gsnap (case 1), 1 field has been prepended (taxid field).
-    # If m8 is from rapsearch in an old version of the pipeline (case 2), 3 fields have been prepended (taxid, 'NT', NT accession ID).
-    # If m8 is from rapsearch in a newer version of the pipeline (case 3), many fields have been prepended (taxid, alignment info fields),
-    # but the delimiter ":read_id:" marks the beginning of the raw read ID.
-    read_id_column = read_id_column.split(":", 1)[1] # remove taxid field (all cases)
-    if ":read_id:" in read_id_column: # case 3
-        raw_read_id = read_id_column.split(":read_id:")[1]
-    elif read_id_column.startswith("NT:"): # case 2
-        raw_read_id = read_id_column.split(":", 2)[2]
-    else: # case 1
-        raw_read_id = read_id_column
-    return raw_read_id
-
 def count_reads(file_name, file_type):
     count = 0
     if file_name[-3:] == '.gz':
@@ -315,7 +394,7 @@ def count_reads(file_name, file_type):
             if line.startswith('>'):
                 count += 1
         elif file_type == "m8" and line[0] == '#':
-            continue
+            pass
         else:
             count += 1
     f.close()
@@ -376,17 +455,14 @@ def fetch_from_s3(source, destination, auto_unzip, allow_s3mi=False, mutex=threa
                     except:
                         allow_s3mi = False
                 if unzip:
-                    try:
-                        assert allow_s3mi
-                        execute_command("s3mi cat %s | gzip -dc > %s" % (source, destination))
-                    except:
-                        execute_command("aws s3 cp --quiet %s - | gzip -dc > %s" % (source, destination))
+                    pipe_filter = "| gzip -dc "
                 else:
-                    try:
-                        assert allow_s3mi
-                        execute_command("s3mi cp %s %s" % (source, destination))
-                    except:
-                        execute_command("aws s3 cp --quiet %s %s" % (source, destination))
+                    pipe_filter = ""
+                try:
+                    assert allow_s3mi
+                    execute_command("s3mi cat {source} {pipe_filter} > {destination}".format(source=source, pipe_filter=pipe_filter, destination=destination))
+                except:
+                    execute_command("aws s3 cp --quiet {source} - {pipe_filter} > {destination}".format(source=source, pipe_filter=pipe_filter, destination=destination))
                 return destination
             except subprocess.CalledProcessError:
                 # Most likely the file doesn't exist in S3.
@@ -409,8 +485,8 @@ def fetch_lazy_result(source, destination, allow_s3mi=False):
     return fetch_from_s3(source, destination, auto_unzip=False, allow_s3mi=allow_s3mi) != None
 
 
-def fetch_reference(source, auto_unzip=True):
-    path = fetch_from_s3(source, REF_DIR, auto_unzip, allow_s3mi=True)
+def fetch_reference(source, auto_unzip=True, allow_s3mi=True):
+    path = fetch_from_s3(source, REF_DIR, auto_unzip, allow_s3mi=allow_s3mi)
     assert path != None
     return path
 
@@ -464,7 +540,9 @@ def run_and_log_work(logparams, target_outputs, lazy_run, func_name, lazy_fetch,
     if was_lazy:
         LOGGER.info("output exists, lazy run")
     else:
-        LOGGER.info("uploaded output")
+        LOGGER.info("non-lazy run completed, output may be in the process of being uploaded")
+
+    return was_lazy
 
 
 def upload_log_file(sample_s3_output_path, lock=threading.RLock()):
@@ -474,14 +552,15 @@ def upload_log_file(sample_s3_output_path, lock=threading.RLock()):
         execute_command("aws s3 cp --quiet %s %s/;" % (logh.baseFilename, sample_s3_output_path))
 
 
-def write_to_log(message, warning=False):
+def write_to_log(message, warning=False, flush=True):
     LOGGER = logging.getLogger()
     with print_lock:
         if warning:
             LOGGER.warn(message)
         else:
             LOGGER.info(message)
-        sys.stdout.flush()
+        if flush:
+            sys.stdout.flush()
 
 
 def unbuffer_stdout():
@@ -489,7 +568,7 @@ def unbuffer_stdout():
     sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
     os.dup2(sys.stdout.fileno(), sys.stderr.fileno())
 
-def upload_commit_sha(version, s3_destination = None):
+def upload_commit_sha(version, s3_destination=None):
     sha_file = os.environ.get('COMMIT_SHA_FILE')
     s3_destination = s3_destination or os.environ.get('OUTPUT_BUCKET')
     if sha_file is None or s3_destination is None:
@@ -595,21 +674,6 @@ def major_version(version):
     m = re.match("(\d+\.\d+).*", version)
     return m.group(1) if m else None
 
-def big_version_change_from_last_run(pipeline_version, version_s3_path):
-    ''' Return True is there's a significant pipeline version chanage. i.e. 1.2.1 -> 1.3.0. False otherwise '''
-    try:
-        version_hash = json.loads(execute_command_with_output("aws s3 cp %s - " % version_s3_path))
-        for entry in version_hash:
-            if entry['name'] == 'idseq-pipeline':
-                prev_pipeline_version_sig = major_version(entry['version']);
-                pipeline_version_sig = major_version(pipeline_version)
-                return (prev_pipeline_version_sig != pipeline_version_sig)
-        return True # idseq-pipeline info is not
-    except:
-        # couldn't get the s3_version_file (no output most likely). Return True to indicate change from nothing
-        traceback.print_exc()
-        return True
-
 def upload_version_tracker(source_file, output_name, reference_version_number, output_path_s3, indexing_version):
     version_tracker_file = "%s.version.txt" % output_name
     version_json = {"name": output_name,
@@ -623,3 +687,53 @@ def upload_version_tracker(source_file, output_name, reference_version_number, o
 
 def env_set_if_blank(key, value):
     os.environ[key] = os.environ.get(key, value)
+
+
+def cleaned_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str):
+    """Take the taxon lineage and mark meaningless calls with fake taxids."""
+    assert len(taxid_lineage) == 3  # this assumption is being made in postprocessing
+    result = [None, None, None]
+    hit_tax_level = int(hit_level_str)
+    for tax_level, taxid in enumerate(taxid_lineage, 1):
+        if tax_level >= hit_tax_level:
+            taxid_str = str(taxid)
+        else:
+            taxid_str = str(tax_level * INVALID_CALL_BASE_ID - int(hit_taxid_str))
+        result[tax_level - 1] = taxid_str
+    return result
+
+
+def fill_missing_calls(cleaned_lineage):
+    """replace missing calls with virtual taxids as shown in fill_missing_calls_tests."""
+    result = list(cleaned_lineage)
+    tax_level = len(cleaned_lineage)
+    closest_real_hit_just_above_me = -1
+    def blank(taxid_int):
+        return 0 > taxid_int > INVALID_CALL_BASE_ID
+    while tax_level > 0:
+        me = int(cleaned_lineage[tax_level - 1])
+        if me >= 0:
+            closest_real_hit_just_above_me = me
+        elif closest_real_hit_just_above_me >= 0 and blank(me):
+            result[tax_level -1] = str(tax_level * INVALID_CALL_BASE_ID - closest_real_hit_just_above_me)
+        tax_level -= 1
+    return result
+
+
+def fill_missing_calls_tests():
+    # -200 => -200001534
+    assert fill_missing_calls((55, -200, 1534)) == [55, "-200001534", 1534]
+    # -100 => -100005888
+    assert fill_missing_calls((-100, 5888, -300)) == ["-100005888", 5888, -300]
+    # -100 => -100001534, -200 => -200001534
+    assert fill_missing_calls((-100, -200, 1534)) == ["-100001534", "-200001534", 1534]
+    # no change
+    assert fill_missing_calls((55, -200, -300)) == [55, -200, -300]
+
+
+# a bit ad-hoc
+fill_missing_calls_tests()
+
+
+def validate_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str):
+    return fill_missing_calls(cleaned_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str))

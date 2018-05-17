@@ -37,7 +37,7 @@ class Push_reference_update(Base):
         env_set_if_blank("RAPSEARCH_SERVER_IP", "54.191.193.210")
         env_set_if_blank("GSNAP_SERVER_IP", "34.211.67.166")
         env_set_if_blank("DEST_PREFIX", "s3://idseq-database")
-        env_set_if_blank("PREV_ACC_MAPPING", "s3://czbiohub-infectious-disease/references/accession2taxid.db.gz")
+        env_set_if_blank("PREV_ACC_MAPPING", "s3://idseq-database/alignment_data/2018-04-01-utc-1522569777-unixtime__2018-04-04-utc-1522862260-unixtime/accession2taxid.db")
 
         ##### COMMANDS #####
         os.system("mkdir -p %s" % self.LOCAL_WORK_DIR)
@@ -55,7 +55,6 @@ class Push_reference_update(Base):
         dest = os.environ["DEST_PREFIX"] + "/alignment_indexes/" + date
         os.environ["INPUT_FASTA_S3"] = os.environ["URL_PREFIX"] + self.nt
         os.environ["SERVER_IP"] = os.environ["GSNAP_SERVER_IP"]
-        os.environ["KEY_S3_PATH"] = "s3://idseq-secrets/idseq-production.pem"
         os.environ["OUTPUT_PATH_S3"] = dest
         os.environ["OUTPUT_NAME"] = "nt_k16"
         os.system("idseq_pipeline gsnap_indexing")
@@ -64,7 +63,6 @@ class Push_reference_update(Base):
         dest = os.environ["DEST_PREFIX"] + "/alignment_indexes/" + date
         os.environ["INPUT_FASTA_S3"] = os.environ["URL_PREFIX"] + self.nr
         os.environ["SERVER_IP"] = os.environ["RAPSEARCH_SERVER_IP"]
-        os.environ["KEY_S3_PATH"] = "s3://czbiohub-infectious-disease/idseq-alpha.pem"
         os.environ["OUTPUT_PATH_S3"] = dest
         os.environ["OUTPUT_NAME"] = "nr_rapsearch"
         os.system("idseq_pipeline rapsearch_indexing")
