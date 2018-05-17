@@ -13,7 +13,6 @@ import multiprocessing
 from functools import wraps
 import random
 
-
 from idseq_pipeline import __version__ as PIPELINE_VERSION
 bucket = "s3://idseq-database"
 NCBITOOL_S3_PATH = bucket + "/ncbitool" # S3 location of ncbitool executable
@@ -377,7 +376,7 @@ def percent_str(percent):
     except:
         return str(percent)
 
-def count_reads(file_name, file_type):
+def count_reads(file_name, file_type, max_reads = None):
     count = 0
     if file_name[-3:] == '.gz':
         f = gzip.open(file_name)
@@ -398,6 +397,9 @@ def count_reads(file_name, file_type):
             pass
         else:
             count += 1
+        if max_reads != None and count > max_reads:
+            # if more than max, return early. using > because of floating point
+            break
     f.close()
     return int(count)
 

@@ -429,7 +429,11 @@ def read_file_into_set(file_name):
 
 
 def environment_for_aligners(_environment):
-    return "production" ## temporary fix since we only have "production" gsnap/rapsearch machines right now
+    if _environment in ['alpha', 'production']:
+      return 'production'
+    elif _environment in ['staging', 'prod']:
+      return 'prod'
+    return ''
 
 
 def fetch_key(environment, mutex=threading.RLock()):
