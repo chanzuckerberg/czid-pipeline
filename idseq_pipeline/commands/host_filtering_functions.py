@@ -797,7 +797,8 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats, 
             input_files = [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1)]
         # skip gsnap if the number of reads too big
         # TODO: move gsnap filter to after subsampling
-        assert stats.data[-1]['reads_after'] <= MAX_GNSAP_FILTER_READS
+        if stats.data[-1]['reads_after'] > MAX_GNSAP_FILTER_READS:
+            raise SkipGsnap()
         logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "run_gsnap_filter"})
         run_and_log_s3(logparams, target_outputs["run_gsnap_filter"], lazy_run, SAMPLE_S3_OUTPUT_PATH, run_gsnap_filter, input_files, uploader_start)
         stats.count_reads("run_gsnap_filter",
