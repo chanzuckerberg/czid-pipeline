@@ -29,6 +29,7 @@ STATS_OUT = 'stats.json'
 VERSION_OUT = 'versions.json'
 PIPELINE_VERSION_OUT = 'pipeline_version.txt'
 MAX_INPUT_READS = 75 * 1000 * 1000
+MAX_GNSAP_FILTER_READS = 10 * 1000 * 1000
 INPUT_TRUNCATED_FILE = 'input_truncated.txt'
 
 # arguments from environment variables
@@ -794,6 +795,9 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats, 
             input_files = [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1), os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2)]
         else:
             input_files = [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1)]
+        # skip gsnap if the number of reads too big
+        # TODO: move gsnap filter to after subsampling
+        assert stats.data[-1]['reads_after'] <= MAX_GNSAP_FILTER_READS
         logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "run_gsnap_filter"})
         run_and_log_s3(logparams, target_outputs["run_gsnap_filter"], lazy_run, SAMPLE_S3_OUTPUT_PATH, run_gsnap_filter, input_files, uploader_start)
         stats.count_reads("run_gsnap_filter",
@@ -802,7 +806,7 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats, 
                           after_filename=os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1),
                           after_filetype="fasta_paired")
     except SkipGsnap:
-        assert not prefiltered, "Skipping gsnap is not supported for prefilterd input.  Make sure to specify host genome."
+        write_to_log("Skipping gsnap is for prefilterd input or too many reads")
         pass
 
     # finalize the remaing reads
