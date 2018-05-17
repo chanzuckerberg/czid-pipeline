@@ -405,9 +405,6 @@ def combine_pipeline_output_json(inputPath1, inputPath2, outputPath, stats):
         input1 = json.load(inf1).get("pipeline_output")
     with open(inputPath2) as inf2:
         input2 = json.load(inf2).get("pipeline_output")
-
-    print("TEST STUFF")
-
     taxon_counts_attributes = (input1.get("taxon_counts_attributes")
                                + input2.get("taxon_counts_attributes"))
     pipeline_output_dict = {
@@ -421,7 +418,6 @@ def combine_pipeline_output_json(inputPath1, inputPath2, outputPath, stats):
     with open(outputPath, 'wb') as outf:
         json.dump(output_dict, outf)
     execute_command("aws s3 cp --quiet %s %s/" % (outputPath, SAMPLE_S3_OUTPUT_PATH))
-
 
 
 def read_file_into_set(file_name):
