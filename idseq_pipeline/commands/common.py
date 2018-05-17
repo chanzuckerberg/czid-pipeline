@@ -39,6 +39,9 @@ print_lock = multiprocessing.RLock()
 # peak network & storage perf for a typical small instance is saturated by just a few concurrent streams
 MAX_CONCURRENT_COPY_OPERATIONS = 8
 iostream = multiprocessing.Semaphore(MAX_CONCURRENT_COPY_OPERATIONS)
+# Make a second semaphore for uploads to reserve some capacity for downloads.
+MAX_CONCURRENT_UPLOAD_OPERATIONS = 4
+iostream_uploads = multiprocessing.Semaphore(MAX_CONCURRENT_UPLOAD_OPERATIONS)
 
 # definitions for integration with web app
 TAX_LEVEL_SPECIES = 1
@@ -495,12 +498,23 @@ def fetch_from_s3(source,
             # It's okay if the parent directory already exists, but all other errors are fatal.
             if e.errno != os.errno.EEXIST:
                 raise
-        with iostream:
-            try:
-                if allow_s3mi:
+        with iostream_uploads:  # Limit concurrent uploads so as not to stall the pipeline.
+            with iostream:      # Still counts toward the general semaphore.
+                try:
+                    if allow_s3mi:
+                        try:
+                            install_s3mi()
+                        except:
+                            allow_s3mi = False
+                    if unzip:
+                        pipe_filter = "| gzip -dc "
+                    else:
+                        pipe_filter = ""
                     try:
-                        install_s3mi()
+                        assert allow_s3mi
+                        execute_command("s3mi cat {source} {pipe_filter} > {destination}".format(source=source, pipe_filter=pipe_filter, destination=destination))
                     except:
+<<<<<<< HEAD
                         allow_s3mi = False
                 if unzip:
                     pipe_filter = "| gzip -dc "
@@ -525,6 +539,13 @@ def fetch_from_s3(source,
             except subprocess.CalledProcessError:
                 # Most likely the file doesn't exist in S3.
                 return None
+=======
+                        execute_command("aws s3 cp --quiet {source} - {pipe_filter} > {destination}".format(source=source, pipe_filter=pipe_filter, destination=destination))
+                    return destination
+                except subprocess.CalledProcessError:
+                    # Most likely the file doesn't exist in S3.
+                    return None
+>>>>>>> Add another upload semaphore
 
 
 def install_s3mi(installed={}, mutex=threading.RLock()):  #pylint: disable=dangerous-default-value
