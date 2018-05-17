@@ -87,7 +87,7 @@ BOWTIE2 = "bowtie2"
 GSNAPL = "gsnapl"
 
 # pipeline configuration
-LZW_FRACTION_CUTOFF = 0.45
+LZW_FRACTION_CUTOFF = 0.40
 
 # convenience functions
 def fq2fa(input_fastq, output_fasta):
