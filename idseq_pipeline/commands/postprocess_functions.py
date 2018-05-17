@@ -346,6 +346,7 @@ def run_stage3(lazy_run=False):
         'NR',
         os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_FAMILY_NR),
         os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_FAMILY_NR))
+
     # generate alignment visualization
     logparams = return_merged_dict(
         DEFAULT_LOGPARAMS,

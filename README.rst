@@ -29,6 +29,9 @@ When merging a commit to master, you need to increase the version number in `ids
 
 Release notes
 -------------
+- 1000.1000.0
+    - Perform de-novo assembly using SPAdes for taxa meeting a read threshold, up to a limit
+    - Perform de-novo assembly using SPAdes for all non-host reads, up to a limit
 
 - 1.7.1
    - Truncate enormous inputs to 75 mil paired end / 150 mil unpaired reads.

@@ -5,6 +5,7 @@ Usage:
   idseq_pipeline host_filtering
   idseq_pipeline non_host_alignment
   idseq_pipeline postprocess
+  idseq_pipeline assembly
   idseq_pipeline host_indexing
   idseq_pipeline gsnap_indexing
   idseq_pipeline rapsearch_indexing
@@ -42,6 +43,8 @@ Examples:
   FILE_TYPE="fastq.gz" DB_SAMPLE_ID="77" INPUT_BUCKET="s3://czbiohub-idseq-samples-development/samples/3/77/results" OUTPUT_BUCKET="s3://czbiohub-idseq-samples-development/samples/3/77/results" FASTQ_BUCKET="s3://czbiohub-idseq-samples-development/samples/3/77/fastqs" idseq_pipeline non_host_alignment
 
   INPUT_BUCKET="s3://czbiohub-idseq-samples-development/samples/3/77/results" OUTPUT_BUCKET="s3://czbiohub-idseq-samples-development/samples/3/77/postprocess" idseq_pipeline postprocess
+
+  ALIGNMENT_S3_PATH="s3://czbiohub-idseq-samples-development/samples/3/77/results" POSTPROCESS_S3_PATH="s3://czbiohub-idseq-samples-development/samples/3/77/postprocess" idseq_pipeline assembly
 
   INPUT_FASTA_S3=s3://czbiohub-infectious-disease/references/mosquitos/mosquito_genomes2.fa OUTPUT_PATH_S3=s3://czbiohub-infectious-disease/references/mosquitos HOST_NAME=mosquitos idseq_pipeline host_indexing
 
