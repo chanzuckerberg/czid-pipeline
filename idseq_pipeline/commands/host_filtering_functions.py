@@ -704,9 +704,10 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats, 
         if not total_counts_from_star.get('total_reads'):
             # Total reads not set. Most likely it's lazy run. Damn it. would have to actually count the reads.
             # TODO: Remove this when we also lazy load the stats.json file
-            total_reads = count_reads(fastq_files[0], initial_file_type_for_log)
-            if total_reads >= MAX_INPUT_READS * len(fastq_files):
-                total_reads = MAX_INPUT_READS * len(fastq_files)
+            max_reads = MAX_INPUT_READS * len(fastq_files)
+            total_reads = count_reads(fastq_files[0], initial_file_type_for_log, max_reads)
+            if total_reads >= max_reads:
+                total_reads = max_reads
                 total_counts_from_star['truncated'] = 1
             total_counts_from_star['total_reads'] = total_reads
 
@@ -797,7 +798,8 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats, 
             input_files = [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1)]
         # skip gsnap if the number of reads too big
         # TODO: move gsnap filter to after subsampling
-        assert stats.data[-1]['reads_after'] <= MAX_GNSAP_FILTER_READS
+        if stats.data[-1]['reads_after'] > MAX_GNSAP_FILTER_READS:
+            raise SkipGsnap()
         logparams = return_merged_dict(DEFAULT_LOGPARAMS, {"title": "run_gsnap_filter"})
         run_and_log_s3(logparams, target_outputs["run_gsnap_filter"], lazy_run, SAMPLE_S3_OUTPUT_PATH, run_gsnap_filter, input_files, uploader_start)
         stats.count_reads("run_gsnap_filter",
