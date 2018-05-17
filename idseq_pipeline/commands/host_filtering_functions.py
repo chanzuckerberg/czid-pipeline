@@ -868,7 +868,7 @@ def run_stage1(lazy_run=True):
         stats_in = None
         write_to_log("Unfiltered input. Need host filtering")
 
-    if total_reads: # set total reads if available
+    if total_reads != None: # set total reads if available
         stats.data.append({'total_reads': total_reads})
     # run host filtering
     run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats, stats_in != None)
