@@ -704,9 +704,10 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats, 
         if not total_counts_from_star.get('total_reads'):
             # Total reads not set. Most likely it's lazy run. Damn it. would have to actually count the reads.
             # TODO: Remove this when we also lazy load the stats.json file
-            total_reads = count_reads(fastq_files[0], initial_file_type_for_log)
-            if total_reads >= MAX_INPUT_READS * len(fastq_files):
-                total_reads = MAX_INPUT_READS * len(fastq_files)
+            max_reads = MAX_INPUT_READS * len(fastq_files)
+            total_reads = count_reads(fastq_files[0], initial_file_type_for_log, max_reads)
+            if total_reads >= max_reads:
+                total_reads = max_reads
                 total_counts_from_star['truncated'] = 1
             total_counts_from_star['total_reads'] = total_reads
 
