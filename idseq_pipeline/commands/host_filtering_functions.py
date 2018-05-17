@@ -702,8 +702,12 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats, 
                        run_star, fastq_files, uploader_start, total_counts_from_star)
         if not total_counts_from_star.get('total_reads'):
             # Total reads not set. Most likely it's lazy run. Damn it. would have to actually count the reads.
-            # TODO: Remove this one we also lazy load the stats.json file
-            total_counts_from_star['total_reads'] = count_reads(fastq_files[0], initial_file_type_for_log)
+            # TODO: Remove this when we also lazy load the stats.json file
+            total_reads = count_reads(fastq_files[0], initial_file_type_for_log)
+            if total_reads >= MAX_INPUT_READS * len(fastq_files):
+                total_reads = MAX_INPUT_READS * len(fastq_files)
+                total_counts_from_star['truncated'] = 1
+            total_counts_from_star['total_reads'] = total_reads
 
         stats.data.append(total_counts_from_star)
         stats.count_reads("run_star",
@@ -858,12 +862,14 @@ def run_stage1(lazy_run=True):
         stats_in.load_from_s3()
         total_reads = stats_in.get_total_reads()
         assert total_reads == int(total_reads)
-        stats.data.append({'total_reads': total_reads})
         write_to_log("Post-filtered input with {total_reads} original total reads.".format(total_reads=total_reads))
     except:
+        total_reads = None
         stats_in = None
         write_to_log("Unfiltered input. Need host filtering")
 
+    if total_reads: # set total reads if available
+        stats.data.append({'total_reads': total_reads})
     # run host filtering
     run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats, stats_in != None)
 
