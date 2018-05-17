@@ -196,11 +196,11 @@ class CommandTracker(Updater):
     def print_update_and_enforce_timeout(self, t_elapsed):
         with print_lock:
             if self.proc == None or self.proc.poll() == None:
-                print "Command %d still running after %3.1f seconds." % (self.id, t_elapsed)
+                print("Command %d still running after %3.1f seconds." % (self.id, t_elapsed))
             else:
                 # This should be uncommon, unless there is lengthy python processing following
                 # the command in the same CommandTracker "with" block.
-                print "Command %d postprocessing after %3.1f seconds." % (self.id, t_elapsed)
+                print("Command %d postprocessing after %3.1f seconds." % (self.id, t_elapsed))
             sys.stdout.flush()
         self.enforce_timeout(t_elapsed)
 
@@ -211,7 +211,7 @@ class CommandTracker(Updater):
         elif not self.t_sigterm_sent:
             # Send SIGTERM first.
             with print_lock:
-                print "Command %d has exceeded timeout of %3.1f seconds.  Sending SIGTERM." % (self.id, self.timeout)
+                print("Command %d has exceeded timeout of %3.1f seconds.  Sending SIGTERM." % (self.id, self.timeout))
                 sys.stdout.flush()
             self.t_sigterm_sent = time.time()
             self.proc.terminate()
@@ -219,13 +219,13 @@ class CommandTracker(Updater):
             # Grace_period after SIGTERM, send SIGKILL.
             if time.time() > self.t_sigterm_sent + self.grace_period:
                 with print_lock:
-                    print "Command %d still alive %3.1f seconds after SIGTERM.  Sending SIGKILL." % (self.id, time.time() - self.t_sigterm_sent)
+                    print("Command %d still alive %3.1f seconds after SIGTERM.  Sending SIGKILL." % (self.id, time.time() - self.t_sigterm_sent))
                     sys.stdout.flush()
                 self.t_sigkill_sent = time.time()
                 self.proc.kill()
         else:
             with print_lock:
-                print "Command %d still alive %3.1f seconds after SIGKILL." % (self.id, time.time() - self.t_sigkill_sent)
+                print("Command %d still alive %3.1f seconds after SIGKILL." % (self.id, time.time() - self.t_sigkill_sent))
                 sys.stdout.flush()
 
 
@@ -312,7 +312,7 @@ def retry(operation, randgen=random.Random().random):
 def execute_command(command, progress_file=None, timeout=None, grace_period=None, capture_stdout=False, merge_stderr=False):
     with CommandTracker() as ct:
         with print_lock:
-            print "Command {}: {}".format(ct.id, command)
+            print("Command {}: {}".format(ct.id, command))
         with ProgressFile(progress_file):
             if timeout:
                 ct.timeout = timeout
@@ -446,7 +446,7 @@ def fetch_from_s3(source, destination, auto_unzip, allow_s3mi=False, mutex=threa
             destdir = os.path.dirname(destination)
             if destdir:
                 os.makedirs(destdir)
-        except OSError, e:
+        except OSError as e:
             # It's okay if the parent directory already exists, but all other errors are fatal.
             if e.errno != os.errno.EEXIST:
                 raise

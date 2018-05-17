@@ -83,7 +83,7 @@ def remove_annotation(read_id):
 def parse_hits(hit_summary_files):
     # Return map of {NT, NR} => read_id => (hit_taxid_str, hit_level_str)
     valid_hits = {}
-    for count_type, summary_file in hit_summary_files.items():
+    for count_type, summary_file in list(hit_summary_files.items()):
         hits = {}
         with open(summary_file, "rb") as sf:
             for hit_line in sf:
@@ -241,7 +241,7 @@ def run_stage3(lazy_run=False):
         'NT':  os.path.join(INPUT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT),
         'NR':  os.path.join(INPUT_DIR, SUMMARY_MULTIHIT_RAPSEARCH_OUT)
     }
-    for local_file in hit_summary_files.values():
+    for local_file in list(hit_summary_files.values()):
         execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH, os.path.basename(local_file), INPUT_DIR))
 
     # generate taxid fasta
