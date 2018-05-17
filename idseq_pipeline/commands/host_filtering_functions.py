@@ -700,6 +700,11 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats, 
              "output_version_file": os.path.join(RESULT_DIR, VERSION_OUT)})
         run_and_log_s3(logparams, target_outputs["run_star"], lazy_run, SAMPLE_S3_OUTPUT_PATH,
                        run_star, fastq_files, uploader_start, total_counts_from_star)
+        if not total_counts_from_star.get('total_reads'):
+            # Total reads not set. Most likely it's lazy run. Damn it. would have to actually count the reads.
+            # TODO: Remove this one we also lazy load the stats.json file
+            total_counts_from_star['total_reads'] = count_reads(fastq_files[0], initial_file_type_for_log)
+
         stats.data.append(total_counts_from_star)
         stats.count_reads("run_star",
                           before_filename=fastq_files[0],
@@ -857,7 +862,7 @@ def run_stage1(lazy_run=True):
         write_to_log("Post-filtered input with {total_reads} original total reads.".format(total_reads=total_reads))
     except:
         stats_in = None
-        write_to_log("Unfiltered input with {total_reads} total reads.".format(total_reads=total_reads))
+        write_to_log("Unfiltered input. Need host filtering")
 
     # run host filtering
     run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats, stats_in != None)
