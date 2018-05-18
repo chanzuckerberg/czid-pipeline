@@ -30,6 +30,9 @@ When merging a commit to master, you need to increase the version number in `ids
 Release notes
 -------------
 
+- 1.7.2
+   - Convert string exceptions and generic exceptions to RuntimeErrors.
+
 - 1.7.1
    - Truncate enormous inputs to 75 mil paired end / 150 mil unpaired reads.
    - Support input fasta with pre-filtered host, e.g. project NID.

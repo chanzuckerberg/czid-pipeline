@@ -204,7 +204,7 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
 
     if error_count > 10:
         # Fail this many and the job is toast
-        raise "Sorry, could not access reference sequences for over {error_count} accession IDs.".format(error_count=error_count)
+        raise RuntimeError("Sorry, could not access reference sequences for over {error_count} accession IDs.".format(error_count=error_count))
 
     def safe_multi_delete(files):
         for f in files:
@@ -273,7 +273,7 @@ def get_sequences_by_accession_list_from_s3(accession_id_groups, nt_loc_dict, nt
     for t in threads:
         t.join()
     if error_flags:
-        raise "Sorry there was an error"
+        raise RuntimeError("Sorry there was an error")
 
 def get_sequence_for_thread(error_flags, accession_info, accession_id, nt_loc_dict, nt_bucket, nt_key, semaphore, mutex, seq_count=[0]): #pylint: disable=dangerous-default-value
     try:

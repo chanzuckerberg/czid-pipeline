@@ -286,7 +286,7 @@ def run_in_subprocess(target):
         p.start()
         p.join()
         if p.exitcode != 0:
-            raise Exception("Failed {} on {}, {}".format(target.__name__, args, kwargs))
+            raise RuntimeError("Failed {} on {}, {}".format(target.__name__, args, kwargs))
     return wrapper
 
 
