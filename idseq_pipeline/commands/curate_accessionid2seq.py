@@ -14,7 +14,7 @@ import traceback
 
 def curate_seq_dict(nt_file, output_db_file):
     """Curate nt/nr accession id to  file offset to get the sequence"""
-    print "Read the nt/nr file"
+    print("Read the nt/nr file")
     # Read the nt/nr file
     taxon_map = shelve.open(output_db_file)
     with open(nt_file) as ntf:
@@ -26,7 +26,7 @@ def curate_seq_dict(nt_file, output_db_file):
         for line in ntf:
             lines += 1
             if lines % 100000 == 0:
-                print "%3.1f M lines. " %  (lines/1000000.0)
+                print("%3.1f M lines. " %  (lines/1000000.0))
             if line[0] == '>': # header line
                 if seq_len > 0 and len(accession_id) > 0:
                     taxon_map[accession_id] = (seq_offset, header_len, seq_len)

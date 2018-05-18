@@ -137,7 +137,7 @@ def generate_lzw_filtered_single(fasta_file, output_prefix, cutoff_fraction):
                 filtered += 1
         else:
             break
-    print "LZW filter: total reads: %d, filtered reads: %d, kept ratio: %f" % (count, filtered, 1 - float(filtered)/count)
+    print("LZW filter: total reads: %d, filtered reads: %d, kept ratio: %f" % (count, filtered, 1 - float(filtered)/count))
     output_read_1.close()
 
 def generate_lzw_filtered_paired(fasta_file_1, fasta_file_2, output_prefix, cutoff_fraction):
@@ -165,7 +165,7 @@ def generate_lzw_filtered_paired(fasta_file_1, fasta_file_2, output_prefix, cuto
                 filtered += 1
         else:
             break
-    print "LZW filter: total reads: %d, filtered reads: %d, kept ratio: %f" % (count, filtered, 1 - float(filtered)/count)
+    print("LZW filter: total reads: %d, filtered reads: %d, kept ratio: %f" % (count, filtered, 1 - float(filtered)/count))
     output_read_1.close()
     output_read_2.close()
 
@@ -843,7 +843,7 @@ def run_stage1(lazy_run=True):
             t.start()
             input_fetchers.append(t)
         else:
-            print "%s doesn't match %s" % (line, FILE_TYPE)
+            print("%s doesn't match %s" % (line, FILE_TYPE))
     for t in input_fetchers:
         t.join()
         assert t.completed and not t.exception
