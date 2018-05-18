@@ -805,7 +805,7 @@ def check_for_errors(mutex, chunk_output_files, input_chunks, what):
             # if a chunk fails on all retries, it must be due to a deterministic & reproducible problem
             # with the chunk data or command options;  we should not even attempt the other chunks
             ei = chunk_output_files.index("error")
-            raise Exception("All retries failed for {} chunk {}.".format(what, input_chunks[ei]))
+            raise RuntimeError("All retries failed for {} chunk {}.".format(what, input_chunks[ei]))
 
 
 def run_generate_unidentified_fasta(input_fa, output_fa):
