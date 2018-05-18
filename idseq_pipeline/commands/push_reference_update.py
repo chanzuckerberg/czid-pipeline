@@ -44,7 +44,7 @@ class Push_reference_update(Base):
         tool_path = install_ncbitool_locally(self.LOCAL_WORK_DIR)
         input_files = [self.nr, self.nt] + self.mapping_files
         date = self.set_index_date(input_files, tool_path)
-        print("FOLDER DATETIME: " + date)
+        print(("FOLDER DATETIME: " + date))
 
         # Run index calls in parallel
         for f in [self.make_gsnap_index, self.make_rapsearch_index, self.make_accession_mapping]:

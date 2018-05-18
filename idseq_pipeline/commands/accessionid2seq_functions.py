@@ -109,7 +109,7 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
 
     read2seq = parse_reads(annotated_fasta, db_type)
 
-    print("Read to Seq dictionary size: %d" % len(read2seq))
+    print(("Read to Seq dictionary size: %d" % len(read2seq)))
 
     # Go through m8 file infer the alignment info. grab the fasta sequence, lineage info
     groups = {}
@@ -119,7 +119,7 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
         for line in m8f:
             line_count += 1
             if line_count % 100000 == 0:
-                print("%d lines in the m8 file processed." % line_count)
+                print(("%d lines in the m8 file processed." % line_count))
             line_columns = line.rstrip().split("\t")
             read_id = line_columns[0]
             seq_info = read2seq.get(read_id)
@@ -140,8 +140,8 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
                 ad['ref_link'] = "https://www.ncbi.nlm.nih.gov/nuccore/%s?report=fasta" % accession_id
                 groups[accession_id] = ad
 
-    print("%d lines in the m8 file" % line_count)
-    print("%d unique accession ids" % len(groups))
+    print(("%d lines in the m8 file" % line_count))
+    print(("%d unique accession ids" % len(groups)))
 
     if nt_file.startswith("s3://"):
         get_sequences_by_accession_list_from_s3(groups, nt_loc_dict, nt_file)
@@ -151,9 +151,9 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
     result_dict = {}
     to_be_deleted = []
     error_count = 0
-    for accession_id, ad in groups.iteritems():
+    for accession_id, ad in groups.items():
         ad['coverage_summary'] = calculate_alignment_coverage(ad)
-    for accession_id, ad in groups.iteritems():
+    for accession_id, ad in groups.items():
         try:
             tmp_file = 'accession-%s' % accession_id
             if ad['ref_seq_len'] <= MAX_SEQ_DISPLAY_SIZE and 'ref_seq' not in ad:
@@ -218,13 +218,13 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
 
     # output json by species, genus, family
     execute_command("mkdir -p %s " % output_json_dir)
-    for (family_id, family_dict) in result_dict.iteritems():
+    for (family_id, family_dict) in result_dict.items():
         with open("%s/%s.family.%d.align_viz.json" %(output_json_dir, db_type.lower(), int(family_id)), 'wb') as outjf:
             json.dump(family_dict, outjf)
-        for (genus_id, genus_dict) in family_dict.iteritems():
+        for (genus_id, genus_dict) in family_dict.items():
             with open("%s/%s.genus.%d.align_viz.json" %(output_json_dir, db_type.lower(), int(genus_id)), 'wb') as outjf:
                 json.dump(genus_dict, outjf)
-            for (species_id, species_dict) in genus_dict.iteritems():
+            for (species_id, species_dict) in genus_dict.items():
                 with open("%s/%s.species.%d.align_viz.json" %(output_json_dir, db_type.lower(), int(species_id)), 'wb') as outjf:
                     json.dump(species_dict, outjf)
 
@@ -250,7 +250,7 @@ def delete_many(files, semaphore=None): #pylint: disable=dangerous-default-value
 
 def get_sequences_by_accession_list_from_file(accession2seq, nt_loc_dict, nt_file):
     with open(nt_file) as ntf:
-        for accession_id, accession_info in accession2seq.iteritems():
+        for accession_id, accession_info in accession2seq.items():
             (ref_seq, seq_name) = get_sequence_by_accession_id_ntf(accession_id, nt_loc_dict, ntf)
             accession_info['ref_seq'] = ref_seq
             accession_info['ref_seq_len'] = len(ref_seq)
@@ -262,7 +262,7 @@ def get_sequences_by_accession_list_from_s3(accession_id_groups, nt_loc_dict, nt
     semaphore = threading.Semaphore(64)
     mutex = threading.RLock()
     nt_bucket, nt_key = nt_s3_path[5:].split("/", 1)
-    for accession_id, accession_info in accession_id_groups.iteritems():
+    for accession_id, accession_info in accession_id_groups.items():
         semaphore.acquire()
         t = threading.Thread(
             target=get_sequence_for_thread,
@@ -283,7 +283,7 @@ def get_sequence_for_thread(error_flags, accession_info, accession_id, nt_loc_di
             accession_info['name'] = seq_name
             seq_count[0] += 1
             if seq_count[0] % 100 == 0:
-                print("%d sequences fetched, most recently %s" % (seq_count[0], accession_id))
+                print(("%d sequences fetched, most recently %s" % (seq_count[0], accession_id)))
     except:
         with mutex:
             if not error_flags:

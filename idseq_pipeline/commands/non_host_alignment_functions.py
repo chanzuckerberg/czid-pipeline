@@ -169,7 +169,7 @@ def subsample_single_fasta(input_files_basename, target_n_reads, randgen=random.
     write_to_log("target reads: %d" % target_n_reads)
     if total_records <= target_n_reads:
         return input_file
-    records_to_keep = set(randgen.sample(xrange(total_records), target_n_reads))
+    records_to_keep = set(randgen.sample(range(total_records), target_n_reads))
     subsample_prefix = "subsample_%d" % target_n_reads
     input_dir, input_basename = os.path.split(input_file)
     output_basename = "%s.%s" % (subsample_prefix, input_basename)
@@ -188,7 +188,7 @@ def subsample_paired_fastas(input_files_basenames, merged_file_basename, target_
     if total_records <= target_n_reads:
         return input_files_basenames, merged_file_basename
     subsample_prefix = "subsample_%d" % target_n_reads
-    records_to_keep = set(randgen.sample(xrange(total_records), target_n_reads))
+    records_to_keep = set(randgen.sample(range(total_records), target_n_reads))
     subsampled_files = []
     known_kept_read_ids = set()
     kept_reads_count = 0
@@ -367,7 +367,7 @@ def generate_taxon_count_json_from_m8(m8_file, hit_level_file, e_value_type, cou
 
     # Produce the final output
     taxon_counts_attributes = []
-    for agg_key, agg_bucket in aggregation.iteritems():
+    for agg_key, agg_bucket in aggregation.items():
         count = agg_bucket['count']
         tax_level = NUM_RANKS - len(agg_key) + 1
         taxon_counts_attributes.append({# TODO: Extend taxonomic ranks as indicated on the commented out lines.
@@ -516,7 +516,7 @@ def wait_for_server_ip_work(service_name, key_path, remote_username, environment
             had_to_wait[0] = False
             # Make an urn where each ip occurs more times if it has more free slots, and not at all if it lacks free slots
             urn = []
-            for ip, nproc in ip_nproc_dict.iteritems():
+            for ip, nproc in ip_nproc_dict.items():
                 free_slots = max_concurrent - nproc
                 if free_slots > 0:
                     weight = 2**free_slots - 1
@@ -704,7 +704,7 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path, output_m
     count = 0
     LOG_INCREMENT = 50000
     write_to_log("Starting to summarize hits for {} read ids from {}.".format(len(m8), input_m8))
-    for read_id, accessions in m8.iteritems():
+    for read_id, accessions in m8.items():
         my_best_evalue = min(acc[1] for acc in accessions)
         hits = [{}, {}, {}]
         for accession_id, e_value in accessions:
@@ -874,7 +874,7 @@ def fetch_and_clean_inputs(input_file_list):
 
     assert (cleaned_inputs[1] == None) == (cleaned_inputs[2] == None), "Input {} is required when {} is given, and vice versa".format(input_file_list[1], input_file_list[2])
 
-    cleaned_inputs = filter(None, cleaned_inputs)
+    cleaned_inputs = [_f for _f in cleaned_inputs if _f]
     assert len(cleaned_inputs) in (1, 3)
 
     return cleaned_inputs
@@ -1120,7 +1120,7 @@ def run_stage2(lazy_run=True):
     t_annotation.join()
     assert thread_succeeded("annotation")
 
-    for thread_name, t in uploader_threads.items():
+    for thread_name, t in list(uploader_threads.items()):
         t.join()
         assert thread_succeeded(thread_name), "thread {} failed".format(thread_name)
 

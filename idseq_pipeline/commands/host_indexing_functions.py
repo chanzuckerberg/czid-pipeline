@@ -78,7 +78,7 @@ def make_star_index(fasta_file, gtf_file, result_dir, scratch_dir, lazy_run):
         fasta_file_list.append(fasta_file)
 
     for i in range(len(fasta_file_list)):
-        print "start making STAR index part %d" % i
+        print("start making STAR index part %d" % i)
         gtf_command_part = ''
         if i == 0 and gtf_file:
             gtf_command_part = '--sjdbGTFfile %s' % gtf_file
@@ -92,7 +92,7 @@ def make_star_index(fasta_file, gtf_file, result_dir, scratch_dir, lazy_run):
                                '--genomeDir', star_genome_part_dir,
                                '--genomeFastaFiles', fasta_file_list[i]]
         execute_command(" ".join(star_command_params))
-        print "finished making STAR index part %d " % i
+        print("finished making STAR index part %d " % i)
     # record # parts into parts.txt
     execute_command(" echo %d > %s/%s/parts.txt" % (len(fasta_file_list), scratch_dir, star_genome_dir_name))
     t = MyThread(target=upload_star_index, args=[result_dir, scratch_dir, star_genome_dir_name])
@@ -111,7 +111,7 @@ def make_bowtie2_index(host_name, fasta_file, result_dir, scratch_dir, lazy_run)
                               'cd', bowtie2_genome_dir_name, ';',
                               BOWTIE2_BUILD, fasta_file, host_name]
     execute_command(" ".join(bowtie2_command_params))
-    print "finished making bowtie2 index"
+    print("finished making bowtie2 index")
     # archive
     execute_command("tar cvf %s/%s -C %s %s" % (result_dir, BOWTIE2_INDEX_OUT, scratch_dir, bowtie2_genome_dir_name))
     # copy to S3
@@ -133,7 +133,7 @@ def make_indexes(version, lazy_run=False):
     execute_command("mkdir -p %s %s %s %s" % (host_dir, fasta_dir, result_dir, scratch_dir_bowtie2))
 
     input_gtf_local = None
-    print INPUT_GTF_S3
+    print(INPUT_GTF_S3)
     if INPUT_GTF_S3:
         input_gtf_local, _version_number = download_reference_locally_with_version_any_source_type(INPUT_GTF_S3, fasta_dir, scratch_dir_star, auto_unzip=True)
 

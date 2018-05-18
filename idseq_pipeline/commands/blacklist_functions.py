@@ -30,4 +30,4 @@ def make_blacklist():
                 accession_id = line.split('|')[3]
                 accession_main = accession_id.split('.')[0]
                 taxon_id = accession2taxid_dict.get(accession_main, '-1')
-                print ",".join([accession_id, taxon_id])
+                print(",".join([accession_id, taxon_id]))

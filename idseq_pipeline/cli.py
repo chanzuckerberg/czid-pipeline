@@ -80,7 +80,7 @@ def main():
     options = docopt(__doc__, version=__version__)
 
     # Match user-entered command
-    for (k, v) in options.items():
+    for (k, v) in list(options.items()):
         if hasattr(idseq_pipeline_commands, k) and v:
             module = getattr(idseq_pipeline_commands, k)
             pipeline_commands = getmembers(module, isclass)
