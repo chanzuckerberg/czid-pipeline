@@ -1,6 +1,7 @@
 """The host-indexing command."""
 from .base import Base
 
+
 class Host_indexing(Base):
     """Perform indexing"""
 

@@ -6,7 +6,7 @@ MAX_STAR_PART_SIZE = 3252010122
 
 # data directories
 # from common import ROOT_DIR
-DEST_DIR = ROOT_DIR + '/idseq/indexes' # generated indexes go here
+DEST_DIR = ROOT_DIR + '/idseq/indexes'  # generated indexes go here
 
 # arguments from environment variables
 INPUT_FASTA_S3 = os.environ.get('INPUT_FASTA_S3')
@@ -21,6 +21,7 @@ BOWTIE2_BUILD = "bowtie2-build"
 # output names
 STAR_INDEX_OUT = 'STAR_genome.tar'
 BOWTIE2_INDEX_OUT = 'bowtie2_genome.tar'
+
 
 ### Functions
 def split_fasta(fasta_file, max_fasta_part_size):
@@ -42,7 +43,7 @@ def split_fasta(fasta_file, max_fasta_part_size):
                 current_output_file = open(current_output_file_name, 'wb')
                 fasta_file_list.append(current_output_file_name)
 
-            if line[0] == '>': # got a new read
+            if line[0] == '>':  # got a new read
                 current_output_file.write(current_read)
                 current_size += len(current_read)
                 current_read = line
@@ -55,9 +56,12 @@ def split_fasta(fasta_file, max_fasta_part_size):
 
 def upload_star_index(result_dir, scratch_dir, star_genome_dir_name):
     # archive
-    execute_command("tar cvf %s/%s -C %s %s" % (result_dir, STAR_INDEX_OUT, scratch_dir, star_genome_dir_name))
+    execute_command("tar cvf %s/%s -C %s %s" %
+                    (result_dir, STAR_INDEX_OUT, scratch_dir,
+                     star_genome_dir_name))
     # copy to S3
-    execute_command("aws s3 cp --quiet %s/%s %s/;" % (result_dir, STAR_INDEX_OUT, OUTPUT_PATH_S3))
+    execute_command("aws s3 cp --quiet %s/%s %s/;" %
+                    (result_dir, STAR_INDEX_OUT, OUTPUT_PATH_S3))
     # cleanup
     execute_command("cd %s; rm -rf *" % scratch_dir)
 
@@ -84,38 +88,46 @@ def make_star_index(fasta_file, gtf_file, result_dir, scratch_dir, lazy_run):
             gtf_command_part = '--sjdbGTFfile %s' % gtf_file
 
         star_genome_part_dir = "%s/part-%d" % (star_genome_dir_name, i)
-        star_command_params = ['cd', scratch_dir, ';',
-                               'mkdir -p ', star_genome_part_dir, ';',
-                               STAR, '--runThreadN', str(multiprocessing.cpu_count()),
-                               '--runMode', 'genomeGenerate',
-                               gtf_command_part,
-                               '--genomeDir', star_genome_part_dir,
-                               '--genomeFastaFiles', fasta_file_list[i]]
+        star_command_params = [
+            'cd', scratch_dir, ';', 'mkdir -p ', star_genome_part_dir, ';',
+            STAR, '--runThreadN',
+            str(multiprocessing.cpu_count()), '--runMode', 'genomeGenerate',
+            gtf_command_part, '--genomeDir', star_genome_part_dir,
+            '--genomeFastaFiles', fasta_file_list[i]
+        ]
         execute_command(" ".join(star_command_params))
         print("finished making STAR index part %d " % i)
     # record # parts into parts.txt
-    execute_command(" echo %d > %s/%s/parts.txt" % (len(fasta_file_list), scratch_dir, star_genome_dir_name))
-    t = MyThread(target=upload_star_index, args=[result_dir, scratch_dir, star_genome_dir_name])
+    execute_command(" echo %d > %s/%s/parts.txt" %
+                    (len(fasta_file_list), scratch_dir, star_genome_dir_name))
+    t = MyThread(
+        target=upload_star_index,
+        args=[result_dir, scratch_dir, star_genome_dir_name])
     t.start()
     return t
 
 
-def make_bowtie2_index(host_name, fasta_file, result_dir, scratch_dir, lazy_run):
+def make_bowtie2_index(host_name, fasta_file, result_dir, scratch_dir,
+                       lazy_run):
     if lazy_run:
         output = os.path.join(result_dir, BOWTIE2_INDEX_OUT)
         if os.path.isfile(output):
             return 1
     bowtie2_genome_dir_name = BOWTIE2_INDEX_OUT.split('.')[0]
-    bowtie2_command_params = ['cd', scratch_dir, ';'
-                              'mkdir', bowtie2_genome_dir_name, ';',
-                              'cd', bowtie2_genome_dir_name, ';',
-                              BOWTIE2_BUILD, fasta_file, host_name]
+    bowtie2_command_params = [
+        'cd', scratch_dir, ';'
+        'mkdir', bowtie2_genome_dir_name, ';', 'cd', bowtie2_genome_dir_name,
+        ';', BOWTIE2_BUILD, fasta_file, host_name
+    ]
     execute_command(" ".join(bowtie2_command_params))
     print("finished making bowtie2 index")
     # archive
-    execute_command("tar cvf %s/%s -C %s %s" % (result_dir, BOWTIE2_INDEX_OUT, scratch_dir, bowtie2_genome_dir_name))
+    execute_command("tar cvf %s/%s -C %s %s" %
+                    (result_dir, BOWTIE2_INDEX_OUT, scratch_dir,
+                     bowtie2_genome_dir_name))
     # copy to S3
-    execute_command("aws s3 cp --quiet %s/%s %s/;" % (result_dir, BOWTIE2_INDEX_OUT, OUTPUT_PATH_S3))
+    execute_command("aws s3 cp --quiet %s/%s %s/;" %
+                    (result_dir, BOWTIE2_INDEX_OUT, OUTPUT_PATH_S3))
     # cleanup
     execute_command("cd %s; rm -rf *" % scratch_dir)
 
@@ -129,15 +141,19 @@ def make_indexes(version, lazy_run=False):
     result_dir = os.path.join(host_dir, 'results')
     scratch_dir_star = os.path.join(host_dir, 'scratch_star')
     scratch_dir_bowtie2 = os.path.join(host_dir, 'scratch_bowtie2')
-    execute_command("mkdir -p %s %s %s %s" % (host_dir, fasta_dir, result_dir, scratch_dir_star))
-    execute_command("mkdir -p %s %s %s %s" % (host_dir, fasta_dir, result_dir, scratch_dir_bowtie2))
+    execute_command("mkdir -p %s %s %s %s" % (host_dir, fasta_dir, result_dir,
+                                              scratch_dir_star))
+    execute_command("mkdir -p %s %s %s %s" % (host_dir, fasta_dir, result_dir,
+                                              scratch_dir_bowtie2))
 
     input_gtf_local = None
     print(INPUT_GTF_S3)
     if INPUT_GTF_S3:
-        input_gtf_local, _version_number = download_reference_locally_with_version_any_source_type(INPUT_GTF_S3, fasta_dir, scratch_dir_star, auto_unzip=True)
+        input_gtf_local, _version_number = download_reference_locally_with_version_any_source_type(
+            INPUT_GTF_S3, fasta_dir, scratch_dir_star, auto_unzip=True)
 
-    input_fasta_local, version_number = download_reference_locally_with_version_any_source_type(INPUT_FASTA_S3, fasta_dir, scratch_dir_star, auto_unzip=True)
+    input_fasta_local, version_number = download_reference_locally_with_version_any_source_type(
+        INPUT_FASTA_S3, fasta_dir, scratch_dir_star, auto_unzip=True)
 
     # unzip if necessary --- this is only necessary when the data did not come from S3, and should really
     # not happen like this here --- should be a streaming unzip instead, like in the fetch function in common.py
@@ -147,19 +163,24 @@ def make_indexes(version, lazy_run=False):
 
     # handle lazy_run
     if lazy_run:
-       # Download existing files and see what has been done
-        command = "aws s3 cp --quiet %s %s --recursive" % (OUTPUT_PATH_S3, result_dir)
+        # Download existing files and see what has been done
+        command = "aws s3 cp --quiet %s %s --recursive" % (OUTPUT_PATH_S3,
+                                                           result_dir)
         execute_command(command)
 
     # make STAR index
-    star_upload_thread = make_star_index(input_fasta_local, input_gtf_local, result_dir, scratch_dir_star, lazy_run)
+    star_upload_thread = make_star_index(input_fasta_local, input_gtf_local,
+                                         result_dir, scratch_dir_star,
+                                         lazy_run)
 
     # make bowtie2 index
-    make_bowtie2_index(host_name, input_fasta_local, result_dir, scratch_dir_bowtie2, lazy_run)
+    make_bowtie2_index(host_name, input_fasta_local, result_dir,
+                       scratch_dir_bowtie2, lazy_run)
 
     star_upload_thread.join()
     assert not star_upload_thread.exception
 
     # upload version tracker file
     if not lazy_run:
-        upload_version_tracker(INPUT_FASTA_S3, HOST_NAME, version_number, OUTPUT_PATH_S3, version)
+        upload_version_tracker(INPUT_FASTA_S3, HOST_NAME, version_number,
+                               OUTPUT_PATH_S3, version)

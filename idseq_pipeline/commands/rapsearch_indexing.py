@@ -1,6 +1,7 @@
 """The rapsearch-indexing command."""
 from .base import Base
 
+
 class Rapsearch_indexing(Base):
     """Make RAPSearch2 index"""
 

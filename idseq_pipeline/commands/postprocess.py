@@ -1,6 +1,7 @@
 """The post-processing command."""
 from .base import Base
 
+
 class Postprocess(Base):
     """Perform post-processing"""
 

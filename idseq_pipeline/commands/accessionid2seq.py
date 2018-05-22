@@ -1,6 +1,7 @@
 """The  accessionid2seq command."""
 from .base import Base
 
+
 class Accessionid2seq(Base):
     """Accessioid2seq"""
 

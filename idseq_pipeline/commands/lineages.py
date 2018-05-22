@@ -1,6 +1,7 @@
 """The lineage command."""
 from .base import Base
 
+
 class Lineages(Base):
     """Make lineage files"""
 

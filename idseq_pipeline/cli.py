@@ -67,12 +67,12 @@ Help:
   https://github.com/chanzuckerberg/idseq-web
 """
 
-
 from inspect import getmembers, isclass
 
 from docopt import docopt
 
 from version import __version__
+
 
 def main():
     """Main CLI entrypoint."""
@@ -84,7 +84,10 @@ def main():
         if hasattr(idseq_pipeline_commands, k) and v:
             module = getattr(idseq_pipeline_commands, k)
             pipeline_commands = getmembers(module, isclass)
-            command = [command[1] for command in pipeline_commands if command[0] != 'Base'][0]
+            command = [
+                command[1] for command in pipeline_commands
+                if command[0] != 'Base'
+            ][0]
             command = command(options)
             command.version = __version__
             command.run()
