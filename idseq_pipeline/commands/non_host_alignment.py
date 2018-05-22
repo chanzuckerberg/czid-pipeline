@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """The non-host-alignment command."""
 from .base import Base
 
@@ -15,5 +17,10 @@ class Non_host_alignment(Base):
             raise RuntimeError(
                 "Stage 1 and 2 run on different version: %s vs %s" %
                 (stage1_version, self.version))
+
+        print("Python version")
+        print(sys.version)
+        print("Version info.")
+        print(sys.version_info)
 
         run_stage2(True)
