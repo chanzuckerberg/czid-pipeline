@@ -403,26 +403,6 @@ def scp(key_path, remote_username, instance_ip, remote_path, local_path):
         local_path=local_path)
 
 
-class TimeFilter(logging.Filter):
-    def __init__(self, *args, **kwargs):
-        super(TimeFilter, self).__init__(*args, **kwargs)
-        self.last = None
-        self.lock = threading.RLock()
-
-    def filter(self, record):
-        with self.lock:
-            last = self.last
-            if last == None:
-                last = record.relativeCreated
-            delta = datetime.datetime.fromtimestamp(
-                record.relativeCreated /
-                1000.0) - datetime.datetime.fromtimestamp(last / 1000.0)
-            record.time_since_last = '{0:.2f}'.format(
-                delta.seconds + delta.microseconds / 1000000.0)
-            self.last = record.relativeCreated
-            return True
-
-
 def percent_str(percent):
     try:
         return "%3.1f" % percent
@@ -467,17 +447,16 @@ def return_merged_dict(dict1, dict2):
 def configure_logger(log_file):
     LOGGER = logging.getLogger()
     LOGGER.setLevel(logging.INFO)
+
     handler = logging.FileHandler(log_file)
-    formatter = logging.Formatter(
-        "%(asctime)s (%(time_since_last)ss elapsed): %(message)s")
-    handler.addFilter(TimeFilter())
+    formatter = logging.Formatter("%(asctime)s: %(message)s")
     handler.setFormatter(formatter)
     LOGGER.addHandler(handler)
-    # echo to stdout so they get to cloudwatch
+
+    # Echo to stdout so they get to CloudWatch
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.INFO)
-    formatter = logging.Formatter(
-        '(%(time_since_last)ss elapsed): %(message)s')
+    formatter = logging.Formatter('%(message)s')
     handler.setFormatter(formatter)
     LOGGER.addHandler(handler)
 
