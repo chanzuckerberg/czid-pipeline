@@ -1092,6 +1092,7 @@ def fetch_and_clean_inputs(input_file_list):
 
 
 def run_stage2(lazy_run=True):
+    print("STAGE TWO TIME")
     # make local directories
     execute_command("mkdir -p %s %s %s %s %s" %
                     (SAMPLE_DIR, FASTQ_DIR, RESULT_DIR, CHUNKS_RESULT_DIR,

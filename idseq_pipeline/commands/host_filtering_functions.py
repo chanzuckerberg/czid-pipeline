@@ -1005,6 +1005,7 @@ def upload_pipeline_version_file():
 
 
 def run_stage1(lazy_run=True):
+    print("STAGE ONE TIME")
     execute_command("mkdir -p %s %s %s %s" % (SAMPLE_DIR, FASTQ_DIR,
                                               RESULT_DIR, SCRATCH_DIR))
     execute_command("mkdir -p %s " % REF_DIR)
