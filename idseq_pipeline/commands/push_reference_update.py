@@ -18,12 +18,12 @@ class Push_reference_update(Base):
         self.nt = "/blast/db/FASTA/nt.gz"
         self.mapping_files = [
             "/pub/taxonomy/accession2taxid/nucl_est.accession2taxid.gz",
-              "/pub/taxonomy/accession2taxid/nucl_gb.accession2taxid.gz",
-              "/pub/taxonomy/accession2taxid/nucl_gss.accession2taxid.gz",
-              "/pub/taxonomy/accession2taxid/nucl_wgs.accession2taxid.gz",
-              "/pub/taxonomy/accession2taxid/pdb.accession2taxid.gz",
-              "/pub/taxonomy/accession2taxid/prot.accession2taxid.gz"
-                              ]
+            "/pub/taxonomy/accession2taxid/nucl_gb.accession2taxid.gz",
+            "/pub/taxonomy/accession2taxid/nucl_gss.accession2taxid.gz",
+            "/pub/taxonomy/accession2taxid/nucl_wgs.accession2taxid.gz",
+            "/pub/taxonomy/accession2taxid/pdb.accession2taxid.gz",
+            "/pub/taxonomy/accession2taxid/prot.accession2taxid.gz"
+        ]
 
     def run(self):
         ##### PARAMETERS TO EDIT #####
@@ -37,7 +37,10 @@ class Push_reference_update(Base):
         env_set_if_blank("RAPSEARCH_SERVER_IP", "54.191.193.210")
         env_set_if_blank("GSNAP_SERVER_IP", "34.211.67.166")
         env_set_if_blank("DEST_PREFIX", "s3://idseq-database")
-        env_set_if_blank("PREV_ACC_MAPPING", "s3://idseq-database/alignment_data/2018-04-01-utc-1522569777-unixtime__2018-04-04-utc-1522862260-unixtime/accession2taxid.db")
+        env_set_if_blank(
+            "PREV_ACC_MAPPING",
+            "s3://idseq-database/alignment_data/2018-04-01-utc-1522569777-unixtime__2018-04-04-utc-1522862260-unixtime/accession2taxid.db"
+        )
 
         ##### COMMANDS #####
         os.system("mkdir -p %s" % self.LOCAL_WORK_DIR)
@@ -47,8 +50,11 @@ class Push_reference_update(Base):
         print("FOLDER DATETIME: " + date)
 
         # Run index calls in parallel
-        for f in [self.make_gsnap_index, self.make_rapsearch_index, self.make_accession_mapping]:
-            t = threading.Thread(target=f, args=(date,))
+        for f in [
+                self.make_gsnap_index, self.make_rapsearch_index,
+                self.make_accession_mapping
+        ]:
+            t = threading.Thread(target=f, args=(date, ))
             t.start()
 
     def make_gsnap_index(self, date):
@@ -84,7 +90,8 @@ class Push_reference_update(Base):
         for f in input_files:
             # Time from ncbitool is already in UTC. Get max date in input file set.
             command = "%s file %s" % (tool_path, f)
-            output = execute_command_with_output(command).split("File Info: ")[1]
+            output = execute_command_with_output(command).split("File Info: ")[
+                1]
             date = json.loads(output)["ModTime"]
             date = dt.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S")
             if maxe is None or date > maxe:
@@ -98,7 +105,8 @@ class Push_reference_update(Base):
         # Format current timestamp
         now = dt.datetime.utcnow()
         utime = str(int(time.time()))
-        now_str = dt.datetime.strftime(now, "%Y-%m-%d-utc-") + utime + "-unixtime"
+        now_str = dt.datetime.strftime(now,
+                                       "%Y-%m-%d-utc-") + utime + "-unixtime"
 
         res = source_str + "__" + now_str
         return res

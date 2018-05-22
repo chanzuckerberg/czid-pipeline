@@ -8,24 +8,25 @@ from collections import defaultdict
 
 import subprocess
 try:
-    from subprocess import DEVNULL #pylint: disable=no-name-in-module
+    from subprocess import DEVNULL  #pylint: disable=no-name-in-module
 except:
     DEVNULL = open(os.devnull, "r+b")
 
-from .common import * #pylint: disable=wildcard-import
+from .common import *  #pylint: disable=wildcard-import
 
 REF_DISPLAY_RANGE = 100
 MAX_SEQ_DISPLAY_SIZE = 6000
 
-
 # Test with the following function call
 # generate_alignment_viz_json('../../nt','nt.db','NT', 'taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8', 'taxid_annot_sorted_nt.fasta', 'align_viz')
+
 
 def parse_reads(annotated_fasta, db_type):
     read2seq = {}
 
     search_string = "species_%s" % (db_type.lower())
-    adv_search_string = "family_%s:([-\d]+):.*genus_%s:([-\d]+):.*species_%s:([-\d]+).*NT:[^:]*:(.*)" % (db_type.lower(), db_type.lower(), db_type.lower())
+    adv_search_string = "family_%s:([-\d]+):.*genus_%s:([-\d]+):.*species_%s:([-\d]+).*NT:[^:]*:(.*)" % (
+        db_type.lower(), db_type.lower(), db_type.lower())
 
     with open(annotated_fasta, 'r') as af:
         read_id = ''
@@ -38,11 +39,17 @@ def parse_reads(annotated_fasta, db_type):
                 m = re.search("%s:([\d-]*)" % search_string, read_id)
                 if m:
                     species_id = int(m.group(1))
-                    if species_id > 0 or species_id < INVALID_CALL_BASE_ID: # it's a match
+                    if species_id > 0 or species_id < INVALID_CALL_BASE_ID:  # it's a match
                         ma = re.search(adv_search_string, read_id)
                         if ma:
-                            read2seq[ma.group(4).rstrip()] = [sequence.rstrip(), ma.group(1), ma.group(2), ma.group(3)]
+                            read2seq[ma.group(4).rstrip()] = [
+                                sequence.rstrip(),
+                                ma.group(1),
+                                ma.group(2),
+                                ma.group(3)
+                            ]
     return read2seq
+
 
 def compress_coverage(coverage):
     keys = sorted(coverage.keys())
@@ -55,7 +62,7 @@ def compress_coverage(coverage):
     val = coverage[start]
 
     for k in keys[1:]:
-        if (k-current) == 1 and coverage[k] == val:
+        if (k - current) == 1 and coverage[k] == val:
             current = k
         else:
             output["%d-%d" % (start, current)] = val
@@ -69,12 +76,13 @@ def compress_coverage(coverage):
 
 def calculate_alignment_coverage(alignment_data):
     ref_len = alignment_data['ref_seq_len']
-    coverage = defaultdict(lambda: 0) # implement it in a dumb way for now. change later
+    coverage = defaultdict(
+        lambda: 0)  # implement it in a dumb way for now. change later
     output = {
         'ref_seq_len': ref_len,
         'total_read_length': 0,
-        'total_aligned_length' : 0,
-        'total_mismatched_length' : 0,
+        'total_aligned_length': 0,
+        'total_mismatched_length': 0,
         'num_reads': 0
     }
     if ref_len == 0:
@@ -85,7 +93,7 @@ def calculate_alignment_coverage(alignment_data):
         m8_metrics = read[2]
         ref_start = int(m8_metrics[-4])
         ref_end = int(m8_metrics[-3])
-        if ref_start > ref_end: # SWAP
+        if ref_start > ref_end:  # SWAP
             (ref_start, ref_end) = (ref_end, ref_start)
         ref_start -= 1
         output['total_read_length'] += len(seq)
@@ -98,9 +106,9 @@ def calculate_alignment_coverage(alignment_data):
     output['coverage'] = compress_coverage(coverage)
     return output
 
-def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
-                                annotated_m8, annotated_fasta,
-                                output_json_dir):
+
+def generate_alignment_viz_json(nt_file, nt_loc_db, db_type, annotated_m8,
+                                annotated_fasta, output_json_dir):
     """Generate alignment details from the reference sequence, m8 and annotated fasta """
     # Go through annotated_fasta with a db_type (NT/NR match).  Infer the family/genus/species info
 
@@ -128,15 +136,20 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
                 metrics = line_columns[2:]
                 # "ad" is short for "accession_dict" aka "accession_info"
                 ad = groups.get(accession_id, {'reads': []})
-                sequence, ad['family_id'], ad['genus_id'], ad['species_id'] = seq_info
+                sequence, ad['family_id'], ad['genus_id'], ad[
+                    'species_id'] = seq_info
                 ref_start = int(metrics[-4])
                 ref_end = int(metrics[-3])
-                if ref_start > ref_end: # SWAP
+                if ref_start > ref_end:  # SWAP
                     (ref_start, ref_end) = (ref_end, ref_start)
                 ref_start -= 1
-                prev_start = (ref_start - REF_DISPLAY_RANGE) if (ref_start - REF_DISPLAY_RANGE) > 0 else 0
+                prev_start = (ref_start - REF_DISPLAY_RANGE
+                              ) if (ref_start - REF_DISPLAY_RANGE) > 0 else 0
                 post_end = ref_end + REF_DISPLAY_RANGE
-                ad['reads'].append([read_id, sequence, metrics, (prev_start, ref_start, ref_end, post_end)])
+                ad['reads'].append([
+                    read_id, sequence, metrics, (prev_start, ref_start,
+                                                 ref_end, post_end)
+                ])
                 ad['ref_link'] = "https://www.ncbi.nlm.nih.gov/nuccore/%s?report=fasta" % accession_id
                 groups[accession_id] = ad
 
@@ -167,7 +180,10 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
                 ref_seq = ad['ref_seq']
                 for read in ad['reads']:
                     prev_start, ref_start, ref_end, post_end = read[3]
-                    read[3] = [ref_seq[prev_start:ref_start], ref_seq[ref_start:ref_end], ref_seq[ref_end:post_end]]
+                    read[3] = [
+                        ref_seq[prev_start:ref_start],
+                        ref_seq[ref_start:ref_end], ref_seq[ref_end:post_end]
+                    ]
             else:
                 # the reference sequence is too long to read entirely in RAM, so we only read the mapped segments
                 tmp_file = 'accession-%s' % accession_id
@@ -178,14 +194,17 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
                         segment = tf.read(post_end - prev_start)
                         read[3] = [
                             segment[0:(ref_start - prev_start)],
-                            segment[(ref_start - prev_start):(ref_end - prev_start)],
-                            segment[(ref_end - prev_start):(post_end - prev_start)]
+                            segment[(ref_start - prev_start):(
+                                ref_end - prev_start)],
+                            segment[(ref_end - prev_start):(
+                                post_end - prev_start)]
                         ]
                 to_be_deleted.append(tmp_file)
             if ad['ref_seq_len'] > MAX_SEQ_DISPLAY_SIZE:
                 ad['ref_seq'] = '...Reference Seq Too Long ...'
         except:
-            ad['ref_seq'] = "ERROR ACCESSING REFERENCE SEQUENCE FOR ACCESSION ID {}".format(accession_id)
+            ad['ref_seq'] = "ERROR ACCESSING REFERENCE SEQUENCE FOR ACCESSION ID {}".format(
+                accession_id)
             if error_count == 0:
                 # print stack trace for first error
                 traceback.print_exc()
@@ -204,7 +223,9 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
 
     if error_count > 10:
         # Fail this many and the job is toast
-        raise RuntimeError("Sorry, could not access reference sequences for over {error_count} accession IDs.".format(error_count=error_count))
+        raise RuntimeError(
+            "Sorry, could not access reference sequences for over {error_count} accession IDs.".
+            format(error_count=error_count))
 
     def safe_multi_delete(files):
         for f in files:
@@ -213,31 +234,41 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type,
             except:
                 pass
 
-    deleter_thread = threading.Thread(target=safe_multi_delete, args=[to_be_deleted])
+    deleter_thread = threading.Thread(
+        target=safe_multi_delete, args=[to_be_deleted])
     deleter_thread.start()
 
     # output json by species, genus, family
     execute_command("mkdir -p %s " % output_json_dir)
     for (family_id, family_dict) in result_dict.iteritems():
-        with open("%s/%s.family.%d.align_viz.json" %(output_json_dir, db_type.lower(), int(family_id)), 'wb') as outjf:
+        with open("%s/%s.family.%d.align_viz.json" % (output_json_dir,
+                                                      db_type.lower(),
+                                                      int(family_id)),
+                  'wb') as outjf:
             json.dump(family_dict, outjf)
         for (genus_id, genus_dict) in family_dict.iteritems():
-            with open("%s/%s.genus.%d.align_viz.json" %(output_json_dir, db_type.lower(), int(genus_id)), 'wb') as outjf:
+            with open("%s/%s.genus.%d.align_viz.json" % (output_json_dir,
+                                                         db_type.lower(),
+                                                         int(genus_id)),
+                      'wb') as outjf:
                 json.dump(genus_dict, outjf)
             for (species_id, species_dict) in genus_dict.iteritems():
-                with open("%s/%s.species.%d.align_viz.json" %(output_json_dir, db_type.lower(), int(species_id)), 'wb') as outjf:
+                with open("%s/%s.species.%d.align_viz.json" %
+                          (output_json_dir, db_type.lower(),
+                           int(species_id)), 'wb') as outjf:
                     json.dump(species_dict, outjf)
 
     deleter_thread.join()
 
-    summary = "Read2Seq Size: %d, M8 lines %d, %d unique accession ids" % (len(read2seq), line_count, len(groups))
+    summary = "Read2Seq Size: %d, M8 lines %d, %d unique accession ids" % (
+        len(read2seq), line_count, len(groups))
     summary_file_name = "%s.summary" % output_json_dir
     with open(summary_file_name, 'w') as summaryf:
         summaryf.write(summary)
     return summary_file_name
 
 
-def delete_many(files, semaphore=None): #pylint: disable=dangerous-default-value
+def delete_many(files, semaphore=None):  #pylint: disable=dangerous-default-value
     try:
         for f in files:
             os.remove(f)
@@ -248,15 +279,20 @@ def delete_many(files, semaphore=None): #pylint: disable=dangerous-default-value
         if semaphore:
             semaphore.release()
 
-def get_sequences_by_accession_list_from_file(accession2seq, nt_loc_dict, nt_file):
+
+def get_sequences_by_accession_list_from_file(accession2seq, nt_loc_dict,
+                                              nt_file):
     with open(nt_file) as ntf:
         for accession_id, accession_info in accession2seq.iteritems():
-            (ref_seq, seq_name) = get_sequence_by_accession_id_ntf(accession_id, nt_loc_dict, ntf)
+            (ref_seq, seq_name) = get_sequence_by_accession_id_ntf(
+                accession_id, nt_loc_dict, ntf)
             accession_info['ref_seq'] = ref_seq
             accession_info['ref_seq_len'] = len(ref_seq)
             accession_info['name'] = seq_name
 
-def get_sequences_by_accession_list_from_s3(accession_id_groups, nt_loc_dict, nt_s3_path):
+
+def get_sequences_by_accession_list_from_s3(accession_id_groups, nt_loc_dict,
+                                            nt_s3_path):
     threads = []
     error_flags = {}
     semaphore = threading.Semaphore(64)
@@ -266,8 +302,10 @@ def get_sequences_by_accession_list_from_s3(accession_id_groups, nt_loc_dict, nt
         semaphore.acquire()
         t = threading.Thread(
             target=get_sequence_for_thread,
-            args=[error_flags, accession_info, accession_id, nt_loc_dict, nt_bucket, nt_key, semaphore, mutex]
-        )
+            args=[
+                error_flags, accession_info, accession_id, nt_loc_dict,
+                nt_bucket, nt_key, semaphore, mutex
+            ])
         t.start()
         threads.append(t)
     for t in threads:
@@ -275,15 +313,26 @@ def get_sequences_by_accession_list_from_s3(accession_id_groups, nt_loc_dict, nt
     if error_flags:
         raise RuntimeError("Sorry there was an error")
 
-def get_sequence_for_thread(error_flags, accession_info, accession_id, nt_loc_dict, nt_bucket, nt_key, semaphore, mutex, seq_count=[0]): #pylint: disable=dangerous-default-value
+
+def get_sequence_for_thread(error_flags,
+                            accession_info,
+                            accession_id,
+                            nt_loc_dict,
+                            nt_bucket,
+                            nt_key,
+                            semaphore,
+                            mutex,
+                            seq_count=[0]):  #pylint: disable=dangerous-default-value
     try:
-        (ref_seq_len, seq_name) = get_sequence_by_accession_id_s3(accession_id, nt_loc_dict, nt_bucket, nt_key)
+        (ref_seq_len, seq_name) = get_sequence_by_accession_id_s3(
+            accession_id, nt_loc_dict, nt_bucket, nt_key)
         with mutex:
             accession_info['ref_seq_len'] = ref_seq_len
             accession_info['name'] = seq_name
             seq_count[0] += 1
             if seq_count[0] % 100 == 0:
-                print("%d sequences fetched, most recently %s" % (seq_count[0], accession_id))
+                print("%d sequences fetched, most recently %s" %
+                      (seq_count[0], accession_id))
     except:
         with mutex:
             if not error_flags:
@@ -291,6 +340,7 @@ def get_sequence_for_thread(error_flags, accession_info, accession_id, nt_loc_di
             error_flags["error"] = 1
     finally:
         semaphore.release()
+
 
 def get_sequence_by_accession_id_ntf(accession_id, nt_loc_dict, ntf):
     ref_seq = ''
@@ -305,7 +355,9 @@ def get_sequence_by_accession_id_ntf(accession_id, nt_loc_dict, ntf):
         seq_name = seq_name.split(" ", 1)[1]
     return (ref_seq, seq_name)
 
-def get_sequence_by_accession_id_s3(accession_id, nt_loc_dict, nt_bucket, nt_key):
+
+def get_sequence_by_accession_id_s3(accession_id, nt_loc_dict, nt_bucket,
+                                    nt_key):
     seq_len = 0
     seq_name = ''
     entry = nt_loc_dict.get(accession_id)
@@ -316,18 +368,26 @@ def get_sequence_by_accession_id_s3(accession_id, nt_loc_dict, nt_bucket, nt_key
         NUM_RETRIES = 3
         for attempt in range(NUM_RETRIES):
             try:
-                pipe_file = 'pipe-{attempt}-accession-{accession_id}'.format(attempt=attempt, accession_id=accession_id)
+                pipe_file = 'pipe-{attempt}-accession-{accession_id}'.format(
+                    attempt=attempt, accession_id=accession_id)
                 os.mkfifo(pipe_file)
-                get_range = "aws s3api get-object --range bytes=%d-%d --bucket %s --key %s %s" % (range_start, range_start + name_length + seq_len - 1, nt_bucket, nt_key, pipe_file)
-                get_range_proc = subprocess.Popen(get_range, shell=True, stdout=DEVNULL)
-                seq_name = subprocess.check_output("cat {pipe_file} |tee >(tail -n+2 |tr -d '\n' > {accession_file}) |head -1 ".format(pipe_file=pipe_file, accession_file=accession_file), executable='/bin/bash', shell=True).split(" ", 1)[1]
+                get_range = "aws s3api get-object --range bytes=%d-%d --bucket %s --key %s %s" % (
+                    range_start, range_start + name_length + seq_len - 1,
+                    nt_bucket, nt_key, pipe_file)
+                get_range_proc = subprocess.Popen(
+                    get_range, shell=True, stdout=DEVNULL)
+                seq_name = subprocess.check_output(
+                    "cat {pipe_file} |tee >(tail -n+2 |tr -d '\n' > {accession_file}) |head -1 ".
+                    format(pipe_file=pipe_file, accession_file=accession_file),
+                    executable='/bin/bash',
+                    shell=True).split(" ", 1)[1]
                 exitcode = get_range_proc.wait()
                 assert exitcode == 0
                 seq_len = os.stat(accession_file).st_size
                 break
             except:
-                if attempt+1 < NUM_RETRIES:
-                    time.sleep(1.0 * (4 ** attempt))
+                if attempt + 1 < NUM_RETRIES:
+                    time.sleep(1.0 * (4**attempt))
                 else:
                     raise
             finally:
@@ -336,6 +396,7 @@ def get_sequence_by_accession_id_s3(accession_id, nt_loc_dict, nt_bucket, nt_key
                 except:
                     pass
     return (seq_len, seq_name)
+
 
 def accessionid2seq_main(arguments):
 
@@ -351,24 +412,31 @@ def accessionid2seq_main(arguments):
     output_json_s3_path = arguments.get('--output_json_s3_path')
     output_json_s3_path = arguments.get('--output_json_s3_path').rstrip('/')
 
-    db_path = arguments.get('--local_db_path') # Try to get local file first
+    db_path = arguments.get('--local_db_path')  # Try to get local file first
 
-
-    local_db_loc_path = os.path.join(dest_dir, os.path.basename(s3_db_loc_path))
-    local_fasta_path = os.path.join(dest_dir, os.path.basename(input_fasta_s3_path))
+    local_db_loc_path = os.path.join(dest_dir,
+                                     os.path.basename(s3_db_loc_path))
+    local_fasta_path = os.path.join(dest_dir,
+                                    os.path.basename(input_fasta_s3_path))
     local_m8_path = os.path.join(dest_dir, os.path.basename(input_m8_s3_path))
     local_json_path = os.path.join(dest_dir, "align_viz")
 
     if not db_path:
         db_path = s3_db_path
-    execute_command("aws s3 cp --quiet %s %s" %(s3_db_loc_path, local_db_loc_path))
-    execute_command("aws s3 cp --quiet %s %s" %(input_fasta_s3_path, local_fasta_path))
-    execute_command("aws s3 cp --quiet %s %s" %(input_m8_s3_path, local_m8_path))
-    summary_file_name = generate_alignment_viz_json(db_path, local_db_loc_path, db_type,
-                                                    local_m8_path, local_fasta_path, local_json_path)
+    execute_command("aws s3 cp --quiet %s %s" % (s3_db_loc_path,
+                                                 local_db_loc_path))
+    execute_command("aws s3 cp --quiet %s %s" % (input_fasta_s3_path,
+                                                 local_fasta_path))
+    execute_command("aws s3 cp --quiet %s %s" % (input_m8_s3_path,
+                                                 local_m8_path))
+    summary_file_name = generate_alignment_viz_json(
+        db_path, local_db_loc_path, db_type, local_m8_path, local_fasta_path,
+        local_json_path)
     # copy the data over
-    execute_command("aws s3 cp --quiet %s %s --recursive" % (local_json_path, output_json_s3_path))
-    execute_command("aws s3 cp --quiet %s %s/" % (summary_file_name, os.path.dirname(output_json_s3_path)))
+    execute_command("aws s3 cp --quiet %s %s --recursive" %
+                    (local_json_path, output_json_s3_path))
+    execute_command("aws s3 cp --quiet %s %s/" %
+                    (summary_file_name, os.path.dirname(output_json_s3_path)))
 
     # Clean up
     execute_command("rm -rf %s" % dest_dir)

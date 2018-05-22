@@ -1,6 +1,7 @@
 """The gsnap-indexing command."""
 from .base import Base
 
+
 class Gsnap_indexing(Base):
     """Make GSNAP index"""
 

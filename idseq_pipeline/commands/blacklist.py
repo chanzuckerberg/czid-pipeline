@@ -1,6 +1,7 @@
 """The blacklist command."""
 from .base import Base
 
+
 class Blacklist(Base):
     """Generate blacklist"""
 

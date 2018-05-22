@@ -1,5 +1,6 @@
 """The base command."""
 
+
 class Base(object):
     """A base command."""
 
@@ -10,4 +11,5 @@ class Base(object):
         self.version = None
 
     def run(self):
-        raise NotImplementedError('You must implement the run() method yourself!')
+        raise NotImplementedError(
+            'You must implement the run() method yourself!')

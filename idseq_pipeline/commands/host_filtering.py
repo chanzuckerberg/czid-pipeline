@@ -1,6 +1,7 @@
 """The host-filtering command."""
 from .base import Base
 
+
 class Host_filtering(Base):
     """Perform host filtering"""
 
