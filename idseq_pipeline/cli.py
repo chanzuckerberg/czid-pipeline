@@ -71,12 +71,12 @@ from inspect import getmembers, isclass
 
 from docopt import docopt
 
-from version import __version__
+from .version import __version__
 
 
 def main():
     """Main CLI entrypoint."""
-    import commands as idseq_pipeline_commands
+    from . import commands as idseq_pipeline_commands
     options = docopt(__doc__, version=__version__)
 
     # Match user-entered command

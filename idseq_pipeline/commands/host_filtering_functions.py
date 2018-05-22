@@ -792,7 +792,7 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
     def uploader_check_wait_all():
         for t in uploader_threads:
             t.join()
-        for filename, status in uploader_status.iteritems():
+        for filename, status in uploader_status.items():
             assert status == "success", "Bad upload status {} for file {}".format(
                 status, filename)
 
