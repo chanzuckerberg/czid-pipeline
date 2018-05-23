@@ -90,7 +90,7 @@ def result_dir(basename):
 
 
 CHUNKS_RESULT_DIR = result_dir("chunks")
-DEFAULT_LOGPARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH}
+DEFAULT_LOG_PARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH}
 
 # For reproducibility of random operations
 random.seed(hash(SAMPLE_NAME))
@@ -1079,9 +1079,9 @@ def fetch_and_clean_inputs(input_file_list):
         input_file_list[0])
 
     assert (cleaned_inputs[1] is None) == (
-        cleaned_inputs[2] is None
-    ), "Input {} is required when {} is given, and vice versa".format(
-        input_file_list[1], input_file_list[2])
+        cleaned_inputs[2] is
+        None), "Input {} is required when {} is given, and vice versa".format(
+            input_file_list[1], input_file_list[2])
 
     cleaned_inputs = filter(None, cleaned_inputs)
     assert len(cleaned_inputs) in (1, 3)
@@ -1090,12 +1090,14 @@ def fetch_and_clean_inputs(input_file_list):
 
 
 def run_stage2(lazy_run=True):
-    # make local directories
+    write_to_log("Starting stage...")
+
+    # Make local directories
     execute_command("mkdir -p %s %s %s %s %s" %
                     (SAMPLE_DIR, FASTQ_DIR, RESULT_DIR, CHUNKS_RESULT_DIR,
                      REF_DIR))
 
-    # configure logger
+    # Configure logger
     log_file = "%s/%s.%s.txt" % (RESULT_DIR, LOGS_OUT_BASENAME,
                                  AWS_BATCH_JOB_ID)
     configure_logger(log_file)
@@ -1134,12 +1136,13 @@ def run_stage2(lazy_run=True):
     gsnapl_input_files = [os.path.basename(f) for f in cleaned_inputs[:2]]
     merged_fasta = cleaned_inputs[-1]
     before_file_name_for_log = cleaned_inputs[0]
-    before_file_type_for_log = "fasta_paired" if len(
-        gsnapl_input_files) == 2 else "fasta"  # unpaired
+    before_file_type_for_log = "fasta"  # Unpaired
+    if len(gsnapl_input_files) == 2:
+        before_file_type_for_log = "fasta_paired"
 
+    # Track if threads succeeded
     thread_success = {}
     thread_success_lock = threading.RLock()
-
     uploader_threads = {}
 
     def upload(thread_name, local_path, s3_path):
@@ -1148,7 +1151,8 @@ def run_stage2(lazy_run=True):
         with thread_success_lock:
             thread_success[thread_name] = True
 
-    # subsample if specified
+    # Subsample if specified. Use a lock and thread structure to execute the steps with
+    # parallelism.
     if SUBSAMPLE:
         target_n_reads = int(SUBSAMPLE)
         if len(gsnapl_input_files) == 2:
@@ -1159,8 +1163,10 @@ def run_stage2(lazy_run=True):
             subsampled_merged_fasta = subsample_single_fasta(
                 gsnapl_input_files[0], target_n_reads)
             subsampled_gsnapl_input_files = [subsampled_merged_fasta]
+
         gsnapl_input_files = subsampled_gsnapl_input_files
         merged_fasta = result_dir(subsampled_merged_fasta)
+
         for i, f in enumerate(gsnapl_input_files):
             thread_name = "uploader_{}".format(i)
             uploader_threads[thread_name] = threading.Thread(
@@ -1168,6 +1174,7 @@ def run_stage2(lazy_run=True):
                 args=[thread_name,
                       result_dir(f), SAMPLE_S3_OUTPUT_PATH + "/"])
             uploader_threads[thread_name].start()
+
         if len(gsnapl_input_files) == 2:
             thread_name = "uploader_{}".format(len(gsnapl_input_files))
             uploader_threads[thread_name] = threading.Thread(
@@ -1179,14 +1186,14 @@ def run_stage2(lazy_run=True):
     deuterostome_fetcher.start()
 
     def run_gsnap():
-        # run gsnap remotely
-        logparams = return_merged_dict(
-            DEFAULT_LOGPARAMS, {
+        # Run GSNAP remotely
+        log_params = return_merged_dict(
+            DEFAULT_LOG_PARAMS, {
                 "title": "GSNAPL",
                 "version_file_s3": GSNAP_VERSION_FILE_S3,
                 "output_version_file": result_dir(VERSION_OUT)
             })
-        run_and_log_s3(logparams, [result_dir(MULTIHIT_GSNAPL_OUT)], lazy_run,
+        run_and_log_s3(log_params, [result_dir(MULTIHIT_GSNAPL_OUT)], lazy_run,
                        SAMPLE_S3_OUTPUT_PATH, run_remotely, gsnapl_input_files,
                        "gsnap", lazy_run)
 
@@ -1217,13 +1224,13 @@ def run_stage2(lazy_run=True):
             thread_success["gsnap"] = True
 
     def run_rapsearch2():
-        logparams = return_merged_dict(
-            DEFAULT_LOGPARAMS, {
+        log_params = return_merged_dict(
+            DEFAULT_LOG_PARAMS, {
                 "title": "RAPSearch2",
                 "version_file_s3": RAPSEARCH_VERSION_FILE_S3,
                 "output_version_file": result_dir(VERSION_OUT)
             })
-        run_and_log_s3(logparams, [result_dir(MULTIHIT_RAPSEARCH_OUT)],
+        run_and_log_s3(log_params, [result_dir(MULTIHIT_RAPSEARCH_OUT)],
                        lazy_run, SAMPLE_S3_OUTPUT_PATH, run_remotely,
                        [merged_fasta], "rapsearch", lazy_run)
 
@@ -1282,10 +1289,10 @@ def run_stage2(lazy_run=True):
             result_dir(DEDUP_MULTIHIT_RAPSEARCH_OUT),
             result_dir(ACCESSION_ANNOTATED_FASTA))
 
-        logparams = return_merged_dict(
-            DEFAULT_LOGPARAMS,
+        log_params = return_merged_dict(
+            DEFAULT_LOG_PARAMS,
             {"title": "generate FASTA of unidentified reads"})
-        run_and_log_eager(logparams, [result_dir(UNIDENTIFIED_FASTA_OUT)],
+        run_and_log_eager(log_params, [result_dir(UNIDENTIFIED_FASTA_OUT)],
                           run_generate_unidentified_fasta,
                           result_dir(ACCESSION_ANNOTATED_FASTA),
                           result_dir(UNIDENTIFIED_FASTA_OUT))
