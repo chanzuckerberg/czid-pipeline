@@ -90,7 +90,7 @@ def result_dir(basename):
 
 
 CHUNKS_RESULT_DIR = result_dir("chunks")
-DEFAULT_LOGPARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH}
+DEFAULT_LOG_PARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH}
 
 # For reproducibility of random operations
 random.seed(hash(SAMPLE_NAME))
@@ -1180,13 +1180,13 @@ def run_stage2(lazy_run=True):
 
     def run_gsnap():
         # run gsnap remotely
-        logparams = return_merged_dict(
-            DEFAULT_LOGPARAMS, {
+        log_params = return_merged_dict(
+            DEFAULT_LOG_PARAMS, {
                 "title": "GSNAPL",
                 "version_file_s3": GSNAP_VERSION_FILE_S3,
                 "output_version_file": result_dir(VERSION_OUT)
             })
-        run_and_log_s3(logparams, [result_dir(MULTIHIT_GSNAPL_OUT)], lazy_run,
+        run_and_log_s3(log_params, [result_dir(MULTIHIT_GSNAPL_OUT)], lazy_run,
                        SAMPLE_S3_OUTPUT_PATH, run_remotely, gsnapl_input_files,
                        "gsnap", lazy_run)
 
@@ -1217,13 +1217,13 @@ def run_stage2(lazy_run=True):
             thread_success["gsnap"] = True
 
     def run_rapsearch2():
-        logparams = return_merged_dict(
-            DEFAULT_LOGPARAMS, {
+        log_params = return_merged_dict(
+            DEFAULT_LOG_PARAMS, {
                 "title": "RAPSearch2",
                 "version_file_s3": RAPSEARCH_VERSION_FILE_S3,
                 "output_version_file": result_dir(VERSION_OUT)
             })
-        run_and_log_s3(logparams, [result_dir(MULTIHIT_RAPSEARCH_OUT)],
+        run_and_log_s3(log_params, [result_dir(MULTIHIT_RAPSEARCH_OUT)],
                        lazy_run, SAMPLE_S3_OUTPUT_PATH, run_remotely,
                        [merged_fasta], "rapsearch", lazy_run)
 
@@ -1282,10 +1282,10 @@ def run_stage2(lazy_run=True):
             result_dir(DEDUP_MULTIHIT_RAPSEARCH_OUT),
             result_dir(ACCESSION_ANNOTATED_FASTA))
 
-        logparams = return_merged_dict(
-            DEFAULT_LOGPARAMS,
+        log_params = return_merged_dict(
+            DEFAULT_LOG_PARAMS,
             {"title": "generate FASTA of unidentified reads"})
-        run_and_log_eager(logparams, [result_dir(UNIDENTIFIED_FASTA_OUT)],
+        run_and_log_eager(log_params, [result_dir(UNIDENTIFIED_FASTA_OUT)],
                           run_generate_unidentified_fasta,
                           result_dir(ACCESSION_ANNOTATED_FASTA),
                           result_dir(UNIDENTIFIED_FASTA_OUT))

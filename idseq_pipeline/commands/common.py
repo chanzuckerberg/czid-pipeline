@@ -553,19 +553,19 @@ def fetch_reference(source, auto_unzip=True, allow_s3mi=True):
 run_and_log_mutex = threading.RLock()
 
 
-def run_and_log(logparams, target_outputs, lazy_run, func_name, *args):
+def run_and_log(log_params, target_outputs, lazy_run, func_name, *args):
     with run_and_log_mutex:
-        return run_and_log_work(logparams, target_outputs, lazy_run, func_name,
+        return run_and_log_work(log_params, target_outputs, lazy_run, func_name,
                                 os.path.isfile, *args)
 
 
-def run_and_log_eager(logparams, target_outputs, func_name, *args):
+def run_and_log_eager(log_params, target_outputs, func_name, *args):
     with run_and_log_mutex:
-        return run_and_log_work(logparams, target_outputs, False, func_name,
+        return run_and_log_work(log_params, target_outputs, False, func_name,
                                 None, *args)
 
 
-def run_and_log_s3(logparams, target_outputs, lazy_run, s3_result_dir,
+def run_and_log_s3(log_params, target_outputs, lazy_run, s3_result_dir,
                    func_name, *args):
     def lazy_fetch(output_file):
         return fetch_lazy_result(
@@ -574,33 +574,33 @@ def run_and_log_s3(logparams, target_outputs, lazy_run, s3_result_dir,
             allow_s3mi=True)
 
     with run_and_log_mutex:
-        return run_and_log_work(logparams, target_outputs, lazy_run, func_name,
+        return run_and_log_work(log_params, target_outputs, lazy_run, func_name,
                                 lazy_fetch, *args)
 
 
-def run_and_log_work(logparams, target_outputs, lazy_run, func_name,
+def run_and_log_work(log_params, target_outputs, lazy_run, func_name,
                      lazy_fetch, *args):
     global OUTPUT_VERSIONS
     global run_and_log_mutex
 
     LOGGER = logging.getLogger()
-    LOGGER.info("========== %s ==========", logparams.get("title"))
+    LOGGER.info("========== %s ==========", log_params.get("title"))
 
     # record version of any reference index used
-    version_file_s3 = logparams.get("version_file_s3")
+    version_file_s3 = log_params.get("version_file_s3")
     if version_file_s3:
         version_json = execute_command_with_output(
             "aws s3 cp --quiet %s -" % version_file_s3)
         OUTPUT_VERSIONS.append(json.loads(version_json))
 
     # upload version output
-    output_version_file = logparams.get("output_version_file")
+    output_version_file = log_params.get("output_version_file")
     if output_version_file:
         with open(output_version_file, 'wb') as f:
             json.dump(OUTPUT_VERSIONS, f)
         execute_command("aws s3 cp --quiet %s %s/;" %
                         (output_version_file,
-                         logparams["sample_s3_output_path"]))
+                         log_params["sample_s3_output_path"]))
 
     # produce the output
     # This is the slow part that happens outside the mutex
