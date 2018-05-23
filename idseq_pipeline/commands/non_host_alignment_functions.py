@@ -1197,7 +1197,7 @@ def run_stage2(lazy_run=True):
                        SAMPLE_S3_OUTPUT_PATH, run_remotely, gsnapl_input_files,
                        "gsnap", lazy_run)
 
-        t.join()
+        reference_fetcher_thread.join()
         call_hits_m8(
             result_dir(MULTIHIT_GSNAPL_OUT), lineage_paths[0],
             accession2taxid_paths[0], result_dir(DEDUP_MULTIHIT_GSNAPL_OUT),
@@ -1234,7 +1234,7 @@ def run_stage2(lazy_run=True):
                        lazy_run, SAMPLE_S3_OUTPUT_PATH, run_remotely,
                        [merged_fasta], "rapsearch", lazy_run)
 
-        t.join()
+        reference_fetcher_thread.join()
         call_hits_m8(
             result_dir(MULTIHIT_RAPSEARCH_OUT), lineage_paths[0],
             accession2taxid_paths[0], result_dir(DEDUP_MULTIHIT_RAPSEARCH_OUT),
