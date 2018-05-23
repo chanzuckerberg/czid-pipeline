@@ -931,7 +931,12 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path,
     emitted = set()
     with open(output_m8, "wb") as outf:
         with open(output_summary, "wb") as outf_sum:
-            # Iterator over the lines of the m8 file
+            # Iterator over the lines of the m8 file. Emit only hits that had
+            # the best e-value.
+
+            # TODO: Emit all hits within a fixed margin of the best e-value.
+            # This change may need to be accompanied by a change to
+            # GSNAP/RAPSearch parameters.
             itr = iterate_m8(input_m8,
                              "call_hits_m8_emit_deduped_and_summarized_hits")
             for read_id, accession_id, _percent_id, _alignment_length, e_value, line in itr:
