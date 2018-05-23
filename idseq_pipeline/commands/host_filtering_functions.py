@@ -523,7 +523,7 @@ def run_star(fastq_files, uploader_start, total_counts_from_star):
         ]
 
     genome_dir = fetch_genome(STAR_GENOME)
-    assert genome_dir != None
+    assert genome_dir is not None
     # If we are here, we are also going to need a bowtie genome later;  start fetching it now
     # This is the absolute PERFECT PLACE for this fetch.  If we are computing from scratch,
     # the download has plenty of time to complete before bowtie needs it.  If we are doing
@@ -556,7 +556,7 @@ def run_star(fastq_files, uploader_start, total_counts_from_star):
 
     result_files = [gene_count_output] + unmapped
     for i, f in enumerate(result_files):
-        if f != None:
+        if f is not None:
             output_i = os.path.join(RESULT_DIR, star_outputs[i])
             execute_command("mv %s %s;" % (f, output_i))
             uploader_start(output_i, SAMPLE_S3_OUTPUT_PATH + "/")
@@ -711,7 +711,7 @@ class SkipGsnap(Exception):
 def run_gsnap_filter(input_fas, uploader_start):
     # Unpack the gsnap genome
     genome_dir = fetch_genome(GSNAP_GENOME, strict=False)
-    if genome_dir == None:
+    if genome_dir is None:
         # Apparently if the GSNAP_GENOME file doesn't exist, we are supposed to skip this step.
         # TODO (yunfang):  An independent way to specify whether this step should be executed,
         # so that operational errors don't just silently cause the step to be skipped. See #173.
@@ -1005,6 +1005,7 @@ def upload_pipeline_version_file():
 
 
 def run_stage1(lazy_run=True):
+    print("Starting stage...")
     execute_command("mkdir -p %s %s %s %s" % (SAMPLE_DIR, FASTQ_DIR,
                                               RESULT_DIR, SCRATCH_DIR))
     execute_command("mkdir -p %s " % REF_DIR)
@@ -1014,10 +1015,11 @@ def run_stage1(lazy_run=True):
                                  AWS_BATCH_JOB_ID)
     configure_logger(log_file)
 
+    # Get list of input files to fetch
     command = "aws s3 ls %s/ | grep '\\.%s$'" % (SAMPLE_S3_INPUT_PATH,
                                                  FILE_TYPE)
     output = execute_command_with_output(command).rstrip().split("\n")
-    input_fetchers = []
+    input_fetch_threads = []
 
     def fetch_input(input_basename):
         fetch_from_s3(
@@ -1026,18 +1028,21 @@ def run_stage1(lazy_run=True):
             allow_s3mi=True,
             auto_unzip=False)
 
+    # Fetch input files with multiple threads
     for line in output:
         m = re.match(".*?([^ ]*." + re.escape(FILE_TYPE) + ")", line)
         if m:
             t = MyThread(target=fetch_input, args=[m.group(1)])
             t.start()
-            input_fetchers.append(t)
+            input_fetch_threads.append(t)
         else:
             print("%s doesn't match %s" % (line, FILE_TYPE))
-    for t in input_fetchers:
+    for t in input_fetch_threads:
+        # Check thread completion
         t.join()
         assert t.completed and not t.exception
 
+    # Check FASTQ files
     fastq_files = execute_command_with_output(
         "ls %s/*.%s" % (FASTQ_DIR, FILE_TYPE)).rstrip().split("\n")
     if len(fastq_files) not in [1, 2]:
@@ -1045,7 +1050,9 @@ def run_stage1(lazy_run=True):
             "Number of input files was neither 1 nor 2. Aborting computation.")
         return  # only support either 1 file or 2 (paired) files
 
-    initial_file_type_for_log = "fastq" if "fastq" in FILE_TYPE else "fasta"
+    initial_file_type_for_log = "fasta"
+    if "fastq" in FILE_TYPE:
+        initial_file_type_for_log = "fastq"
     if len(fastq_files) == 2:
         initial_file_type_for_log += "_paired"
 
@@ -1069,11 +1076,11 @@ def run_stage1(lazy_run=True):
         stats_in = None
         write_to_log("Unfiltered input. Need host filtering")
 
-    if total_reads != None:  # set total reads if available
+    if total_reads is not None:  # set total reads if available
         stats.data.append({'total_reads': total_reads})
     # run host filtering
     run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
-                       stats_in != None)
+                       stats_in is not None)
 
     # This lets the webapp know the stage has completed.
     stats.save_to_s3()

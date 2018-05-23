@@ -8,8 +8,8 @@ class Postprocess(Base):
     def run(self):
         from .postprocess_functions import *
 
-        unbuffer_stdout()
-        upload_commit_sha(self.version)
+        set_up_stdout()
+        set_up_commit_sha(self.version)
 
         # TODO(yf): didn't do any pipeline version check. Revisit later
 

@@ -8,8 +8,8 @@ class Host_filtering(Base):
     def run(self):
         from .host_filtering_functions import *
 
-        unbuffer_stdout()
-        upload_commit_sha(self.version, SAMPLE_S3_OUTPUT_PATH)
+        set_up_stdout()
+        set_up_commit_sha(self.version, SAMPLE_S3_OUTPUT_PATH)
         upload_pipeline_version_file()
 
         run_stage1(True)
