@@ -8,5 +8,5 @@ class Lineages(Base):
     def run(self):
         from .lineages_functions import *
 
-        unbuffer_stdout()
+        set_up_stdout()
         make_lineages(self.version)

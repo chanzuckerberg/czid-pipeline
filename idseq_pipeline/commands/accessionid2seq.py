@@ -9,6 +9,6 @@ class Accessionid2seq(Base):
         from .accessionid2seq_functions import accessionid2seq_main
         from .common import *
 
-        unbuffer_stdout()
+        set_up_stdout()
 
         accessionid2seq_main(arguments=self.options)

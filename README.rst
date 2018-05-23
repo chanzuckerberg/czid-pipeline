@@ -30,7 +30,8 @@ When merging a commit to master, you need to increase the version number in `ids
 Release notes
 -------------
 
-- 1.7.2
+- 1.7.2 ... 1.7.3
+   - General code style changes
    - Convert string exceptions and generic exceptions to RuntimeErrors.
    - Change some print statements for python3.
 
