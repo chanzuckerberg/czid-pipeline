@@ -1110,8 +1110,8 @@ def run_stage2(lazy_run=True):
         lineage_paths[0] = fetch_reference(LINEAGE_SHELF)
         accession2taxid_paths[0] = fetch_reference(ACCESSION2TAXID)
 
-    t = threading.Thread(target=fetch_references)
-    t.start()
+    reference_fetcher_thread = threading.Thread(target=fetch_references)
+    reference_fetcher_thread.start()
 
     # Import existing job stats
     stats = StatsFile(STATS_OUT, RESULT_DIR, SAMPLE_S3_INPUT_PATH,
