@@ -289,14 +289,15 @@ def iterate_m8(m8_file, debug_caller=None, logging_interval=25000000):
             alignment_length = int(parts[3])
             e_value = float(parts[10])
 
-            # GSNAP outputs these sometimes, and usually they are not the
-            # only assignment, so rather than killing the job, we just skip
-            # them. If we don't filter these out here, they will override the
-            # good data when computing min(evalue), pollute averages
-            # computed in the json, and cause the webapp loader to crash as
-            # the Rails JSON parser cannot handle NaNs.
-            # Test if e_value != e_value to test if e_value is NaN because NaN
-            # != NaN.
+            # GSNAP outputs bogus alignments (non-positive length /
+            # impossible percent identity / NaN e-value) sometimes,
+            # and usually they are not the only assignment, so rather than
+            # killing the job, we just skip them. If we don't filter these
+            # out here, they will override the good data when computing min(
+            # evalue), pollute averages computed in the json, and cause the
+            # webapp loader to crash as the Rails JSON parser cannot handle
+            # NaNs. Test if e_value != e_value to test if e_value is NaN
+            # because NaN != NaN.
             if alignment_length <= 0 or not -0.25 < percent_id < 100.25 or e_value != e_value:
                 invalid_hits += 1
                 last_invalid_line = line
@@ -700,7 +701,7 @@ def chunk_input(input_files_basenames, chunk_nlines, chunksize):
             assert nlines == known_nlines, m.format(input_files_basenames)
         known_nlines = nlines
 
-        # Create parts per chunk to execute
+        # Set number of pieces and names
         numparts = (nlines + chunk_nlines - 1) // chunk_nlines
         ndigits = len(str(numparts - 1))
         part_suffix = "-chunksize-%d-numparts-%d-part-" % (chunksize, numparts)
