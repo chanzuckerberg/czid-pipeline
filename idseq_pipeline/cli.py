@@ -58,9 +58,9 @@ Examples:
   idseq_pipeline curate_accessionid2seq --s3_db_path s3://yunfang-workdir/curate_accessionid2seq/nt.sample --s3_db_loc_path s3://yunfang-workdir/curate_accessionid2seq/nt.sample.db
 
 
-  idseq_pipeline accessionid2seq --s3_db_path s3://idseq-database/20170824/blast_db/nt --s3_db_loc_path s3://idseq-database/20170824/blast_db/nt_loc.db --db_type NT --input_fasta_s3_path s3://idseq-samples-production/samples/1/1297/postprocess/taxid_annot_sorted_nt.fasta --input_m8_s3_path s3://idseq-samples-production/samples/1/1297/results/taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8 --output_json_s3_path s3://idseq-samples-production/samples/1/1297/postprocess/align_viz
+  idseq_pipeline accessionid2seq --s3_db_path s3://idseq-database/20170824/blast_db/nt --s3_db_loc_path s3://idseq-database/20170824/blast_db/nt_loc.db --db_type NT --input_fasta_s3_path s3://idseq-samples-prod/samples/1/1297/postprocess/taxid_annot_sorted_nt.fasta --input_m8_s3_path s3://idseq-samples-prod/samples/1/1297/results/taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8 --output_json_s3_path s3://idseq-samples-prod/samples/1/1297/postprocess/align_viz
 
-idseq_pipeline accessionid2seq --local_db_path /mnt/idseq/data/accession2seq/nt --s3_db_loc_path s3://idseq-database/20170824/blast_db/nt_loc.db --db_type NT --input_fasta_s3_path s3://idseq-samples-production/samples/1/1295/postprocess/taxid_annot_sorted_nt.fasta --input_m8_s3_path s3://idseq-samples-production/samples/1/1295/results/taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8 --output_json_s3_path s3://idseq-samples-production/samples/1/1295/postprocess/align_viz
+idseq_pipeline accessionid2seq --local_db_path /mnt/idseq/data/accession2seq/nt --s3_db_loc_path s3://idseq-database/20170824/blast_db/nt_loc.db --db_type NT --input_fasta_s3_path s3://idseq-samples-prod/samples/1/1295/postprocess/taxid_annot_sorted_nt.fasta --input_m8_s3_path s3://idseq-samples-prod/samples/1/1295/results/taxids.gsnapl.unmapped.bowtie2.lzw.cdhitdup.priceseqfilter.unmapped.star.m8 --output_json_s3_path s3://idseq-samples-prod/samples/1/1295/postprocess/align_viz
 
 Help:
   For help using this tool, please open an issue on the Github repository:

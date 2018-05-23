@@ -74,7 +74,7 @@ INPUT_BUCKET = os.environ.get('INPUT_BUCKET')
 FILE_TYPE = os.environ.get('FILE_TYPE', 'fastq.gz')
 OUTPUT_BUCKET = os.environ.get('OUTPUT_BUCKET')
 AWS_BATCH_JOB_ID = os.environ.get('AWS_BATCH_JOB_ID', 'local')
-ENVIRONMENT = os.environ.get('ENVIRONMENT', 'production')
+ENVIRONMENT = os.environ.get('ENVIRONMENT', 'prod')
 SAMPLE_S3_FASTQ_PATH = FASTQ_BUCKET.rstrip('/')
 SAMPLE_S3_INPUT_PATH = INPUT_BUCKET.rstrip('/')
 SAMPLE_S3_OUTPUT_PATH = OUTPUT_BUCKET.rstrip('/')
@@ -505,9 +505,7 @@ def read_file_into_set(file_name):
 
 
 def environment_for_aligners(_environment):
-    if _environment in ['alpha', 'production']:
-        return 'production'
-    elif _environment in ['staging', 'prod']:
+    if _environment in ['staging', 'prod']:
         return 'prod'
     return ''
 
