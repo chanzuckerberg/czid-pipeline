@@ -266,6 +266,10 @@ def log_corrupt(m8_file, line):
 
 
 def iterate_m8(m8_file, debug_caller=None, logging_interval=25000000):
+    """Generate an iterator over the m8 file and return (read_id,
+    accession_id, percent_id, alignment_length, e_value, line) for each line.
+    Work around and warn about any invalid hits detected.
+    """
     invalid_hits = 0
     last_invalid_line = None
     with open(m8_file, 'rb') as m8f:
@@ -273,38 +277,44 @@ def iterate_m8(m8_file, debug_caller=None, logging_interval=25000000):
         for line in m8f:
             line_count += 1
             if line and line[0] == '#':
-                # skip comments
-                # write_to_log("{}:{}: {}".format(m8_file, line_count, line.rstrip()), flush=False)
+                # skip comment lines
                 continue
             parts = line.split("\t")
+            # Must have at least 12 parts per line
             assert len(parts) >= 12, log_corrupt(m8_file, line)
+
             read_id = parts[0]
             accession_id = parts[1]
             percent_id = float(parts[2])
             alignment_length = int(parts[3])
             e_value = float(parts[10])
-            # GSNAP outputs these sometimes, and usually they are not the only assingment, so rather
-            # than killing the job, we just skip them.  If we don't filter these out here, they will
-            # override the good data when computing min(evalue), pollute averages computed in the json,
-            # and cause the webapp loader to crash as the RAILS JSON parser cannot handle NaNs.
+
+            # GSNAP outputs these sometimes, and usually they are not the
+            # only assignment, so rather than killing the job, we just skip
+            # them. If we don't filter these out here, they will override the
+            # good data when computing min(evalue), pollute averages
+            # computed in the json, and cause the webapp loader to crash as
+            # the Rails JSON parser cannot handle NaNs.
+            # Test if e_value != e_value to test if e_value is NaN because NaN
+            # != NaN.
             if alignment_length <= 0 or not -0.25 < percent_id < 100.25 or e_value != e_value:
                 invalid_hits += 1
                 last_invalid_line = line
                 continue
             if debug_caller and line_count % logging_interval == 0:
-                write_to_log(
-                    "Scanned {} m8 lines from {} for {}, and going.".format(
-                        line_count, m8_file, debug_caller))
+                m = "Scanned {} m8 lines from {} for {}, and going."
+                write_to_log(m.format(line_count, m8_file, debug_caller))
             yield (read_id, accession_id, percent_id, alignment_length,
                    e_value, line)
+
+    # Warn about any invalid hits outputted by GSNAP
     if invalid_hits:
+        m = "Found {} invalid hits in {};  last invalid hit line: {}"
         write_to_log(
-            "Found {} invalid hits in {};  last invalid hit line: {}".format(
-                invalid_hits, m8_file, last_invalid_line),
-            warning=True)
+            m.format(invalid_hits, m8_file, last_invalid_line), warning=True)
     if debug_caller:
-        write_to_log("Scanned all {} m8 lines from {} for {}.".format(
-            line_count, m8_file, debug_caller))
+        m = "Scanned all {} m8 lines from {} for {}."
+        write_to_log(m.format(line_count, m8_file, debug_caller))
 
 
 def annotate_fasta_with_accessions(merged_input_fasta, nt_m8, nr_m8,
@@ -669,24 +679,35 @@ def wait_for_server_ip(service_name,
         return result
 
 
-# job functions
+# Job functions
+
+
 def chunk_input(input_files_basenames, chunk_nlines, chunksize):
-    part_lists = []
+    """Chunk input files into pieces for performance and parallelism."""
+    part_lists = []  # Lists of partial files
     known_nlines = None
+
     for input_file in input_files_basenames:
         input_file_full_local_path = result_dir(input_file)
+
+        # Count number of lines in the file
         nlines = int(
             execute_command_with_output(
                 "wc -l %s" % input_file_full_local_path).strip().split()[0])
+        # Number of lines should be the same in paired files
         if known_nlines is not None:
-            assert nlines == known_nlines, "Mismatched line counts in supposedly paired files: {}".format(
-                input_files_basenames)
+            m = "Mismatched line counts in supposedly paired files: {}"
+            assert nlines == known_nlines, m.format(input_files_basenames)
         known_nlines = nlines
+
+        # Create parts per chunk to execute
         numparts = (nlines + chunk_nlines - 1) // chunk_nlines
         ndigits = len(str(numparts - 1))
         part_suffix = "-chunksize-%d-numparts-%d-part-" % (chunksize, numparts)
         out_prefix_base = os.path.basename(input_file) + part_suffix
         out_prefix = os.path.join(CHUNKS_RESULT_DIR, out_prefix_base)
+
+        # Split large file into smaller named pieces
         execute_command("split -a %d --numeric-suffixes -l %d %s %s" %
                         (ndigits, chunk_nlines, input_file_full_local_path,
                          out_prefix))
@@ -694,20 +715,27 @@ def chunk_input(input_files_basenames, chunk_nlines, chunksize):
             "aws s3 cp --quiet %s/ %s/ --recursive --exclude '*' --include '%s*'"
             % (CHUNKS_RESULT_DIR, SAMPLE_S3_OUTPUT_CHUNKS_PATH,
                out_prefix_base))
-        # note: no sleep(10) after this upload to s3... not sure if that was ever needed
-        partial_files = [
-            os.path.basename(partial_file)
-            for partial_file in execute_command_with_output(
-                "ls %s*" % out_prefix).rstrip().split("\n")
-        ]
+
+        # Get the partial file names
+        partial_files = []
+        paths = execute_command_with_output(
+            "ls %s*" % out_prefix).rstrip().split("\n")
+        for partial_file in paths:
+            partial_files.append(os.path.basename(partial_file))
+
+        # Check that the partial files match our expected chunking pattern
         pattern = "{:0%dd}" % ndigits
         expected_partial_files = [(out_prefix_base + pattern.format(i))
                                   for i in range(numparts)]
-        assert expected_partial_files == partial_files, "something went wrong with chunking: {} != {}".format(
+        msg = "something went wrong with chunking: {} != {}"
+        assert expected_partial_files == partial_files, msg.format(
             partial_files, expected_partial_files)
         part_lists.append(partial_files)
+
+    # Ex: [["input_R1.fasta-part-1", "input_R2.fasta-part-1"],
+    # ["input_R1.fasta-part-2", "input_R2.fasta-part-2"],
+    # ["input_R1.fasta-part-3", "input_R2.fasta-part-3"],...]
     input_chunks = [list(part) for part in zip(*part_lists)]
-    # e.g. [["input_R1.fasta-part-1", "input_R2.fasta-part-1"],["input_R1.fasta-part-2", "input_R2.fasta-part-2"],["input_R1.fasta-part-3", "input_R2.fasta-part-3"],...]
     return part_suffix, input_chunks
 
 
@@ -824,30 +852,37 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir,
 @run_in_subprocess
 def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path,
                  output_m8, output_summary):
+    """Call hits and hit levels from the m8 files and produce cleaned m8 file
+    and summary file.
+    """
     lineage_map = shelve.open(lineage_map_path)
     accession2taxid_dict = shelve.open(accession2taxid_dict_path)
     # Helper functions
-    # TODO: Represent taxids by numbers instead of strings to greatly reduce memory footprint
-    # and increase speed.
+    # TODO: Represent taxids by numbers instead of strings to greatly reduce
+    # memory footprint and increase speed.
     lineage_cache = {}
 
     def get_lineage(accession_id):
+        """Find the lineage of the accession ID and utilize a cache for
+        performance
+        """
         if accession_id in lineage_cache:
-            result = lineage_cache[accession_id]
-        else:
-            accession_taxid = accession2taxid_dict.get(
-                accession_id.split(".")[0], "NA")
-            result = lineage_map.get(accession_taxid, NULL_LINEAGE)
-            lineage_cache[accession_id] = result
+            return lineage_cache[accession_id]
+        accession_taxid = accession2taxid_dict.get(
+            accession_id.split(".")[0], "NA")
+        result = lineage_map.get(accession_taxid, NULL_LINEAGE)
+        lineage_cache[accession_id] = result
         return result
 
     def accumulate(hits, accession_id):
+        """Accumulate hits per level and taxonomy level"""
         lineage_taxids = get_lineage(accession_id)
         for level, taxid_at_level in enumerate(lineage_taxids):
             if int(taxid_at_level) < 0:
-                # When an accession doesn't provide species level info, it doesn't contradict
-                # any info provided by other accessions.  This occurs a lot and handling it
-                # in this way seems to work well.
+                # Skip if we have a negative taxid. When an accession doesn't
+                # provide species level info, it doesn't contradict any info
+                # provided by other accessions. This occurs a lot and
+                # handling it in this way seems to work well.
                 continue
             hits[level][taxid_at_level] = accession_id
 
@@ -863,6 +898,7 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path,
     for read_id, accession_id, _percent_id, _alignment_length, e_value, _line in iterate_m8(
             input_m8, "call_hits_m8_initial_scan"):
         m8[read_id].append((accession_id, e_value))
+
     # Deduplicate m8 and summarize hits
     summary = {}
     count = 0
@@ -870,6 +906,12 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path,
     write_to_log("Starting to summarize hits for {} read ids from {}.".format(
         len(m8), input_m8))
     for read_id, accessions in m8.iteritems():
+        # The Expect value (E) is a parameter that describes the number of
+        # hits one can 'expect' to see by chance when searching a database of
+        # a particular size. It decreases exponentially as the Score (S) of
+        # the match increases. Essentially, the E value describes the random
+        # background noise. https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web
+        # &PAGE_TYPE=BlastDocs&DOC_TYPE=FAQ
         my_best_evalue = min(acc[1] for acc in accessions)
         hits = [{}, {}, {}]
         for accession_id, e_value in accessions:
@@ -883,23 +925,29 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path,
                 format(count, input_m8))
     write_to_log("Summarized hits for all {} read ids from {}.".format(
         count, input_m8))
+
+    # Generate output files
     emitted = set()
     with open(output_m8, "wb") as outf:
         with open(output_summary, "wb") as outf_sum:
-            for read_id, accession_id, _percent_id, _alignment_length, e_value, line in iterate_m8(
-                    input_m8, "call_hits_m8_emit_deduped_and_summarized_hits"):
-                if read_id not in emitted:
-                    best_e_value, (hit_level, taxid,
-                                   best_accession_id) = summary[read_id]
-                    if best_e_value == e_value and best_accession_id in (
-                            None, accession_id):
-                        emitted.add(read_id)
-                        outf.write(line)
-                        outf_sum.write(
-                            "{read_id}\t{hit_level}\t{taxid}\n".format(
-                                read_id=read_id,
-                                hit_level=hit_level,
-                                taxid=taxid))
+            # Iterator over the lines of the m8 file
+            itr = iterate_m8(input_m8,
+                             "call_hits_m8_emit_deduped_and_summarized_hits")
+            for read_id, accession_id, _percent_id, _alignment_length, e_value, line in itr:
+                if read_id in emitted:
+                    continue
+                best_e_value, (hit_level, taxid,
+                               best_accession_id) = summary[read_id]
+                if best_e_value == e_value and best_accession_id in (
+                        None, accession_id):
+                    emitted.add(read_id)
+                    outf.write(line)
+                    m = "{read_id}\t{hit_level}\t{taxid}\n"
+                    outf_sum.write(
+                        m.format(
+                            read_id=read_id, hit_level=hit_level, taxid=taxid))
+
+    # Upload results
     execute_command("aws s3 cp --quiet %s %s/" % (output_m8,
                                                   SAMPLE_S3_OUTPUT_PATH))
     execute_command("aws s3 cp --quiet %s %s/" % (output_summary,
@@ -907,6 +955,10 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path,
 
 
 def run_remotely(input_files, service, lazy_run):
+    """Run a pipeline step / service on remote machines. Set up environment
+    for different configurations and chunk files for performance.
+    """
+
     assert service in ("gsnap", "rapsearch")
     key_path = fetch_key(ENVIRONMENT)
     if service == "gsnap":
@@ -927,16 +979,19 @@ def run_remotely(input_files, service, lazy_run):
         chunk_size = RAPSEARCH_CHUNK_SIZE
         chunks_in_flight = chunks_in_flight_rapsearch
         output_file = MULTIHIT_RAPSEARCH_OUT
-    # split file:
+
+    # Split files into chunks for performance
     part_suffix, input_chunks = chunk_input(input_files, 2 * chunk_size,
                                             chunk_size)
-    # process chunks:
+    # Process chunks
     chunk_output_files = [None] * len(input_chunks)
     chunk_threads = []
     mutex = threading.RLock()
-    iii = list(enumerate(input_chunks))
-    random.shuffle(iii)
-    for n, chunk_input_files in iii:
+    # Randomize execution order for performance
+    randomized = list(enumerate(input_chunks))
+    random.shuffle(randomized)
+
+    for n, chunk_input_files in randomized:
         chunks_in_flight.acquire()
         check_for_errors(mutex, chunk_output_files, input_chunks, service)
         t = threading.Thread(
@@ -950,10 +1005,14 @@ def run_remotely(input_files, service, lazy_run):
             ])
         t.start()
         chunk_threads.append(t)
+
+    # Check chunk completion
     for ct in chunk_threads:
         ct.join()
         check_for_errors(mutex, chunk_output_files, input_chunks, service)
     assert None not in chunk_output_files
+
+    # Concatenate the pieces and upload results
     concatenate_files(chunk_output_files, result_dir(output_file))
     with iostream:
         execute_command("aws s3 cp --quiet %s/%s %s/" %
@@ -985,15 +1044,15 @@ def run_chunk_wrapper(chunks_in_flight, chunk_output_files, n, mutex, target,
         chunks_in_flight.release()
 
 
-def check_for_errors(mutex, chunk_output_files, input_chunks, what):
+def check_for_errors(mutex, chunk_output_files, input_chunks, task):
     with mutex:
         if "error" in chunk_output_files:
-            # we alreay have per-chunk retries to address transient (non-deterministic) system issues;
-            # if a chunk fails on all retries, it must be due to a deterministic & reproducible problem
-            # with the chunk data or command options;  we should not even attempt the other chunks
-            ei = chunk_output_files.index("error")
+            # We already have per-chunk retries to address transient (non-deterministic) system issues.
+            # If a chunk fails on all retries, it must be due to a deterministic & reproducible problem
+            # with the chunk data or command options, so we should not even attempt the other chunks.
+            err_i = chunk_output_files.index("error")
             raise RuntimeError("All retries failed for {} chunk {}.".format(
-                what, input_chunks[ei]))
+                task, input_chunks[err_i]))
 
 
 def run_generate_unidentified_fasta(input_fa, output_fa):
@@ -1079,9 +1138,9 @@ def fetch_and_clean_inputs(input_file_list):
         input_file_list[0])
 
     assert (cleaned_inputs[1] is None) == (
-        cleaned_inputs[2] is None
-    ), "Input {} is required when {} is given, and vice versa".format(
-        input_file_list[1], input_file_list[2])
+        cleaned_inputs[2] is
+        None), "Input {} is required when {} is given, and vice versa".format(
+            input_file_list[1], input_file_list[2])
 
     cleaned_inputs = filter(None, cleaned_inputs)
     assert len(cleaned_inputs) in (1, 3)
