@@ -1079,9 +1079,9 @@ def fetch_and_clean_inputs(input_file_list):
         input_file_list[0])
 
     assert (cleaned_inputs[1] is None) == (
-        cleaned_inputs[2] is None
-    ), "Input {} is required when {} is given, and vice versa".format(
-        input_file_list[1], input_file_list[2])
+        cleaned_inputs[2] is
+        None), "Input {} is required when {} is given, and vice versa".format(
+            input_file_list[1], input_file_list[2])
 
     cleaned_inputs = filter(None, cleaned_inputs)
     assert len(cleaned_inputs) in (1, 3)
@@ -1090,12 +1090,14 @@ def fetch_and_clean_inputs(input_file_list):
 
 
 def run_stage2(lazy_run=True):
-    # make local directories
+    write_to_log("Starting stage...")
+
+    # Make local directories
     execute_command("mkdir -p %s %s %s %s %s" %
                     (SAMPLE_DIR, FASTQ_DIR, RESULT_DIR, CHUNKS_RESULT_DIR,
                      REF_DIR))
 
-    # configure logger
+    # Configure logger
     log_file = "%s/%s.%s.txt" % (RESULT_DIR, LOGS_OUT_BASENAME,
                                  AWS_BATCH_JOB_ID)
     configure_logger(log_file)
@@ -1108,8 +1110,8 @@ def run_stage2(lazy_run=True):
         lineage_paths[0] = fetch_reference(LINEAGE_SHELF)
         accession2taxid_paths[0] = fetch_reference(ACCESSION2TAXID)
 
-    reference_fetcher_thread = threading.Thread(target=fetch_references)
-    reference_fetcher_thread.start()
+    t = threading.Thread(target=fetch_references)
+    t.start()
 
     # Import existing job stats
     stats = StatsFile(STATS_OUT, RESULT_DIR, SAMPLE_S3_INPUT_PATH,
@@ -1134,12 +1136,13 @@ def run_stage2(lazy_run=True):
     gsnapl_input_files = [os.path.basename(f) for f in cleaned_inputs[:2]]
     merged_fasta = cleaned_inputs[-1]
     before_file_name_for_log = cleaned_inputs[0]
-    before_file_type_for_log = "fasta_paired" if len(
-        gsnapl_input_files) == 2 else "fasta"  # unpaired
+    before_file_type_for_log = "fasta"  # Unpaired
+    if len(gsnapl_input_files) == 2:
+        before_file_type_for_log = "fasta_paired"
 
+    # Track if threads succeeded
     thread_success = {}
     thread_success_lock = threading.RLock()
-
     uploader_threads = {}
 
     def upload(thread_name, local_path, s3_path):
@@ -1148,7 +1151,8 @@ def run_stage2(lazy_run=True):
         with thread_success_lock:
             thread_success[thread_name] = True
 
-    # subsample if specified
+    # Subsample if specified. Use a lock and thread structure to execute the steps with
+    # parallelism.
     if SUBSAMPLE:
         target_n_reads = int(SUBSAMPLE)
         if len(gsnapl_input_files) == 2:
@@ -1159,8 +1163,10 @@ def run_stage2(lazy_run=True):
             subsampled_merged_fasta = subsample_single_fasta(
                 gsnapl_input_files[0], target_n_reads)
             subsampled_gsnapl_input_files = [subsampled_merged_fasta]
+
         gsnapl_input_files = subsampled_gsnapl_input_files
         merged_fasta = result_dir(subsampled_merged_fasta)
+
         for i, f in enumerate(gsnapl_input_files):
             thread_name = "uploader_{}".format(i)
             uploader_threads[thread_name] = threading.Thread(
@@ -1168,6 +1174,7 @@ def run_stage2(lazy_run=True):
                 args=[thread_name,
                       result_dir(f), SAMPLE_S3_OUTPUT_PATH + "/"])
             uploader_threads[thread_name].start()
+
         if len(gsnapl_input_files) == 2:
             thread_name = "uploader_{}".format(len(gsnapl_input_files))
             uploader_threads[thread_name] = threading.Thread(
@@ -1179,7 +1186,7 @@ def run_stage2(lazy_run=True):
     deuterostome_fetcher.start()
 
     def run_gsnap():
-        # run gsnap remotely
+        # Run GSNAP remotely
         log_params = return_merged_dict(
             DEFAULT_LOG_PARAMS, {
                 "title": "GSNAPL",
@@ -1190,7 +1197,7 @@ def run_stage2(lazy_run=True):
                        SAMPLE_S3_OUTPUT_PATH, run_remotely, gsnapl_input_files,
                        "gsnap", lazy_run)
 
-        reference_fetcher_thread.join()
+        t.join()
         call_hits_m8(
             result_dir(MULTIHIT_GSNAPL_OUT), lineage_paths[0],
             accession2taxid_paths[0], result_dir(DEDUP_MULTIHIT_GSNAPL_OUT),
@@ -1227,7 +1234,7 @@ def run_stage2(lazy_run=True):
                        lazy_run, SAMPLE_S3_OUTPUT_PATH, run_remotely,
                        [merged_fasta], "rapsearch", lazy_run)
 
-        reference_fetcher_thread.join()
+        t.join()
         call_hits_m8(
             result_dir(MULTIHIT_RAPSEARCH_OUT), lineage_paths[0],
             accession2taxid_paths[0], result_dir(DEDUP_MULTIHIT_RAPSEARCH_OUT),

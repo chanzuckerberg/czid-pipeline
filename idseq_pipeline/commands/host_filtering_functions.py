@@ -925,13 +925,9 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
 
         # Run Bowtie
         log_params = return_merged_dict(DEFAULT_LOG_PARAMS, {"title": "bowtie2"})
+        input_files = [os.path.join(RESULT_DIR, LZW_OUT1)]
         if number_of_input_files == 2:
-            input_files = [
-                os.path.join(RESULT_DIR, LZW_OUT1),
-                os.path.join(RESULT_DIR, LZW_OUT2)
-            ]
-        else:
-            input_files = [os.path.join(RESULT_DIR, LZW_OUT1)]
+            input_files.append(os.path.join(RESULT_DIR, LZW_OUT2))
 
         # Upload Bowtie2 results
         run_and_log_s3(log_params, target_outputs["run_bowtie2"], lazy_run,
@@ -948,7 +944,7 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
     # Run GSNAP against host genomes (only available for Human as of 5/1/2018)
     # GSNAP may run again even for pre-filtered inputs
     try:
-        input_files = os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1)
+        input_files = [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1)]
         if number_of_input_files == 2:
             input_files.append(os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2))
 
