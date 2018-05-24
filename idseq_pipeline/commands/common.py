@@ -101,18 +101,18 @@ class StatsFile(object):
     def get_total_reads(self):
         # New style
         tr = self.get_item_value("total_reads")
-        if tr is not None:
+        if tr != None:
             return int(tr)
         # For compatibility
         item = self.get_item_for_task("run_star")
-        if item is not None:
+        if item != None:
             return int(item["reads_before"])
 
     def get_remaining_reads(self):
         return int(self.get_item_value('remaining_reads'))
 
     def gsnap_ran_in_host_filtering(self):
-        return self.get_item_for_task("run_gsnap_filter") is not None
+        return self.get_item_for_task("run_gsnap_filter") != None
 
     def count_reads(self, func_name, before_filename, before_filetype,
                     after_filename, after_filetype):
@@ -143,7 +143,7 @@ class MyThread(threading.Thread):
     def __init__(self, target, args, kwargs=None):
         super(MyThread, self).__init__()
         self.args = args
-        if kwargs is None:
+        if kwargs == None:
             self.kwargs = {}
         else:
             self.kwargs = kwargs
@@ -209,7 +209,7 @@ class CommandTracker(Updater):
 
     def print_update_and_enforce_timeout(self, t_elapsed):
         with print_lock:
-            if self.proc is None or self.proc.poll() is None:
+            if self.proc == None or self.proc.poll() == None:
                 print("Command %d still running after %3.1f seconds." %
                       (self.id, t_elapsed))
             else:
@@ -221,8 +221,8 @@ class CommandTracker(Updater):
         self.enforce_timeout(t_elapsed)
 
     def enforce_timeout(self, t_elapsed):
-        if self.timeout is None or not self.proc or t_elapsed <= self.timeout or self.proc.poll(
-        ) is not None:
+        if self.timeout == None or not self.proc or t_elapsed <= self.timeout or self.proc.poll(
+        ) != None:
             # Unregistered subprocess, subprocess not yet timed out, or subprocess already exited.
             pass
         elif not self.t_sigterm_sent:
@@ -431,7 +431,7 @@ def count_reads(file_name, file_type, max_reads=None):
             pass
         else:
             count += 1
-        if max_reads is not None and count > max_reads:
+        if max_reads != None and count > max_reads:
             # if more than max, return early. using > because of floating point
             break
     f.close()
@@ -541,12 +541,12 @@ def install_s3mi(installed={}, mutex=threading.RLock()):  #pylint: disable=dange
 
 def fetch_lazy_result(source, destination, allow_s3mi=False):
     return fetch_from_s3(
-        source, destination, auto_unzip=False, allow_s3mi=allow_s3mi) is not None
+        source, destination, auto_unzip=False, allow_s3mi=allow_s3mi) != None
 
 
 def fetch_reference(source, auto_unzip=True, allow_s3mi=True):
     path = fetch_from_s3(source, REF_DIR, auto_unzip, allow_s3mi=allow_s3mi)
-    assert path is not None
+    assert path != None
     return path
 
 
@@ -642,15 +642,13 @@ def write_to_log(message, warning=False, flush=True):
             sys.stdout.flush()
 
 
-def set_up_stdout():
+def unbuffer_stdout():
     # Unbuffer stdout and redirect stderr into stdout. This helps observe logged events in realtime.
     sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
     os.dup2(sys.stdout.fileno(), sys.stderr.fileno())
 
 
-def set_up_commit_sha(version, s3_destination=None):
-    """Upload a file with the commit hash and also initialize the main version output file.
-    """
+def upload_commit_sha(version, s3_destination=None):
     sha_file = os.environ.get('COMMIT_SHA_FILE')
     s3_destination = s3_destination or os.environ.get('OUTPUT_BUCKET')
     if sha_file is None or s3_destination is None:
@@ -664,11 +662,10 @@ def set_up_commit_sha(version, s3_destination=None):
 
     # also initialize the main version output file with the commit sha and the job_id
     global OUTPUT_VERSIONS
+    aws_batch_job_id = os.environ.get('AWS_BATCH_JOB_ID', 'local')
     OUTPUT_VERSIONS.append({"name": "job_id", "version": aws_batch_job_id})
-
     with open(sha_file, 'r') as f:
         commit_sha = f.read().rstrip()
-
     OUTPUT_VERSIONS.append({
         "name": "idseq-pipeline",
         "version": version,

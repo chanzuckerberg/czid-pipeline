@@ -8,5 +8,5 @@ class Rapsearch_indexing(Base):
     def run(self):
         from .rapsearch_indexing_functions import *
 
-        set_up_stdout()
+        unbuffer_stdout()
         make_index(self.version)

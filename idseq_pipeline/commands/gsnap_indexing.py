@@ -8,5 +8,5 @@ class Gsnap_indexing(Base):
     def run(self):
         from .gsnap_indexing_functions import *
 
-        set_up_stdout()
+        unbuffer_stdout()
         make_index(self.version)

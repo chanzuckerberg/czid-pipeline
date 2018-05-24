@@ -8,5 +8,5 @@ class Host_indexing(Base):
     def run(self):
         from .host_indexing_functions import *
 
-        set_up_stdout()
+        unbuffer_stdout()
         make_indexes(self.version)

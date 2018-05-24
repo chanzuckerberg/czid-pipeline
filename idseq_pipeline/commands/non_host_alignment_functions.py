@@ -662,7 +662,7 @@ def wait_for_server_ip(service_name,
     write_to_log("Chunk {chunk_id} of {service_name} is at second gate".format(
         chunk_id=chunk_id, service_name=service_name))
     with mx:
-        if lc[0] is not None:
+        if lc[0] != None:
             sleep_time = (60.0 / MAX_DISPATCHES_PER_MINUTE) - (
                 time.time() - lc[0])
             if sleep_time > 0:
@@ -693,8 +693,7 @@ def chunk_input(input_files_basenames, chunk_nlines, chunksize):
         nlines = int(
             execute_command_with_output(
                 "wc -l %s" % input_file_full_local_path).strip().split()[0])
-        # Number of lines should be the same in paired files
-        if known_nlines is not None:
+        if known_nlines != None:
             m = "Mismatched line counts in supposedly paired files: {}"
             assert nlines == known_nlines, m.format(input_files_basenames)
         known_nlines = nlines
@@ -1134,14 +1133,14 @@ def fetch_and_clean_inputs(input_file_list):
 
     for i, ci in enumerate(cleaned_inputs):
         assert ci != "ERROR", "Error fetching input {}".format(i)
-        assert ci is None or os.path.isfile(
+        assert ci == None or os.path.isfile(
             ci), "Local file {} not found after download of input {}".format(
                 ci, i)
 
-    assert cleaned_inputs[0] is not None, "Input {} not found.  This input is mandatory.".format(
+    assert cleaned_inputs[0] != None, "Input {} not found.  This input is mandatory.".format(
         input_file_list[0])
 
-    assert (cleaned_inputs[1] is None) == (
+    assert (cleaned_inputs[1] == None) == (
         cleaned_inputs[2] is
         None), "Input {} is required when {} is given, and vice versa".format(
             input_file_list[1], input_file_list[2])
