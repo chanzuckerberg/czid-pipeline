@@ -16,9 +16,8 @@ URL_PREFIX=ftp://ftp.ncbi.nlm.nih.gov
 
 ## Instances with adequate resources for making gsnap and rapsearch indexes.
 # Need to have write access to DESTINATION.
-RAPSEARCH_SERVER_IP=
-GSNAP_SERVER_IP=
-PEM_FILE_PATH=
+RAPSEARCH_SERVER_IP=54.191.193.210
+GSNAP_SERVER_IP=34.211.67.166
 
 
 ##### COMMANDS #####
@@ -37,7 +36,7 @@ aws s3 cp s3://czbiohub-infectious-disease/references/nt_k16.tar ${ARCHIVE_FOLDE
 aws s3 cp s3://czbiohub-infectious-disease/references/nt_k16.version.txt ${ARCHIVE_FOLDER}/
 
 echo 'Making new GSNAP index...'
-INPUT_FASTA_S3=${URL_PREFIX}/blast/db/FASTA/nt.gz SERVER_IP=${GSNAP_SERVER_IP} KEY_S3_PATH=${PEM_FILE_PATH} OUTPUT_PATH_S3=$DESTINATION OUTPUT_NAME=nt_k16 idseq_pipeline gsnap_indexing
+INPUT_FASTA_S3=${URL_PREFIX}/blast/db/FASTA/nt.gz SERVER_IP=${GSNAP_SERVER_IP} KEY_S3_PATH=s3://idseq-secrets/idseq-production.pem OUTPUT_PATH_S3=$DESTINATION OUTPUT_NAME=nt_k16 idseq_pipeline gsnap_indexing
 
 ## Make RAPSearch2 index
 echo 'Archiving RAPSearch2 index...'
@@ -46,7 +45,7 @@ aws s3 cp s3://czbiohub-infectious-disease/references/nr_rapsearch/nr_rapsearch.
 aws s3 cp s3://czbiohub-infectious-disease/references/nr_rapsearch.version.txt ${ARCHIVE_FOLDER}/
 
 echo 'Making new RAPSearch2 index...'
-INPUT_FASTA_S3=${URL_PREFIX}/blast/db/FASTA/nr.gz SERVER_IP=${RAPSEARCH_SERVER_IP} KEY_S3_PATH=${PEM_FILE_PATH} OUTPUT_PATH_S3=$DESTINATION OUTPUT_NAME=nr_rapsearch idseq_pipeline rapsearch_indexing
+INPUT_FASTA_S3=${URL_PREFIX}/blast/db/FASTA/nr.gz SERVER_IP=${RAPSEARCH_SERVER_IP} KEY_S3_PATH=s3://czbiohub-infectious-disease/idseq-alpha.pem OUTPUT_PATH_S3=$DESTINATION OUTPUT_NAME=nr_rapsearch idseq_pipeline rapsearch_indexing
 
 ## Make taxonomy lineage files
 echo 'Archiving taxonomy lineage files...'

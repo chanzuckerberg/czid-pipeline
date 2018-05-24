@@ -1,7 +1,6 @@
 """The  accessionid2seq command."""
 from .base import Base
 
-
 class Accessionid2seq(Base):
     """Accessioid2seq"""
 
@@ -9,6 +8,6 @@ class Accessionid2seq(Base):
         from .accessionid2seq_functions import accessionid2seq_main
         from .common import *
 
-        set_up_stdout()
+        unbuffer_stdout()
 
         accessionid2seq_main(arguments=self.options)
