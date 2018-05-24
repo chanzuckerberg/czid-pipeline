@@ -115,7 +115,7 @@ BOWTIE2 = "bowtie2"
 GSNAPL = "gsnapl"
 
 # pipeline configuration
-LZW_FRACTION_CUTOFF = 0.45
+LZW_FRACTION_CUTOFFS = [0.45, 0.42]
 
 
 # convenience functions
@@ -150,57 +150,63 @@ def lzw_fraction(sequence):
     return float(len(results)) / len(sequence)
 
 
-def generate_lzw_filtered_single(fasta_file, output_prefix, cutoff_fraction):
+def generate_lzw_filtered_single(fasta_file, output_prefix, cutoff_fractions):
     output_read_1 = open(output_prefix + '.1.fasta', 'wb')
-    read_1 = open(fasta_file, 'rb')
-    count = 0
-    filtered = 0
-    while True:
-        line_r1_header = read_1.readline()
-        line_r1_sequence = read_1.readline()
-        if line_r1_header and line_r1_sequence:
-            fraction_1 = lzw_fraction(line_r1_sequence.rstrip())
-            count += 1
-            if fraction_1 > cutoff_fraction:
-                output_read_1.write(line_r1_header)
-                output_read_1.write(line_r1_sequence)
-            else:
-                filtered += 1
-        else:
-            break
-    print("LZW filter: total reads: %d, filtered reads: %d, kept ratio: %f" %
-          (count, filtered, 1 - float(filtered) / count))
+    for cutoff_fraction in cutoff_fractions:
+      read_1 = open(fasta_file, 'rb')
+      count = 0
+      filtered = 0
+      while True:
+          line_r1_header = read_1.readline()
+          line_r1_sequence = read_1.readline()
+          if line_r1_header and line_r1_sequence:
+              fraction_1 = lzw_fraction(line_r1_sequence.rstrip())
+              count += 1
+              if fraction_1 > cutoff_fraction:
+                  output_read_1.write(line_r1_header)
+                  output_read_1.write(line_r1_sequence)
+              else:
+                  filtered += 1
+          else:
+              break
+      print("LZW filter: cutoff_fraction: %f, total reads: %d, filtered reads: %d, kept ratio: %f" %
+            (cutoff_fraction, count, filtered, 1 - float(filtered) / count))
+      if count != filtered:
+        break
     output_read_1.close()
 
 
 def generate_lzw_filtered_paired(fasta_file_1, fasta_file_2, output_prefix,
-                                 cutoff_fraction):
+                                 cutoff_fractions):
     output_read_1 = open(output_prefix + '.1.fasta', 'wb')
     output_read_2 = open(output_prefix + '.2.fasta', 'wb')
-    read_1 = open(fasta_file_1, 'rb')
-    read_2 = open(fasta_file_2, 'rb')
-    count = 0
-    filtered = 0
-    while True:
-        line_r1_header = read_1.readline()
-        line_r1_sequence = read_1.readline()
-        line_r2_header = read_2.readline()
-        line_r2_sequence = read_2.readline()
-        if line_r1_header and line_r1_sequence and line_r2_header and line_r2_sequence:
-            fraction_1 = lzw_fraction(line_r1_sequence.rstrip())
-            fraction_2 = lzw_fraction(line_r2_sequence.rstrip())
-            count += 1
-            if fraction_1 > cutoff_fraction and fraction_2 > cutoff_fraction:
-                output_read_1.write(line_r1_header)
-                output_read_1.write(line_r1_sequence)
-                output_read_2.write(line_r2_header)
-                output_read_2.write(line_r2_sequence)
-            else:
-                filtered += 1
-        else:
-            break
-    print("LZW filter: total reads: %d, filtered reads: %d, kept ratio: %f" %
-          (count, filtered, 1 - float(filtered) / count))
+    for cutoff_fraction in cutoff_fractions:
+      read_1 = open(fasta_file_1, 'rb')
+      read_2 = open(fasta_file_2, 'rb')
+      count = 0
+      filtered = 0
+      while True:
+          line_r1_header = read_1.readline()
+          line_r1_sequence = read_1.readline()
+          line_r2_header = read_2.readline()
+          line_r2_sequence = read_2.readline()
+          if line_r1_header and line_r1_sequence and line_r2_header and line_r2_sequence:
+              fraction_1 = lzw_fraction(line_r1_sequence.rstrip())
+              fraction_2 = lzw_fraction(line_r2_sequence.rstrip())
+              count += 1
+              if fraction_1 > cutoff_fraction and fraction_2 > cutoff_fraction:
+                  output_read_1.write(line_r1_header)
+                  output_read_1.write(line_r1_sequence)
+                  output_read_2.write(line_r2_header)
+                  output_read_2.write(line_r2_sequence)
+              else:
+                  filtered += 1
+          else:
+              break
+      print("LZW filter: cutoff_fraction: %f, total reads: %d, filtered reads: %d, kept ratio: %f" %
+            (cutoff_fraction, count, filtered, 1 - float(filtered) / count))
+      if count != filtered:
+        break
     output_read_1.close()
     output_read_2.close()
 
@@ -637,10 +643,10 @@ def run_lzw(input_fas, uploader_start):
     output_prefix = RESULT_DIR + '/' + LZW_OUT1[:-8]
     if len(input_fas) == 2:
         generate_lzw_filtered_paired(input_fas[0], input_fas[1], output_prefix,
-                                     LZW_FRACTION_CUTOFF)
+                                     LZW_FRACTION_CUTOFFS)
     else:
         generate_lzw_filtered_single(input_fas[0], output_prefix,
-                                     LZW_FRACTION_CUTOFF)
+                                     LZW_FRACTION_CUTOFFS)
     # copy back to aws
     uploader_start(
         os.path.join(RESULT_DIR, LZW_OUT1), SAMPLE_S3_OUTPUT_PATH + "/")
