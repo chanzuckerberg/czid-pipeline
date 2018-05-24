@@ -1,4 +1,5 @@
 import os
+import logging
 import multiprocessing
 import re
 from .common import *  #pylint: disable=wildcard-import
@@ -152,6 +153,8 @@ def lzw_fraction(sequence):
 
 def generate_lzw_filtered_single(fasta_file, output_prefix, cutoff_fractions):
     print("1");
+    LOGGER = logging.getLogger()
+    LOGGER.info("1")
     output_read_1 = open(output_prefix + '.1.fasta', 'wb')
     for cutoff_fraction in cutoff_fractions:
       read_1 = open(fasta_file, 'rb')
@@ -172,15 +175,20 @@ def generate_lzw_filtered_single(fasta_file, output_prefix, cutoff_fractions):
               break
       print("LZW filter: cutoff_fraction: %f, total reads: %d, filtered reads: %d, kept ratio: %f" %
             (cutoff_fraction, count, filtered, 1 - float(filtered) / count))
+      LOGGER.info("LZW filter: cutoff_fraction: %f, total reads: %d, filtered reads: %d, kept ratio: %f" %
+            (cutoff_fraction, count, filtered, 1 - float(filtered) / count))
       if count != filtered:
         break
     output_read_1.close()
     print("2");
+    LOGGER.info("2")
 
 
 def generate_lzw_filtered_paired(fasta_file_1, fasta_file_2, output_prefix,
                                  cutoff_fractions):
     print("3");
+    LOGGER = logging.getLogger()
+    LOGGER.info("3")
     output_read_1 = open(output_prefix + '.1.fasta', 'wb')
     output_read_2 = open(output_prefix + '.2.fasta', 'wb')
     for cutoff_fraction in cutoff_fractions:
@@ -208,11 +216,14 @@ def generate_lzw_filtered_paired(fasta_file_1, fasta_file_2, output_prefix,
               break
       print("LZW filter: cutoff_fraction: %f, total reads: %d, filtered reads: %d, kept ratio: %f" %
             (cutoff_fraction, count, filtered, 1 - float(filtered) / count))
+      LOGGER.info("LZW filter: cutoff_fraction: %f, total reads: %d, filtered reads: %d, kept ratio: %f" %
+            (cutoff_fraction, count, filtered, 1 - float(filtered) / count))
       if count != filtered:
         break
     output_read_1.close()
     output_read_2.close()
     print("4");
+    LOGGER.info("4")
 
 
 def generate_unmapped_singles_from_sam(sam_file, output_prefix):
