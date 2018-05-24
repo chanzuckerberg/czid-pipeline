@@ -151,6 +151,7 @@ def lzw_fraction(sequence):
 
 
 def generate_lzw_filtered_single(fasta_file, output_prefix, cutoff_fractions):
+    print("1");
     output_read_1 = open(output_prefix + '.1.fasta', 'wb')
     for cutoff_fraction in cutoff_fractions:
       read_1 = open(fasta_file, 'rb')
@@ -174,10 +175,12 @@ def generate_lzw_filtered_single(fasta_file, output_prefix, cutoff_fractions):
       if count != filtered:
         break
     output_read_1.close()
+    print("2");
 
 
 def generate_lzw_filtered_paired(fasta_file_1, fasta_file_2, output_prefix,
                                  cutoff_fractions):
+    print("3");
     output_read_1 = open(output_prefix + '.1.fasta', 'wb')
     output_read_2 = open(output_prefix + '.2.fasta', 'wb')
     for cutoff_fraction in cutoff_fractions:
@@ -209,6 +212,7 @@ def generate_lzw_filtered_paired(fasta_file_1, fasta_file_2, output_prefix,
         break
     output_read_1.close()
     output_read_2.close()
+    print("4");
 
 
 def generate_unmapped_singles_from_sam(sam_file, output_prefix):
