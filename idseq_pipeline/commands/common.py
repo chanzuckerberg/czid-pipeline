@@ -387,7 +387,7 @@ def execute_command_with_output(command,
 
 
 def remote_command(base_command, key_path, remote_username, instance_ip):
-    return 'ssh -o "StrictHostKeyChecking no" -o "ConnectTimeout 15" -i %s %s@%s "%s"' % (
+    return 'ssh -o "StrictHostKeyChecking no" -o "ConnectTimeout 15" -o "ServerAliveInterval 60" -i %s %s@%s "%s"' % (
         key_path, remote_username, instance_ip, base_command)
 
 
@@ -395,7 +395,7 @@ def scp(key_path, remote_username, instance_ip, remote_path, local_path):
     assert " " not in key_path
     assert " " not in remote_path
     assert " " not in local_path
-    return 'scp -o "StrictHostKeyChecking no" -o "ConnectTimeout 15" -i {key_path} {username}@{ip}:{remote_path} {local_path}'.format(
+    return 'scp -o "StrictHostKeyChecking no" -o "ConnectTimeout 15" -o "ServerAliveInterval 60" -i {key_path} {username}@{ip}:{remote_path} {local_path}'.format(
         key_path=key_path,
         username=remote_username,
         ip=instance_ip,

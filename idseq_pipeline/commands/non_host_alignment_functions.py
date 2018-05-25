@@ -586,7 +586,7 @@ def wait_for_server_ip_work(service_name,
         dict_writable = True
 
         def poll_server(ip):
-            command = 'ssh -o "StrictHostKeyChecking no" -o "ConnectTimeout 5" -i %s %s@%s "ps aux | grep %s | grep -v bash" || echo "error"' % (
+            command = 'ssh -o "StrictHostKeyChecking no" -o "ConnectTimeout 5" -o "ServerAliveInterval 60" -i %s %s@%s "ps aux | grep %s | grep -v bash" || echo "error"' % (
                 key_path, remote_username, ip, service_name)
             output = execute_command_with_output(
                 command, timeout=MAX_POLLING_LATENCY).rstrip().split("\n")
