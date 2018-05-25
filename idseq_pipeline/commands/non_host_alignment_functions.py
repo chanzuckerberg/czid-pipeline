@@ -505,7 +505,7 @@ def read_file_into_set(file_name):
 
 
 def environment_for_aligners(_environment):
-    if _environment in ['staging', 'prod']:
+    if _environment in ['development', 'staging', 'prod']:
         return 'prod'
     return ''
 
