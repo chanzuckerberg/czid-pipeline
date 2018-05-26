@@ -31,6 +31,7 @@ PIPELINE_VERSION_OUT = 'pipeline_version.txt'
 MAX_INPUT_READS = 75 * 1000 * 1000
 MAX_GNSAP_FILTER_READS = 10 * 1000 * 1000
 INPUT_TRUNCATED_FILE = 'input_truncated.txt'
+HOST_FILTERING_COMPLETE_FILE = 'host_filtering__complete'
 
 # arguments from environment variables
 INPUT_BUCKET = os.environ.get('INPUT_BUCKET')
@@ -1065,8 +1066,10 @@ def run_stage1(lazy_run=True):
     run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
                        stats_in is not None)
 
-    # This lets the webapp know the stage has completed.
     stats.save_to_s3()
 
     write_to_log("Host filtering complete")
     upload_log_file(SAMPLE_S3_OUTPUT_PATH)
+
+    # This lets the webapp know the stage has completed.
+    execute_command("echo '' | aws s3 cp - %s/%s" % (SAMPLE_S3_OUTPUT_PATH, HOST_FILTERING_COMPLETE_FILE))
