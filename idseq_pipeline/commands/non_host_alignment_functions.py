@@ -857,30 +857,50 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir,
 @run_in_subprocess
 def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path,
                  output_m8, output_summary):
-    """Call hits and hit levels from the m8 files and produce cleaned m8 file
-    and summary file. Essentially matches sequences to probable known
-    sequences along the taxonomic hierarchy.
+    """
+    Determine the optimal taxon assignment for each read from the alignment
+    results. When a read aligns to multiple distinct references, we need to
+    assess at which level in the taxonomic hierarchy the multiple alignments
+    reach consensus. We refer to this process of controlling for specificity
+    as 'hit calling'.
 
-    - A hit is basically a probable match of the sequence to a known sample.
-    This uses a matching of accession IDs to taxonomy IDs to place a sequence
-    in the taxonomy tree hierarchy. Calling a hit means to make the mapping
-    of a sequence to a known one.
+    Input:
+    - m8 file of multiple alignments per read
 
-    - Accession IDs and taxonomy IDs are from NCBI.
+    Outputs:
+    - cleaned m8 file with a single, optimal alignment per read
+    - file with summary information, including taxonomy level at which
+    specificity is reached
 
-    - Lineage is taxonomic information such as species, genus, family, etc.
+    Details:
+    - A taxon is a group of any rank (e.g. species, genus, family, etc.).
 
-    - We use negative taxonomy IDs to represent a fake mapping / uncertainty
-    at what level of specificity to output hits. E.g. a sample may match well
-    to the genus Escherichia but not well to any particular species,
-    or it may be lacking a species classification from NCBI, so we set
-    genus_id to positive but the species_id to a negative placeholder value (
-    -100). This uncertainty may come from either NCBI (lack of specific
-    classification) or from our processing (uncertainty in where to map to in
-    the taxonomy).
+    - A hit is a match of a read to a known reference labeled with an
+    accession ID. We use NCBI's mapping of accession IDs to taxonomy IDs in
+    order to retrieve the full taxonomic hierarchy for the accession ID.
 
-    - Negative placeholder values start at -100 for the species level,
-    -200 for the genus level, and so on.
+    - The full taxonomy hierarchy for a hit is called its "lineage" (species,
+    genus, family, etc.). A hit will normally have (positive) NCBI taxon IDs
+    at all levels of the hierarchy, but there are some exceptions:
+
+        - We use an artificial negative taxon ID if we have determined that
+        the alignment is not specific at the taxonomy level under
+        consideration. This happens when a read's multiple reference matches
+        do not agree on taxon ID at the given level. For example, a read may
+        match 5 references that all belong to different species (e.g.
+        Escherichia albertii, Escherichia vulneris, Escherichia coli, ...),
+        but to the same genus (Escherichia). In this case, we use the taxon
+        ID for the genus (Escherichia) at the genus-level, but we populate
+        the species-level with an artificial negative ID. The artificial ID
+        is defined based on a negative base (INVALID_CALL_BASE_ID), the taxon
+        level (e.g. 2 for genus), and the valid parent ID (e.g. genus
+        Escherichia's taxon ID): see helper function cleaned_taxid_lineage
+        for the precise formula.
+
+        - Certain entries in NCBI may not have a full lineage classification;
+        for example species and family will be defined but genus will be
+        undefined. In this case, we populate the undefined taxonomic level
+        with an artificial negative ID defined in the same manner as above.
     """
     lineage_map = shelve.open(lineage_map_path)
     accession2taxid_dict = shelve.open(accession2taxid_dict_path)
