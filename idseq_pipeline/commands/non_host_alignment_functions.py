@@ -63,7 +63,6 @@ DEDUP_MULTIHIT_RAPSEARCH_OUT = 'dedup.multihit.rapsearch2.filter.deuterostomes.t
 MULTIHIT_NR_JSON_OUT = 'nr_multihit_idseq_web_sample.json'
 MULTIHIT_COMBINED_JSON_OUT = 'multihit_idseq_web_sample.json'
 ACCESSION_ANNOTATED_FASTA = 'accessions.rapsearch2.gsnapl.fasta'
-ALIGNMENT_COMPLETE_FILE = 'alignment__complete'
 
 # arguments from environment variables
 SKIP_DEUTERO_FILTER = int(os.environ.get('SKIP_DEUTERO_FILTER', 0))
@@ -1402,5 +1401,4 @@ def run_stage2(lazy_run=True):
     stats.save_to_s3()
     upload_log_file(SAMPLE_S3_OUTPUT_PATH)
 
-    # Let the webapp know the stage has completed
-    execute_command("echo '' | aws s3 cp - %s/%s" % (SAMPLE_S3_OUTPUT_PATH, ALIGNMENT_COMPLETE_FILE))
+    mark_job_complete(SAMPLE_S3_OUTPUT_PATH)

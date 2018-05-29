@@ -31,7 +31,6 @@ PIPELINE_VERSION_OUT = 'pipeline_version.txt'
 MAX_INPUT_READS = 75 * 1000 * 1000
 MAX_GNSAP_FILTER_READS = 10 * 1000 * 1000
 INPUT_TRUNCATED_FILE = 'input_truncated.txt'
-HOST_FILTERING_COMPLETE_FILE = 'host_filtering__complete'
 
 # arguments from environment variables
 INPUT_BUCKET = os.environ.get('INPUT_BUCKET')
@@ -1071,5 +1070,4 @@ def run_stage1(lazy_run=True):
     write_to_log("Host filtering complete")
     upload_log_file(SAMPLE_S3_OUTPUT_PATH)
 
-    # This lets the webapp know the stage has completed.
-    execute_command("echo '' | aws s3 cp - %s/%s" % (SAMPLE_S3_OUTPUT_PATH, HOST_FILTERING_COMPLETE_FILE))
+    mark_job_complete(SAMPLE_S3_OUTPUT_PATH)

@@ -51,7 +51,6 @@ TAXID_LOCATIONS_JSON_FAMILY_NR = 'taxid_locations_family_nr.json'
 TAXID_LOCATIONS_JSON_ALL = 'taxid_locations_combined.json'
 LOGS_OUT_BASENAME = 'postprocess-log'
 ALIGN_VIZ_DIR = 'align_viz'
-POSTPROCESS_COMPLETE_FILE = 'postprocess__complete'
 
 # target outputs by task
 TARGET_OUTPUTS = {
@@ -392,5 +391,4 @@ def run_stage3(lazy_run=False):
                 run_combine_json, input_files,
                 os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_ALL))
 
-    # Let the webapp know the stage has completed
-    execute_command("echo '' | aws s3 cp - %s/%s" % (SAMPLE_S3_OUTPUT_PATH, POSTPROCESS_COMPLETE_FILE))
+    mark_job_complete(SAMPLE_S3_OUTPUT_PATH)

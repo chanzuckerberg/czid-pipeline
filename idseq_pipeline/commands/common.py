@@ -874,3 +874,7 @@ fill_missing_calls_tests()
 def validate_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str):
     return fill_missing_calls(
         cleaned_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str))
+
+def mark_job_complete(s3_folder)
+    done_file = "%s.done" % AWS_BATCH_JOB_ID
+    execute_command("echo '' | aws s3 cp - %s/%s" % (s3_folder, done_file))
