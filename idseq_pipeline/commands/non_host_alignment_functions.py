@@ -139,14 +139,21 @@ def count_lines_in_paired_files(input_files):
 
 
 def subsample_helper(input_file, records_to_keep, type_, output_file):
+    """Subsample the FASTA file by either read IDs or record indices to save.
+    record_indices are used first to sample from all the records in the file.
+    The paired FASTA case uses read_ids to subsample the merged file.
+    """
+
     record_number = 0
     msg = "records_to_keep is not a set."
     assert isinstance(records_to_keep, set), msg
     kept_read_ids = set()
     kept_reads_count = 0
+    sequence_basename = ""
 
     with open(input_file, 'rb') as input_f:
         with open(output_file, 'wb') as output_f:
+            # Iterate through the FASTA file
             sequence_name = input_f.readline()
             sequence_data = input_f.readline()
 
@@ -161,7 +168,7 @@ def subsample_helper(input_file, records_to_keep, type_, output_file):
                 else:
                     condition = True
 
-                if condition:
+                if condition:  # We should keep this entry
                     output_f.write(sequence_name)
                     output_f.write(sequence_data)
                     kept_reads_count += 1
@@ -169,37 +176,45 @@ def subsample_helper(input_file, records_to_keep, type_, output_file):
                 sequence_name = input_f.readline()
                 sequence_data = input_f.readline()
                 record_number += 1
-    if type_ == "record_indices":
-        if len(kept_read_ids) != len(records_to_keep):
-            write_to_log(
-                "WARNING:  Repeated read IDs in {input_file}:  Found {kri} read IDs in {rtk} sampled rows.".
-                format(
-                    input_file=input_file,
-                    kri=len(kept_read_ids),
-                    rtk=len(records_to_keep)))
-    if type_ == "read_ids":
-        if kept_read_ids != records_to_keep:
-            missing = records_to_keep - kept_read_ids
-            examples = sorted(random.sample(missing, min(10, len(missing))))
-            assert kept_read_ids == records_to_keep, "Not all desired read IDs were found in the file: {}\nMissing: {}".format(
-                input_file, examples)
+
+    # Error checking for mismatch
+    if type_ == "record_indices" and len(kept_read_ids) != len(records_to_keep):
+        msg = "WARNING: Repeated read IDs in {input_file}: Found {kri} read " \
+              "IDs in {rtk} sampled rows.".format(
+        input_file=input_file,
+        kri=len(kept_read_ids),
+        rtk=len(records_to_keep))
+        write_to_log(msg)
+
+    if type_ == "read_ids" and kept_read_ids != records_to_keep:
+        missing = records_to_keep - kept_read_ids
+        examples = sorted(random.sample(missing, min(10, len(missing))))
+        msg = "Not all desired read IDs were found in the file: {}\nMissing: {}".format(
+            input_file, examples)
+        assert kept_read_ids == records_to_keep, msg
     return kept_read_ids, kept_reads_count
 
 
-# Note dedicated random stream for just this function, so that arbitrary other use of randomness (e.g. for I/O retry delays) will not perturb the subsampling stream
+# Note dedicated random stream for just this function, so that arbitrary
+# other use of randomness (e.g. for I/O retry delays) will not perturb the
+# sub-sampling stream
 def subsample_single_fasta(input_files_basename,
                            target_n_reads,
                            randgen=random.Random(x=hash(SAMPLE_NAME))):
+    """Randomly subsample a single unpaired FASTA file."""
     input_file = result_dir(input_files_basename)
-    total_records = count_lines(
-        input_file) // 2  # each fasta record spans 2 lines
+    # Each FASTA record spans 2 lines
+    total_records = count_lines(input_file) // 2
     write_to_log("total unpaired reads: %d" % total_records)
     write_to_log("target reads: %d" % target_n_reads)
     if total_records <= target_n_reads:
         return input_file
+
+    # Randomly select a subset to process
     records_to_keep = set(
         randgen.sample(xrange(total_records), target_n_reads))
     subsample_prefix = "subsample_%d" % target_n_reads
+
     input_dir, input_basename = os.path.split(input_file)
     output_basename = "%s.%s" % (subsample_prefix, input_basename)
     output_file = os.path.join(input_dir, output_basename)
@@ -212,33 +227,40 @@ def subsample_paired_fastas(input_files_basenames,
                             merged_file_basename,
                             target_n_reads,
                             randgen=random.Random(x=hash(SAMPLE_NAME))):
+    """Randomly subsample a paired FASTA file. A paired read means reading
+    from both ends of a DNA/RNA fragment.
+    """
     input_files = [result_dir(f) for f in input_files_basenames]
     merged_file = result_dir(merged_file_basename)
-    total_records = count_lines_in_paired_files(
-        input_files) // 2  # each fasta record spans 2 lines
+    # Each FASTA record spans 2 lines
+    total_records = count_lines_in_paired_files(input_files) // 2
     write_to_log("total read pairs: %d" % total_records)
     write_to_log("target read pairs: %d" % target_n_reads)
-    # note: target_n_reads and total_records really refer to numbers of read PAIRS
+    # Note: target_n_reads and total_records here really refer to numbers of
+    # read PAIRS.
     if total_records <= target_n_reads:
         return input_files_basenames, merged_file_basename
+
     subsample_prefix = "subsample_%d" % target_n_reads
     records_to_keep = set(
         randgen.sample(xrange(total_records), target_n_reads))
     subsampled_files = []
     known_kept_read_ids = set()
-    kept_reads_count = 0
-    # subsample the paired files and record read IDs kept
+
+    # Subsample the paired files and record read IDs kept
     for input_file in input_files:
         input_dir = os.path.split(input_file)[0]
         input_basename = os.path.split(input_file)[1]
         output_basename = "%s.%s" % (subsample_prefix, input_basename)
         output_file = os.path.join(input_dir, output_basename)
+
         kept_read_ids, kept_reads_count = subsample_helper(
             input_file, records_to_keep, "record_indices", output_file)
         assert kept_reads_count == target_n_reads
         subsampled_files.append(output_basename)
-        known_kept_read_ids |= kept_read_ids
-    # subsample the merged file to the same read IDs
+        known_kept_read_ids |= kept_read_ids  # Set union
+
+    # Subsample the merged file to the same read IDs
     input_dir = os.path.split(merged_file)[0]
     input_basename = os.path.split(merged_file)[1]
     subsampled_merged_file = "%s.%s" % (subsample_prefix, input_basename)
@@ -246,11 +268,12 @@ def subsample_paired_fastas(input_files_basenames,
     _, kept_reads_count = subsample_helper(merged_file, known_kept_read_ids,
                                            "read_ids", output_file)
     num_desired = target_n_reads * len(input_files_basenames)
+
     if kept_reads_count != num_desired:
-        # TODO  Surface these warnings in the webapp.
-        write_to_log(
-            "ERROR:  Improperly paired reads.  Total reads in sampled merged fasta: {krc}".
-            format(krc=kept_reads_count))
+        # TODO: Surface these warnings in the webapp.
+        msg = "ERROR: Improperly paired reads. Total reads in sampled merged " \
+              "fasta: {krc}".format(krc=kept_reads_count)
+        write_to_log(msg)
     assert kept_reads_count == num_desired
     return subsampled_files, subsampled_merged_file
 
