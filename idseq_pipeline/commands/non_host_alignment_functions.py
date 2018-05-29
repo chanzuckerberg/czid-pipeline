@@ -11,7 +11,7 @@ import random
 from collections import defaultdict
 from .common import *  #pylint: disable=wildcard-import
 
-# that's per job;  by default in early 2018 jobs are subsampled to <= 100 chunks
+# Settings per job. By default jobs are subsampled to <= 100 chunks.
 MAX_CHUNKS_IN_FLIGHT_GSNAP = 32
 MAX_CHUNKS_IN_FLIGHT_RAPSEARCH = 32
 chunks_in_flight_gsnap = threading.Semaphore(MAX_CHUNKS_IN_FLIGHT_GSNAP)
@@ -28,8 +28,9 @@ MAX_INSTANCES_TO_POLL = 8
 
 MAX_POLLING_LATENCY = 10  # seconds
 
-# If no instance is available, we should refresh our list of instances, to pick up new instances
-# added by autoscaling.  Wait at least this long between refreshes to stay within AWS account limits.
+# If no instance is available, we should refresh our list of instances,
+# to pick up new instances added by auto-scaling. Wait at least this long
+# between refreshes to stay within AWS account limits.
 MIN_INTERVAL_BETWEEN_DESCRIBE_INSTANCES = 180
 
 # Refresh at least every 30 minutes
@@ -139,15 +140,16 @@ def count_lines_in_paired_files(input_files):
 
 def subsample_helper(input_file, records_to_keep, type_, output_file):
     record_number = 0
-    assert isinstance(records_to_keep,
-                      set), "Essential for this to complete in our lifetimes."
+    msg = "records_to_keep is not a set."
+    assert isinstance(records_to_keep, set), msg
     kept_read_ids = set()
     kept_reads_count = 0
-    # write_to_log(sorted(records_to_keep))
+
     with open(input_file, 'rb') as input_f:
         with open(output_file, 'wb') as output_f:
             sequence_name = input_f.readline()
             sequence_data = input_f.readline()
+
             while len(sequence_name) > 0 and len(sequence_data) > 0:
                 if type_ == "read_ids":
                     sequence_basename = sequence_name.rstrip().rsplit('/',
@@ -158,6 +160,7 @@ def subsample_helper(input_file, records_to_keep, type_, output_file):
                     sequence_basename = sequence_name.rstrip()
                 else:
                     condition = True
+
                 if condition:
                     output_f.write(sequence_name)
                     output_f.write(sequence_data)
@@ -1330,17 +1333,6 @@ def run_stage2(lazy_run=True):
         combine_pipeline_output_json(
             result_dir(MULTIHIT_NT_JSON_OUT), result_dir(MULTIHIT_NR_JSON_OUT),
             result_dir(MULTIHIT_COMBINED_JSON_OUT), stats)
-        # Keep this warning there for a month or so, long enough for obselete webapps to retire.
-        # We have to do this because an obsolete webapp will keep the gsnap tier from scaling in if it doesn't see this file.
-        execute_command(
-            "echo This file is deprecated since pipeline version 1.5.  Please use {new} instead. > {deprecated}".
-            format(
-                deprecated=result_dir(
-                    DEPRECATED_BOOBYTRAPPED_COMBINED_JSON_OUT),
-                new=MULTIHIT_COMBINED_JSON_OUT))
-        execute_command("aws s3 cp --quiet %s/%s %s/" %
-                        (RESULT_DIR, DEPRECATED_BOOBYTRAPPED_COMBINED_JSON_OUT,
-                         SAMPLE_S3_OUTPUT_PATH))
 
         with thread_success_lock:
             thread_success["additional_steps"] = True
@@ -1378,6 +1370,7 @@ def run_stage2(lazy_run=True):
         with thread_success_lock:
             return thread_success.get(name)
 
+    # Main steps
     t_gsnap.start()
     t_rapsearch2.start()
     t_gsnap.join()
@@ -1385,6 +1378,7 @@ def run_stage2(lazy_run=True):
     t_rapsearch2.join()
     assert thread_succeeded("rapsearch2")
 
+    # Additional steps
     t_additional_steps.start()
     t_annotation.start()
     t_additional_steps.join()
