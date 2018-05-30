@@ -384,56 +384,75 @@ def generate_taxon_count_json_from_m8(
         taxids_to_remove = read_file_into_set(deuterostome_path)
 
     def any_hits_to_remove(hits):
+        if SKIP_DEUTERO_FILTER:
+            return False
         for taxid in hits:
             if int(taxid) >= 0 and taxid in taxids_to_remove:
                 return True
         return False
 
+    # Setup
     aggregation = {}
     hit_f = open(hit_level_file, 'rb')
     m8_f = open(m8_file, 'rb')
-    # lines in m8_file and hit_level_file correspond (same read_id)
+    # Lines in m8_file and hit_level_file correspond (same read_id)
     hit_line = hit_f.readline()
     m8_line = m8_f.readline()
     lineage_map = shelve.open(lineage_map_path)
     NUM_RANKS = len(NULL_LINEAGE)
     # See https://en.wikipedia.org/wiki/Double-precision_floating-point_format
     MIN_NORMAL_POSITIVE_DOUBLE = 2.0**-1022
+
     while hit_line and m8_line:
-        # Retrieve data values from files:
+        # Retrieve data values from files
         hit_line_columns = hit_line.rstrip("\n").split("\t")
         _read_id = hit_line_columns[0]
         hit_level = hit_line_columns[1]
         hit_taxid = hit_line_columns[2]
-        if int(hit_level) < 0:
+        if int(hit_level) < 0:  # Skip negative levels and continue
             hit_line = hit_f.readline()
             m8_line = m8_f.readline()
             continue
+
+        # m8 files correspond to BLAST tabular output format 6:
+        # Columns: read_id | _ref_id | percent_identity | alignment_length...
+        #
+        # * read_id = query (e.g., gene) sequence id
+        # * _ref_id = subject (e.g., reference genome) sequence id
+        # * percent_identity = percentage of identical matches
+        # * alignment_length = length of the alignments
+        # * e_value = the expect value
+        #
+        # See:
+        # * http://www.metagenomics.wiki/tools/blast/blastn-output-format-6
+        # * http://www.metagenomics.wiki/tools/blast/evalue
+
         m8_line_columns = m8_line.split("\t")
-        assert m8_line_columns[0] == hit_line_columns[
-            0], "read_ids in %s and %s do not match: %s vs. %s" % (
-                os.path.basename(m8_file), os.path.basename(hit_level_file),
-                m8_line_columns[0], hit_line_columns[0])
+        msg = "read_ids in %s and %s do not match: %s vs. %s" % (
+            os.path.basename(m8_file), os.path.basename(hit_level_file),
+            m8_line_columns[0], hit_line_columns[0])
+        assert m8_line_columns[0] == hit_line_columns[0], msg
         percent_identity = float(m8_line_columns[2])
         alignment_length = float(m8_line_columns[3])
         e_value = float(m8_line_columns[10])
+
         # These have been filtered out before the creation of m8_f and hit_f
         assert alignment_length > 0
         assert -0.25 < percent_identity < 100.25
         assert e_value == e_value
         if e_value_type != 'log10':
-            assert MIN_NORMAL_POSITIVE_DOUBLE <= e_value  # Subtle, but this excludes positive subnorms.
+            # Subtle, but this excludes positive subnormal numbers.
+            assert MIN_NORMAL_POSITIVE_DOUBLE <= e_value
             e_value = math.log10(e_value)
 
-        # Retrieve the taxon lineage and mark meaningless calls with fake taxids.
+        # Retrieve the taxon lineage and mark meaningless calls with fake
+        # taxids.
         hit_taxids_all_levels = lineage_map.get(hit_taxid, NULL_LINEAGE)
         cleaned_hit_taxids_all_levels = validate_taxid_lineage(
             hit_taxids_all_levels, hit_taxid, hit_level)
         assert NUM_RANKS == len(cleaned_hit_taxids_all_levels)
 
-        # If SKIP_DEUTERO_FILTER is enabled, don't check for hits to remove
-        # before running.
-        if SKIP_DEUTERO_FILTER or not any_hits_to_remove(cleaned_hit_taxids_all_levels):
+        if not any_hits_to_remove(cleaned_hit_taxids_all_levels):
             # Aggregate each level
             agg_key = tuple(cleaned_hit_taxids_all_levels)
             while agg_key:
