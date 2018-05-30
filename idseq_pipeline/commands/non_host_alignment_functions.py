@@ -856,65 +856,63 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir,
         remote_index_dir=remote_index_dir,
         remote_input_files=" ".join(
             remote_work_dir + "/" + input_fa for input_fa in input_files),
-        multihit_remote_outfile=multihit_remote_outfile
-        if service == "gsnap" else multihit_remote_outfile[:-3]
+        multihit_remote_outfile=multihit_remote_outfile if service == "gsnap" else multihit_remote_outfile[:-3]
         # Strip the .m8 for RAPSearch as it adds that
     )
 
-    if lazy_run and fetch_lazy_result(multihit_s3_outfile,
-                                      multihit_local_outfile):
-        # Skip if we already have previously computed results
-        return multihit_local_outfile
-
-    correct_number_of_output_columns = 12
-    min_column_number = 0
-    max_tries = 2
-    try_number = 1
-    instance_ip = ""
-    while min_column_number != correct_number_of_output_columns and try_number <= max_tries:
-        write_to_log("waiting for {} server for chunk {}".format(
-            service, chunk_id))
-        if service == "gsnap":
-            max_concurrent = GSNAPL_MAX_CONCURRENT
-        else:
-            max_concurrent = RAPSEARCH2_MAX_CONCURRENT
-
-        instance_ip = wait_for_server_ip(service, key_path, remote_username,
-                                         ENVIRONMENT, max_concurrent, chunk_id)
-        write_to_log("starting alignment for chunk %s on %s server %s" %
-                     (chunk_id, service, instance_ip))
-        execute_command(
-            remote_command(commands, key_path, remote_username, instance_ip))
+    if not lazy_run or not fetch_lazy_result(multihit_s3_outfile,
+                                             multihit_local_outfile):
+        correct_number_of_output_columns = 12
+        min_column_number = 0
+        max_tries = 2
+        try_number = 1
+        instance_ip = ""
 
         # Check if every row has correct number of columns (12) in the output
         # file on the remote machine
-        if service == "gsnap":
-            verification_command = "cat %s" % multihit_remote_outfile
-        else:
-            # For rapsearch, first remove header lines starting with '#'
-            verification_command = "grep -v '^#' %s" % multihit_remote_outfile
-        verification_command += " | awk '{print NF}' | sort -nu | head -n 1"
-        min_column_number_string = execute_command_with_output(
-            remote_command(verification_command, key_path, remote_username,
-                           instance_ip))
-        min_column_number = interpret_min_column_number_string(
-            min_column_number_string, correct_number_of_output_columns,
-            try_number)
-        try_number += 1
+        while min_column_number != correct_number_of_output_columns \
+                and try_number <= max_tries:
+            write_to_log("waiting for {} server for chunk {}".format(
+                service, chunk_id))
+            if service == "gsnap":
+                max_concurrent = GSNAPL_MAX_CONCURRENT
+            else:
+                max_concurrent = RAPSEARCH2_MAX_CONCURRENT
 
-    # Move output from remote machine to local machine
-    msg = "Chunk %s output corrupt; not copying to S3. Re-start pipeline to " \
-          "try again." % chunk_id
-    assert min_column_number == correct_number_of_output_columns, msg
+            instance_ip = wait_for_server_ip(service, key_path, remote_username,
+                                             ENVIRONMENT, max_concurrent, chunk_id)
+            write_to_log("starting alignment for chunk %s on %s server %s" %
+                         (chunk_id, service, instance_ip))
+            execute_command(
+                remote_command(commands, key_path, remote_username, instance_ip))
 
-    with iostream:
-        execute_command(
-            scp(key_path, remote_username, instance_ip,
-                multihit_remote_outfile, multihit_local_outfile))
-        execute_command("aws s3 cp --quiet %s %s/" %
-                        (multihit_local_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
-    write_to_log("finished alignment for chunk %s on %s server %s" %
-                 (chunk_id, service, instance_ip))
+            if service == "gsnap":
+                verification_command = "cat %s" % multihit_remote_outfile
+            else:
+                # For rapsearch, first remove header lines starting with '#'
+                verification_command = "grep -v '^#' %s" % multihit_remote_outfile
+            verification_command += " | awk '{print NF}' | sort -nu | head -n 1"
+            min_column_number_string = execute_command_with_output(
+                remote_command(verification_command, key_path, remote_username,
+                               instance_ip))
+            min_column_number = interpret_min_column_number_string(
+                min_column_number_string, correct_number_of_output_columns,
+                try_number)
+            try_number += 1
+
+        # Move output from remote machine to local machine
+        msg = "Chunk %s output corrupt; not copying to S3. Re-start pipeline " \
+              "to try again." % chunk_id
+        assert min_column_number == correct_number_of_output_columns, msg
+
+        with iostream:
+            execute_command(
+                scp(key_path, remote_username, instance_ip,
+                    multihit_remote_outfile, multihit_local_outfile))
+            execute_command("aws s3 cp --quiet %s %s/" %
+                            (multihit_local_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
+        write_to_log("finished alignment for chunk %s on %s server %s" %
+                     (chunk_id, service, instance_ip))
     return multihit_local_outfile
 
 
