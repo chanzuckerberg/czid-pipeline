@@ -75,6 +75,12 @@ from docopt import docopt
 
 from .version import __version__
 
+import sys
+
+print("Python version foobar cli.py")
+print(sys.version)
+print("Version info.")
+print(sys.version_info)
 
 def main():
     """Main CLI entrypoint."""

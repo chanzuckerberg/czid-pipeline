@@ -14,7 +14,7 @@ class Host_filtering(Base):
         upload_commit_sha(self.version, SAMPLE_S3_OUTPUT_PATH)
         upload_pipeline_version_file()
 
-        print("Python version")
+        print("Python version foobar host_filtering")
         print(sys.version)
         print("Version info.")
         print(sys.version_info)
