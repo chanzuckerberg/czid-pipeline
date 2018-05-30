@@ -12,4 +12,10 @@ class Host_filtering(Base):
         set_up_commit_sha(self.version, SAMPLE_S3_OUTPUT_PATH)
         upload_pipeline_version_file()
 
-        run_stage1(True)
+        try:
+          run_stage1(True)
+          mark_job_complete(SAMPLE_S3_OUTPUT_PATH, JOB_SUCCEEDED)
+        except:
+          mark_job_complete(SAMPLE_S3_OUTPUT_PATH, JOB_FAILED)
+          raise RuntimeError("Job failed")
+

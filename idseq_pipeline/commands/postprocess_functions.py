@@ -390,5 +390,3 @@ def run_stage3(lazy_run=False):
     run_and_log(log_params, TARGET_OUTPUTS["run_combine_json"], False,
                 run_combine_json, input_files,
                 os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_ALL))
-
-    mark_job_complete(SAMPLE_S3_OUTPUT_PATH)

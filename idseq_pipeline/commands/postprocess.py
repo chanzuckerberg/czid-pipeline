@@ -13,4 +13,9 @@ class Postprocess(Base):
 
         # TODO(yf): didn't do any pipeline version check. Revisit later
 
-        run_stage3(lazy_run=False)
+        try:
+          run_stage3(lazy_run=False)
+          mark_job_complete(SAMPLE_S3_OUTPUT_PATH, JOB_SUCCEEDED)
+        except:
+          mark_job_complete(SAMPLE_S3_OUTPUT_PATH, JOB_FAILED)
+          raise RuntimeError("Job failed")

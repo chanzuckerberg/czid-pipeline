@@ -48,7 +48,10 @@ NULL_SPECIES_ID = -100
 NULL_GENUS_ID = -200
 NULL_FAMILY_ID = -300
 NULL_LINEAGE = (str(NULL_SPECIES_ID), str(NULL_GENUS_ID), str(NULL_FAMILY_ID))
+JOB_SUCCEEDED = "succeeded"
+JOB_FAILED = "failed"
 
+AWS_BATCH_JOB_ID = os.environ.get('AWS_BATCH_JOB_ID', 'local')
 
 class StatsFile(object):
     def __init__(self, stats_filename, local_results_dir, s3_input_dir,
@@ -656,7 +659,7 @@ def set_up_commit_sha(version, s3_destination=None):
     if sha_file is None or s3_destination is None:
         return
     sha_file_parts = os.path.splitext(os.path.basename(sha_file))
-    aws_batch_job_id = os.environ.get('AWS_BATCH_JOB_ID', 'local')
+    aws_batch_job_id = AWS_BATCH_JOB_ID
     sha_file_new_name = "%s_job-%s%s" % (sha_file_parts[0], aws_batch_job_id,
                                          sha_file_parts[1])
     execute_command("aws s3 cp --quiet %s %s/%s;" %
@@ -875,6 +878,6 @@ def validate_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str):
     return fill_missing_calls(
         cleaned_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str))
 
-def mark_job_complete(s3_folder):
-    done_file = "%s.done" % os.environ.get('AWS_BATCH_JOB_ID', 'local')
+def mark_job_complete(s3_folder, status):
+    done_file = "%s.%s" % (AWS_BATCH_JOB_ID, status)
     execute_command("echo '' | aws s3 cp - %s/%s" % (s3_folder, done_file))
