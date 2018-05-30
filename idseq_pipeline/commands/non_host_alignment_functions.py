@@ -11,7 +11,7 @@ import random
 from collections import defaultdict
 from .common import *  #pylint: disable=wildcard-import
 
-# that's per job;  by default in early 2018 jobs are subsampled to <= 100 chunks
+# Settings per job. By default jobs are subsampled to <= 100 chunks.
 MAX_CHUNKS_IN_FLIGHT_GSNAP = 32
 MAX_CHUNKS_IN_FLIGHT_RAPSEARCH = 32
 chunks_in_flight_gsnap = threading.Semaphore(MAX_CHUNKS_IN_FLIGHT_GSNAP)
@@ -28,8 +28,9 @@ MAX_INSTANCES_TO_POLL = 8
 
 MAX_POLLING_LATENCY = 10  # seconds
 
-# If no instance is available, we should refresh our list of instances, to pick up new instances
-# added by autoscaling.  Wait at least this long between refreshes to stay within AWS account limits.
+# If no instance is available, we should refresh our list of instances,
+# to pick up new instances added by auto-scaling. Wait at least this long
+# between refreshes to stay within AWS account limits.
 MIN_INTERVAL_BETWEEN_DESCRIBE_INSTANCES = 180
 
 # Refresh at least every 30 minutes
@@ -138,16 +139,24 @@ def count_lines_in_paired_files(input_files):
 
 
 def subsample_helper(input_file, records_to_keep, type_, output_file):
+    """Subsample the FASTA file by either read IDs or record indices to save.
+    record_indices are used first to sample from all the records in the file.
+    The paired FASTA case uses read_ids to subsample the merged file.
+    """
+
     record_number = 0
-    assert isinstance(records_to_keep,
-                      set), "Essential for this to complete in our lifetimes."
+    msg = "records_to_keep is not a set."
+    assert isinstance(records_to_keep, set), msg
     kept_read_ids = set()
     kept_reads_count = 0
-    # write_to_log(sorted(records_to_keep))
+    sequence_basename = ""
+
     with open(input_file, 'rb') as input_f:
         with open(output_file, 'wb') as output_f:
+            # Iterate through the FASTA file records
             sequence_name = input_f.readline()
             sequence_data = input_f.readline()
+
             while len(sequence_name) > 0 and len(sequence_data) > 0:
                 if type_ == "read_ids":
                     sequence_basename = sequence_name.rstrip().rsplit('/',
@@ -158,7 +167,8 @@ def subsample_helper(input_file, records_to_keep, type_, output_file):
                     sequence_basename = sequence_name.rstrip()
                 else:
                     condition = True
-                if condition:
+
+                if condition:  # We should keep this entry
                     output_f.write(sequence_name)
                     output_f.write(sequence_data)
                     kept_reads_count += 1
@@ -166,37 +176,44 @@ def subsample_helper(input_file, records_to_keep, type_, output_file):
                 sequence_name = input_f.readline()
                 sequence_data = input_f.readline()
                 record_number += 1
-    if type_ == "record_indices":
-        if len(kept_read_ids) != len(records_to_keep):
-            write_to_log(
-                "WARNING:  Repeated read IDs in {input_file}:  Found {kri} read IDs in {rtk} sampled rows.".
-                format(
-                    input_file=input_file,
-                    kri=len(kept_read_ids),
-                    rtk=len(records_to_keep)))
-    if type_ == "read_ids":
-        if kept_read_ids != records_to_keep:
-            missing = records_to_keep - kept_read_ids
-            examples = sorted(random.sample(missing, min(10, len(missing))))
-            assert kept_read_ids == records_to_keep, "Not all desired read IDs were found in the file: {}\nMissing: {}".format(
-                input_file, examples)
+
+    # Error checking for mismatch
+    if type_ == "record_indices" and len(kept_read_ids) != len(records_to_keep):
+        msg = "WARNING: Repeated read IDs in {input_file}: Found {kri} read " \
+              "IDs in {rtk} sampled rows.".format(input_file=input_file,
+                                                  kri=len(kept_read_ids),
+                                                  rtk=len(records_to_keep))
+        write_to_log(msg)
+
+    if type_ == "read_ids" and kept_read_ids != records_to_keep:
+        missing = records_to_keep - kept_read_ids
+        examples = sorted(random.sample(missing, min(10, len(missing))))
+        msg = "Not all desired read IDs were found in the file: {}\nMissing: {}".format(
+            input_file, examples)
+        assert kept_read_ids == records_to_keep, msg
     return kept_read_ids, kept_reads_count
 
 
-# Note dedicated random stream for just this function, so that arbitrary other use of randomness (e.g. for I/O retry delays) will not perturb the subsampling stream
+# Note dedicated random stream for just this function, so that arbitrary
+# other use of randomness (e.g. for I/O retry delays) will not perturb the
+# sub-sampling stream
 def subsample_single_fasta(input_files_basename,
                            target_n_reads,
                            randgen=random.Random(x=hash(SAMPLE_NAME))):
+    """Randomly subsample a single unpaired FASTA file."""
     input_file = result_dir(input_files_basename)
-    total_records = count_lines(
-        input_file) // 2  # each fasta record spans 2 lines
+    # Each FASTA record spans 2 lines
+    total_records = count_lines(input_file) // 2
     write_to_log("total unpaired reads: %d" % total_records)
     write_to_log("target reads: %d" % target_n_reads)
     if total_records <= target_n_reads:
         return input_file
+
+    # Randomly select a subset to process
     records_to_keep = set(
         randgen.sample(xrange(total_records), target_n_reads))
     subsample_prefix = "subsample_%d" % target_n_reads
+
     input_dir, input_basename = os.path.split(input_file)
     output_basename = "%s.%s" % (subsample_prefix, input_basename)
     output_file = os.path.join(input_dir, output_basename)
@@ -209,33 +226,40 @@ def subsample_paired_fastas(input_files_basenames,
                             merged_file_basename,
                             target_n_reads,
                             randgen=random.Random(x=hash(SAMPLE_NAME))):
+    """Randomly subsample a paired FASTA file. A paired read means reading
+    from both ends of a DNA/RNA fragment.
+    """
     input_files = [result_dir(f) for f in input_files_basenames]
     merged_file = result_dir(merged_file_basename)
-    total_records = count_lines_in_paired_files(
-        input_files) // 2  # each fasta record spans 2 lines
+    # Each FASTA record spans 2 lines
+    total_records = count_lines_in_paired_files(input_files) // 2
     write_to_log("total read pairs: %d" % total_records)
     write_to_log("target read pairs: %d" % target_n_reads)
-    # note: target_n_reads and total_records really refer to numbers of read PAIRS
+    # Note: target_n_reads and total_records here really refer to numbers of
+    # read PAIRS.
     if total_records <= target_n_reads:
         return input_files_basenames, merged_file_basename
+
     subsample_prefix = "subsample_%d" % target_n_reads
     records_to_keep = set(
         randgen.sample(xrange(total_records), target_n_reads))
     subsampled_files = []
     known_kept_read_ids = set()
-    kept_reads_count = 0
-    # subsample the paired files and record read IDs kept
+
+    # Subsample the paired files and record read IDs kept
     for input_file in input_files:
         input_dir = os.path.split(input_file)[0]
         input_basename = os.path.split(input_file)[1]
         output_basename = "%s.%s" % (subsample_prefix, input_basename)
         output_file = os.path.join(input_dir, output_basename)
+
         kept_read_ids, kept_reads_count = subsample_helper(
             input_file, records_to_keep, "record_indices", output_file)
         assert kept_reads_count == target_n_reads
         subsampled_files.append(output_basename)
-        known_kept_read_ids |= kept_read_ids
-    # subsample the merged file to the same read IDs
+        known_kept_read_ids |= kept_read_ids  # Set union
+
+    # Subsample the merged file to the same read IDs
     input_dir = os.path.split(merged_file)[0]
     input_basename = os.path.split(merged_file)[1]
     subsampled_merged_file = "%s.%s" % (subsample_prefix, input_basename)
@@ -243,11 +267,12 @@ def subsample_paired_fastas(input_files_basenames,
     _, kept_reads_count = subsample_helper(merged_file, known_kept_read_ids,
                                            "read_ids", output_file)
     num_desired = target_n_reads * len(input_files_basenames)
+
     if kept_reads_count != num_desired:
-        # TODO  Surface these warnings in the webapp.
-        write_to_log(
-            "ERROR:  Improperly paired reads.  Total reads in sampled merged fasta: {krc}".
-            format(krc=kept_reads_count))
+        # TODO: Surface these warnings in the webapp.
+        msg = "ERROR: Improperly paired reads. Total reads in sampled merged " \
+              "fasta: {krc}".format(krc=kept_reads_count)
+        write_to_log(msg)
     assert kept_reads_count == num_desired
     return subsampled_files, subsampled_merged_file
 
@@ -303,19 +328,21 @@ def iterate_m8(m8_file, debug_caller=None, logging_interval=25000000):
                 last_invalid_line = line
                 continue
             if debug_caller and line_count % logging_interval == 0:
-                m = "Scanned {} m8 lines from {} for {}, and going."
-                write_to_log(m.format(line_count, m8_file, debug_caller))
+                msg = "Scanned {} m8 lines from {} for {}, and going.".format(
+                    line_count, m8_file, debug_caller)
+                write_to_log(msg)
             yield (read_id, accession_id, percent_id, alignment_length,
                    e_value, line)
 
     # Warn about any invalid hits outputted by GSNAP
     if invalid_hits:
-        m = "Found {} invalid hits in {};  last invalid hit line: {}"
-        write_to_log(
-            m.format(invalid_hits, m8_file, last_invalid_line), warning=True)
+        msg = "Found {} invalid hits in {};  last invalid hit line: {}".format(
+            invalid_hits, m8_file, last_invalid_line)
+        write_to_log(msg, warning=True)
     if debug_caller:
-        m = "Scanned all {} m8 lines from {} for {}."
-        write_to_log(m.format(line_count, m8_file, debug_caller))
+        msg = "Scanned all {} m8 lines from {} for {}.".format(
+            line_count, m8_file, debug_caller)
+        write_to_log(msg)
 
 
 def annotate_fasta_with_accessions(merged_input_fasta, nt_m8, nr_m8,
@@ -333,9 +360,10 @@ def annotate_fasta_with_accessions(merged_input_fasta, nt_m8, nr_m8,
         with open(output_fasta, 'wb') as output_fasta_f:
             sequence_name = input_fasta_f.readline()
             sequence_data = input_fasta_f.readline()
+
             while sequence_name and sequence_data:
                 read_id = sequence_name.rstrip().lstrip('>')
-                # need to annotate NR then NT in this order for alignment viz
+                # Need to annotate NR then NT in this order for alignment viz
                 new_read_name = "NR:{nr_accession}:NT:{nt_accession}:{read_id}".format(
                     nr_accession=nr_map.get(read_id, ''),
                     nt_accession=nt_map.get(read_id, ''),
@@ -353,63 +381,83 @@ def annotate_fasta_with_accessions(merged_input_fasta, nt_m8, nr_m8,
 def generate_taxon_count_json_from_m8(
         m8_file, hit_level_file, e_value_type, count_type, lineage_map_path,
         deuterostome_path, total_reads, remaining_reads, output_file):
-    if SKIP_DEUTERO_FILTER:
+    # Parse through hit file and m8 input file and format a JSON file with
+    # our desired attributes, including aggregated statistics.
 
-        def any_hits_to_remove(_hits):
-            return False
-    else:
+    if not SKIP_DEUTERO_FILTER:
         taxids_to_remove = read_file_into_set(deuterostome_path)
 
-        def any_hits_to_remove(hits):
-            for taxid in hits:
-                if int(taxid) >= 0 and taxid in taxids_to_remove:
-                    return True
+    def any_hits_to_remove(hits):
+        if SKIP_DEUTERO_FILTER:
             return False
+        for taxid in hits:
+            if int(taxid) >= 0 and taxid in taxids_to_remove:
+                return True
+        return False
 
+    # Setup
     aggregation = {}
     hit_f = open(hit_level_file, 'rb')
     m8_f = open(m8_file, 'rb')
-    # lines in m8_file and hit_level_file correspond (same read_id)
+    # Lines in m8_file and hit_level_file correspond (same read_id)
     hit_line = hit_f.readline()
     m8_line = m8_f.readline()
     lineage_map = shelve.open(lineage_map_path)
     NUM_RANKS = len(NULL_LINEAGE)
     # See https://en.wikipedia.org/wiki/Double-precision_floating-point_format
     MIN_NORMAL_POSITIVE_DOUBLE = 2.0**-1022
+
     while hit_line and m8_line:
-        # Retrieve data values from files:
+        # Retrieve data values from files
         hit_line_columns = hit_line.rstrip("\n").split("\t")
         _read_id = hit_line_columns[0]
         hit_level = hit_line_columns[1]
         hit_taxid = hit_line_columns[2]
-        if int(hit_level) < 0:
+        if int(hit_level) < 0:  # Skip negative levels and continue
             hit_line = hit_f.readline()
             m8_line = m8_f.readline()
             continue
+
+        # m8 files correspond to BLAST tabular output format 6:
+        # Columns: read_id | _ref_id | percent_identity | alignment_length...
+        #
+        # * read_id = query (e.g., gene) sequence id
+        # * _ref_id = subject (e.g., reference genome) sequence id
+        # * percent_identity = percentage of identical matches
+        # * alignment_length = length of the alignments
+        # * e_value = the expect value
+        #
+        # See:
+        # * http://www.metagenomics.wiki/tools/blast/blastn-output-format-6
+        # * http://www.metagenomics.wiki/tools/blast/evalue
+
         m8_line_columns = m8_line.split("\t")
-        assert m8_line_columns[0] == hit_line_columns[
-            0], "read_ids in %s and %s do not match: %s vs. %s" % (
-                os.path.basename(m8_file), os.path.basename(hit_level_file),
-                m8_line_columns[0], hit_line_columns[0])
+        msg = "read_ids in %s and %s do not match: %s vs. %s" % (
+            os.path.basename(m8_file), os.path.basename(hit_level_file),
+            m8_line_columns[0], hit_line_columns[0])
+        assert m8_line_columns[0] == hit_line_columns[0], msg
         percent_identity = float(m8_line_columns[2])
         alignment_length = float(m8_line_columns[3])
         e_value = float(m8_line_columns[10])
+
         # These have been filtered out before the creation of m8_f and hit_f
         assert alignment_length > 0
         assert -0.25 < percent_identity < 100.25
         assert e_value == e_value
         if e_value_type != 'log10':
-            assert MIN_NORMAL_POSITIVE_DOUBLE <= e_value  # Subtle, but this excludes positive subnorms.
+            # Subtle, but this excludes positive subnormal numbers.
+            assert MIN_NORMAL_POSITIVE_DOUBLE <= e_value
             e_value = math.log10(e_value)
 
-        # Retrieve the taxon lineage and mark meaningless calls with fake taxids.
+        # Retrieve the taxon lineage and mark meaningless calls with fake
+        # taxids.
         hit_taxids_all_levels = lineage_map.get(hit_taxid, NULL_LINEAGE)
         cleaned_hit_taxids_all_levels = validate_taxid_lineage(
             hit_taxids_all_levels, hit_taxid, hit_level)
         assert NUM_RANKS == len(cleaned_hit_taxids_all_levels)
 
         if not any_hits_to_remove(cleaned_hit_taxids_all_levels):
-            # Aggregate each level
+            # Aggregate each level and collect statistics
             agg_key = tuple(cleaned_hit_taxids_all_levels)
             while agg_key:
                 agg_bucket = aggregation.get(agg_key)
@@ -436,33 +484,33 @@ def generate_taxon_count_json_from_m8(
     for agg_key, agg_bucket in aggregation.iteritems():
         count = agg_bucket['count']
         tax_level = NUM_RANKS - len(agg_key) + 1
-        taxon_counts_attributes.append(
-            {  # TODO: Extend taxonomic ranks as indicated on the commented out lines.
-                "tax_id":
-                agg_key[0],
-                "tax_level":
-                tax_level,
-                # 'species_taxid' : agg_key[tax_level - 1] if tax_level == 1 else "-100",
-                'genus_taxid':
-                agg_key[2 - tax_level] if tax_level <= 2 else "-200",
-                'family_taxid':
-                agg_key[3 - tax_level] if tax_level <= 3 else "-300",
-                # 'order_taxid' : agg_key[4 - tax_level] if tax_level <= 4 else "-400",
-                # 'class_taxid' : agg_key[5 - tax_level] if tax_level <= 5 else "-500",
-                # 'phyllum_taxid' : agg_key[6 - tax_level] if tax_level <= 6 else "-600",
-                # 'kingdom_taxid' : agg_key[7 - tax_level] if tax_level <= 7 else "-700",
-                # 'domain_taxid' : agg_key[8 - tax_level] if tax_level <= 8 else "-800",
-                "count":
-                count,
-                "percent_identity":
-                agg_bucket['sum_percent_identity'] / count,
-                "alignment_length":
-                agg_bucket['sum_alignment_length'] / count,
-                "e_value":
-                agg_bucket['sum_e_value'] / count,
-                "count_type":
-                count_type
-            })
+        # TODO: Extend taxonomic ranks as indicated on the commented out lines.
+        taxon_counts_attributes.append({
+            "tax_id":
+            agg_key[0],
+            "tax_level":
+            tax_level,
+            # 'species_taxid' : agg_key[tax_level - 1] if tax_level == 1 else "-100",
+            'genus_taxid':
+            agg_key[2 - tax_level] if tax_level <= 2 else "-200",
+            'family_taxid':
+            agg_key[3 - tax_level] if tax_level <= 3 else "-300",
+            # 'order_taxid' : agg_key[4 - tax_level] if tax_level <= 4 else "-400",
+            # 'class_taxid' : agg_key[5 - tax_level] if tax_level <= 5 else "-500",
+            # 'phyllum_taxid' : agg_key[6 - tax_level] if tax_level <= 6 else "-600",
+            # 'kingdom_taxid' : agg_key[7 - tax_level] if tax_level <= 7 else "-700",
+            # 'domain_taxid' : agg_key[8 - tax_level] if tax_level <= 8 else "-800",
+            "count":
+            count,
+            "percent_identity":
+            agg_bucket['sum_percent_identity'] / count,
+            "alignment_length":
+            agg_bucket['sum_alignment_length'] / count,
+            "e_value":
+            agg_bucket['sum_e_value'] / count,
+            "count_type":
+            count_type
+        })
     output_dict = {
         "pipeline_output": {
             "total_reads": total_reads,
@@ -470,6 +518,7 @@ def generate_taxon_count_json_from_m8(
             "taxon_counts_attributes": taxon_counts_attributes
         }
     }
+
     with open(output_file, 'wb') as outf:
         json.dump(output_dict, outf)
     execute_command("aws s3 cp --quiet %s %s/" % (output_file,
@@ -586,6 +635,9 @@ def wait_for_server_ip_work(service_name,
         dict_writable = True
 
         def poll_server(ip):
+            # ServerAliveInterval to fix issue with containers keeping open
+            # an SSH connection even after worker machines had finished
+            # running.
             command = 'ssh -o "StrictHostKeyChecking no" -o "ConnectTimeout 5" -o "ServerAliveInterval 60" -i %s %s@%s "ps aux | grep %s | grep -v bash" || echo "error"' % (
                 key_path, remote_username, ip, service_name)
             output = execute_command_with_output(
@@ -695,8 +747,9 @@ def chunk_input(input_files_basenames, chunk_nlines, chunksize):
                 "wc -l %s" % input_file_full_local_path).strip().split()[0])
         # Number of lines should be the same in paired files
         if known_nlines is not None:
-            m = "Mismatched line counts in supposedly paired files: {}"
-            assert nlines == known_nlines, m.format(input_files_basenames)
+            msg = "Mismatched line counts in supposedly paired files: {}".format(
+                input_files_basenames)
+            assert nlines == known_nlines, msg
         known_nlines = nlines
 
         # Set number of pieces and names
@@ -719,16 +772,16 @@ def chunk_input(input_files_basenames, chunk_nlines, chunksize):
         partial_files = []
         paths = execute_command_with_output(
             "ls %s*" % out_prefix).rstrip().split("\n")
-        for partial_file in paths:
-            partial_files.append(os.path.basename(partial_file))
+        for pf in paths:
+            partial_files.append(os.path.basename(pf))
 
         # Check that the partial files match our expected chunking pattern
         pattern = "{:0%dd}" % ndigits
         expected_partial_files = [(out_prefix_base + pattern.format(i))
                                   for i in range(numparts)]
-        msg = "something went wrong with chunking: {} != {}"
-        assert expected_partial_files == partial_files, msg.format(
+        msg = "something went wrong with chunking: {} != {}".format(
             partial_files, expected_partial_files)
+        assert expected_partial_files == partial_files, msg
         part_lists.append(partial_files)
 
     # Ex: [["input_R1.fasta-part-1", "input_R2.fasta-part-1"],
@@ -851,8 +904,51 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir,
 @run_in_subprocess
 def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path,
                  output_m8, output_summary):
-    """Call hits and hit levels from the m8 files and produce cleaned m8 file
-    and summary file.
+    """
+    Determine the optimal taxon assignment for each read from the alignment
+    results. When a read aligns to multiple distinct references, we need to
+    assess at which level in the taxonomic hierarchy the multiple alignments
+    reach consensus. We refer to this process of controlling for specificity
+    as 'hit calling'.
+
+    Input:
+    - m8 file of multiple alignments per read
+
+    Outputs:
+    - cleaned m8 file with a single, optimal alignment per read
+    - file with summary information, including taxonomy level at which
+    specificity is reached
+
+    Details:
+    - A taxon is a group of any rank (e.g. species, genus, family, etc.).
+
+    - A hit is a match of a read to a known reference labeled with an
+    accession ID. We use NCBI's mapping of accession IDs to taxonomy IDs in
+    order to retrieve the full taxonomic hierarchy for the accession ID.
+
+    - The full taxonomy hierarchy for a hit is called its "lineage" (species,
+    genus, family, etc.). A hit will normally have (positive) NCBI taxon IDs
+    at all levels of the hierarchy, but there are some exceptions:
+
+        - We use an artificial negative taxon ID if we have determined that
+        the alignment is not specific at the taxonomy level under
+        consideration. This happens when a read's multiple reference matches
+        do not agree on taxon ID at the given level.
+
+        For example, a read may match 5 references that all belong to
+        different species (e.g. Escherichia albertii, Escherichia vulneris,
+        Escherichia coli, ...), but to the same genus (Escherichia). In this
+        case, we use the taxon ID for the genus (Escherichia) at the
+        genus-level, but we populate the species-level with an artificial
+        negative ID. The artificial ID is defined based on a negative base (
+        INVALID_CALL_BASE_ID), the taxon level (e.g. 2 for genus), and the
+        valid parent ID (e.g. genus Escherichia's taxon ID): see helper
+        function cleaned_taxid_lineage for the precise formula.
+
+        - Certain entries in NCBI may not have a full lineage classification;
+        for example species and family will be defined but genus will be
+        undefined. In this case, we populate the undefined taxonomic level
+        with an artificial negative ID defined in the same manner as above.
     """
     lineage_map = shelve.open(lineage_map_path)
     accession2taxid_dict = shelve.open(accession2taxid_dict_path)
@@ -863,7 +959,8 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path,
 
     def get_lineage(accession_id):
         """Find the lineage of the accession ID and utilize a cache for
-        performance
+        performance by reducing random IOPS, ameliorating a key performance
+        bottleneck
         """
         if accession_id in lineage_cache:
             return lineage_cache[accession_id]
@@ -874,7 +971,9 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path,
         return result
 
     def accumulate(hits, accession_id):
-        """Accumulate hits per level and taxonomy level"""
+        """Accumulate hits for summarizing hit information and specificity at
+        each taxonomy level
+        """
         lineage_taxids = get_lineage(accession_id)
         for level, taxid_at_level in enumerate(lineage_taxids):
             if int(taxid_at_level) < 0:
@@ -919,37 +1018,46 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path,
         summary[read_id] = my_best_evalue, call_hit_level(hits)
         count += 1
         if count % LOG_INCREMENT == 0:
-            write_to_log(
-                "Summarized hits for {} read ids from {}, and counting.".
-                format(count, input_m8))
+            msg = "Summarized hits for {} read ids from {}, and counting.".format(count, input_m8)
+            write_to_log(msg)
     write_to_log("Summarized hits for all {} read ids from {}.".format(
         count, input_m8))
 
-    # Generate output files
+    # Generate output files. outf is the main output_m8 file and outf_sum is
+    # the summary level info.
     emitted = set()
     with open(output_m8, "wb") as outf:
         with open(output_summary, "wb") as outf_sum:
-            # Iterator over the lines of the m8 file. Emit only hits that had
-            # the best e-value.
+            # Iterator over the lines of the m8 file. Emit the hit with the
+            # best value that provides the most specific taxonomy
+            # information. If there are multiple hits (also called multiple
+            # accession IDs) for a given read that all have the same e-value,
+            # some may provide species information and some may only provide
+            # genus information. We want to emit the one that provides the
+            # species information because from that we can infer the rest of
+            # the lineage. If we accidentally emitted the one that provided
+            # only genus info, downstream steps may have difficulty
+            # recovering the species.
 
-            # TODO: Emit all hits within a fixed margin of the best e-value.
+            # TODO: Consider all hits within a fixed margin of the best e-value.
             # This change may need to be accompanied by a change to
             # GSNAP/RAPSearch parameters.
-            itr = iterate_m8(input_m8,
-                             "call_hits_m8_emit_deduped_and_summarized_hits")
-            for read_id, accession_id, _percent_id, _alignment_length, e_value, line in itr:
+            for read_id, accession_id, _percent_id, _alignment_length, e_value, line in iterate_m8(input_m8, "call_hits_m8_emit_deduped_and_summarized_hits"):
                 if read_id in emitted:
                     continue
+
+                # Read the fields from the summary level info
                 best_e_value, (hit_level, taxid,
                                best_accession_id) = summary[read_id]
                 if best_e_value == e_value and best_accession_id in (
                         None, accession_id):
+                    # Read out the hit with the best value that provides the
+                    # most specific taxonomy information.
                     emitted.add(read_id)
                     outf.write(line)
-                    m = "{read_id}\t{hit_level}\t{taxid}\n"
-                    outf_sum.write(
-                        m.format(
-                            read_id=read_id, hit_level=hit_level, taxid=taxid))
+                    msg = "{read_id}\t{hit_level}\t{taxid}\n".format(
+                        read_id=read_id, hit_level=hit_level, taxid=taxid)
+                    outf_sum.write(msg)
 
     # Upload results
     execute_command("aws s3 cp --quiet %s %s/" % (output_m8,
@@ -1153,8 +1261,6 @@ def fetch_and_clean_inputs(input_file_list):
 
 
 def run_stage2(lazy_run=True):
-    write_to_log("Starting stage...")
-
     # Make local directories
     execute_command("mkdir -p %s %s %s %s %s" %
                     (SAMPLE_DIR, FASTQ_DIR, RESULT_DIR, CHUNKS_RESULT_DIR,
@@ -1164,6 +1270,8 @@ def run_stage2(lazy_run=True):
     log_file = "%s/%s.%s.txt" % (RESULT_DIR, LOGS_OUT_BASENAME,
                                  AWS_BATCH_JOB_ID)
     configure_logger(log_file)
+
+    write_to_log("Starting stage...")
 
     # Initiate fetch of references
     lineage_paths = [None]
@@ -1330,17 +1438,6 @@ def run_stage2(lazy_run=True):
         combine_pipeline_output_json(
             result_dir(MULTIHIT_NT_JSON_OUT), result_dir(MULTIHIT_NR_JSON_OUT),
             result_dir(MULTIHIT_COMBINED_JSON_OUT), stats)
-        # Keep this warning there for a month or so, long enough for obselete webapps to retire.
-        # We have to do this because an obsolete webapp will keep the gsnap tier from scaling in if it doesn't see this file.
-        execute_command(
-            "echo This file is deprecated since pipeline version 1.5.  Please use {new} instead. > {deprecated}".
-            format(
-                deprecated=result_dir(
-                    DEPRECATED_BOOBYTRAPPED_COMBINED_JSON_OUT),
-                new=MULTIHIT_COMBINED_JSON_OUT))
-        execute_command("aws s3 cp --quiet %s/%s %s/" %
-                        (RESULT_DIR, DEPRECATED_BOOBYTRAPPED_COMBINED_JSON_OUT,
-                         SAMPLE_S3_OUTPUT_PATH))
 
         with thread_success_lock:
             thread_success["additional_steps"] = True
@@ -1378,6 +1475,7 @@ def run_stage2(lazy_run=True):
         with thread_success_lock:
             return thread_success.get(name)
 
+    # Main steps
     t_gsnap.start()
     t_rapsearch2.start()
     t_gsnap.join()
@@ -1385,6 +1483,7 @@ def run_stage2(lazy_run=True):
     t_rapsearch2.join()
     assert thread_succeeded("rapsearch2")
 
+    # Additional steps
     t_additional_steps.start()
     t_annotation.start()
     t_additional_steps.join()
