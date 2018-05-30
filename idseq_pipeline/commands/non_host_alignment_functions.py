@@ -153,7 +153,7 @@ def subsample_helper(input_file, records_to_keep, type_, output_file):
 
     with open(input_file, 'rb') as input_f:
         with open(output_file, 'wb') as output_f:
-            # Iterate through the FASTA file
+            # Iterate through the FASTA file records
             sequence_name = input_f.readline()
             sequence_data = input_f.readline()
 
@@ -359,9 +359,10 @@ def annotate_fasta_with_accessions(merged_input_fasta, nt_m8, nr_m8,
         with open(output_fasta, 'wb') as output_fasta_f:
             sequence_name = input_fasta_f.readline()
             sequence_data = input_fasta_f.readline()
+
             while sequence_name and sequence_data:
                 read_id = sequence_name.rstrip().lstrip('>')
-                # need to annotate NR then NT in this order for alignment viz
+                # Need to annotate NR then NT in this order for alignment viz
                 new_read_name = "NR:{nr_accession}:NT:{nt_accession}:{read_id}".format(
                     nr_accession=nr_map.get(read_id, ''),
                     nt_accession=nt_map.get(read_id, ''),
