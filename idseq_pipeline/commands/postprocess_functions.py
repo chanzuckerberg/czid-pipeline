@@ -269,30 +269,31 @@ def run_combine_json(input_json_list, output_json):
 
 
 def run_stage3(lazy_run=False):
+    assert not lazy_run, "run_stage3 was called with lazy_run"
 
-    assert lazy_run == False, "we seem to be hardwiring that..."
-
-    # make data directories
+    # Make data directories
     execute_command("mkdir -p %s %s %s %s" % (SAMPLE_DIR, RESULT_DIR, REF_DIR,
                                               TEMP_DIR))
 
-    # configure logger
+    # Configure logger
     log_file = "%s/%s.%s.txt" % (RESULT_DIR, LOGS_OUT_BASENAME,
                                  AWS_BATCH_JOB_ID)
     configure_logger(log_file)
 
-    # download input
+    print("Starting stage...")
+
+    # Download input
     execute_command("aws s3 cp --quiet %s/%s %s/" %
                     (SAMPLE_S3_INPUT_PATH, ACCESSION_ANNOTATED_FASTA,
                      INPUT_DIR))
     input_file = os.path.join(INPUT_DIR, ACCESSION_ANNOTATED_FASTA)
 
-    # download m8
+    # Download m8
     execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH,
                                                      GSNAP_M8_FILE, INPUT_DIR))
     input_m8 = os.path.join(INPUT_DIR, GSNAP_M8_FILE)
 
-    # download hit level files
+    # Download hit level files
     hit_summary_files = {
         'NT': os.path.join(INPUT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT),
         'NR': os.path.join(INPUT_DIR, SUMMARY_MULTIHIT_RAPSEARCH_OUT)
@@ -302,7 +303,7 @@ def run_stage3(lazy_run=False):
                         (SAMPLE_S3_INPUT_PATH, os.path.basename(local_file),
                          INPUT_DIR))
 
-    # generate taxid fasta
+    # Generate taxid fasta
     log_params = return_merged_dict(
         DEFAULT_LOG_PARAMS,
         {"title": "run_generate_taxid_fasta_from_hit_summaries"})
@@ -312,7 +313,7 @@ def run_stage3(lazy_run=False):
                 hit_summary_files, os.path.join(RESULT_DIR, TAXID_ANNOT_FASTA))
 
     # SPECIES level
-    # generate taxid locator for NT
+    # Generate taxid locator for NT
     log_params = return_merged_dict(
         DEFAULT_LOG_PARAMS, {"title": "run_generate_taxid_locator for NT"})
     run_and_log(log_params, TARGET_OUTPUTS["run_generate_taxid_locator__1"],
@@ -322,7 +323,7 @@ def run_stage3(lazy_run=False):
                 os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_NT),
                 os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_NT))
 
-    # generate taxid locator for NR
+    # Generate taxid locator for NR
     log_params = return_merged_dict(
         DEFAULT_LOG_PARAMS, {"title": "run_generate_taxid_locator for NR"})
     run_and_log(log_params, TARGET_OUTPUTS["run_generate_taxid_locator__2"],
@@ -333,7 +334,7 @@ def run_stage3(lazy_run=False):
                 os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_NR))
 
     # GENUS level
-    # generate taxid locator for NT
+    # Generate taxid locator for NT
     log_params = return_merged_dict(
         DEFAULT_LOG_PARAMS, {"title": "run_generate_taxid_locator for NT"})
     run_and_log(log_params, TARGET_OUTPUTS["run_generate_taxid_locator__3"],
@@ -342,7 +343,7 @@ def run_stage3(lazy_run=False):
                 os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_GENUS_NT),
                 os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_GENUS_NT))
 
-    # generate taxid locator for NR
+    # Generate taxid locator for NR
     log_params = return_merged_dict(
         DEFAULT_LOG_PARAMS, {"title": "run_generate_taxid_locator for NR"})
     run_and_log(log_params, TARGET_OUTPUTS["run_generate_taxid_locator__4"],
@@ -352,7 +353,7 @@ def run_stage3(lazy_run=False):
                 os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_GENUS_NR))
 
     # FAMILY level
-    # generate taxid locator for NT
+    # Generate taxid locator for NT
     log_params = return_merged_dict(
         DEFAULT_LOG_PARAMS, {"title": "run_generate_taxid_locator for NT"})
     run_and_log(log_params, TARGET_OUTPUTS["run_generate_taxid_locator__5"],
@@ -361,7 +362,7 @@ def run_stage3(lazy_run=False):
                 os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_FAMILY_NT),
                 os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_FAMILY_NT))
 
-    # generate taxid locator for NR
+    # Generate taxid locator for NR
     log_params = return_merged_dict(
         DEFAULT_LOG_PARAMS, {"title": "run_generate_taxid_locator for NR"})
     run_and_log(log_params, TARGET_OUTPUTS["run_generate_taxid_locator__6"],
@@ -369,7 +370,8 @@ def run_stage3(lazy_run=False):
                 os.path.join(RESULT_DIR, TAXID_ANNOT_FASTA), 'family_nr', 'NR',
                 os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_FAMILY_NR),
                 os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_FAMILY_NR))
-    # generate alignment visualization
+
+    # Generate alignment visualization
     log_params = return_merged_dict(DEFAULT_LOG_PARAMS,
                                     {"title": "run_generate_align_viz"})
     run_and_log(log_params, TARGET_OUTPUTS["run_generate_align_viz"], False,
@@ -378,7 +380,7 @@ def run_stage3(lazy_run=False):
                              TAXID_ANNOT_SORTED_FASTA_NT), input_m8,
                 os.path.join(RESULT_DIR, ALIGN_VIZ_DIR))
 
-    # combine results
+    # Combine results
     log_params = return_merged_dict(DEFAULT_LOG_PARAMS,
                                     {"title": "run_combine_json"})
     input_files_basenames = [
