@@ -50,6 +50,7 @@ GSNAP_GENOME = os.environ.get('GSNAP_GENOME',
 STAR_BOWTIE_VERSION_FILE_S3 = os.environ.get(
     'STAR_BOWTIE_VERSION_FILE_S3', get_host_index_version_file(STAR_GENOME))
 DB_SAMPLE_ID = os.environ['DB_SAMPLE_ID']
+AWS_BATCH_JOB_ID = os.environ.get('AWS_BATCH_JOB_ID', 'local')
 SAMPLE_S3_OUTPUT_POSTFIX = "/%s" % major_version(
     PIPELINE_VERSION) if PIPELINE_VERSION else ""
 SAMPLE_S3_INPUT_PATH = INPUT_BUCKET.rstrip('/')
