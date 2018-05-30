@@ -1214,17 +1214,17 @@ def fetch_and_clean_inputs(input_file_list):
 
 
 def run_stage2(lazy_run=True):
+    # Make local directories
+    execute_command("mkdir -p %s %s %s %s %s" %
+                    (SAMPLE_DIR, FASTQ_DIR, RESULT_DIR, CHUNKS_RESULT_DIR,
+                     REF_DIR))
+
     # Configure logger
     log_file = "%s/%s.%s.txt" % (RESULT_DIR, LOGS_OUT_BASENAME,
                                  AWS_BATCH_JOB_ID)
     configure_logger(log_file)
 
     write_to_log("Starting stage...")
-
-    # Make local directories
-    execute_command("mkdir -p %s %s %s %s %s" %
-                    (SAMPLE_DIR, FASTQ_DIR, RESULT_DIR, CHUNKS_RESULT_DIR,
-                     REF_DIR))
 
     # Initiate fetch of references
     lineage_paths = [None]
