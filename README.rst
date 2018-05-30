@@ -29,10 +29,10 @@ When merging a commit to master, you need to increase the version number in `ids
 
 Release notes
 -------------
-- 1.8.1
-   - Restore capability to run non-host alignment from the development environment.
 
-- 1.8.0
+- 1.8.0 ... 1.8.2
+   - Upload a status file that indicates when a job has completed.
+   - Restore capability to run non-host alignment from the development environment.
    - Try a more relaxed LZW fraction if the initial filter leaves 0 reads
 
 - 1.7.2 ... 1.7.5
