@@ -863,7 +863,7 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir,
 
     if lazy_run and fetch_lazy_result(multihit_s3_outfile,
                                       multihit_local_outfile):
-        # Skip if we already have lazy results
+        # Skip if we already have previously computed results
         return multihit_local_outfile
 
     correct_number_of_output_columns = 12
