@@ -380,18 +380,14 @@ def annotate_fasta_with_accessions(merged_input_fasta, nt_m8, nr_m8,
 def generate_taxon_count_json_from_m8(
         m8_file, hit_level_file, e_value_type, count_type, lineage_map_path,
         deuterostome_path, total_reads, remaining_reads, output_file):
-    if SKIP_DEUTERO_FILTER:
-
-        def any_hits_to_remove(_hits):
-            return False
-    else:
+    if not SKIP_DEUTERO_FILTER:
         taxids_to_remove = read_file_into_set(deuterostome_path)
 
-        def any_hits_to_remove(hits):
-            for taxid in hits:
-                if int(taxid) >= 0 and taxid in taxids_to_remove:
-                    return True
-            return False
+    def any_hits_to_remove(hits):
+        for taxid in hits:
+            if int(taxid) >= 0 and taxid in taxids_to_remove:
+                return True
+        return False
 
     aggregation = {}
     hit_f = open(hit_level_file, 'rb')
@@ -435,7 +431,9 @@ def generate_taxon_count_json_from_m8(
             hit_taxids_all_levels, hit_taxid, hit_level)
         assert NUM_RANKS == len(cleaned_hit_taxids_all_levels)
 
-        if not any_hits_to_remove(cleaned_hit_taxids_all_levels):
+        # If SKIP_DEUTERO_FILTER is enabled, don't check for hits to remove
+        # before running.
+        if SKIP_DEUTERO_FILTER or not any_hits_to_remove(cleaned_hit_taxids_all_levels):
             # Aggregate each level
             agg_key = tuple(cleaned_hit_taxids_all_levels)
             while agg_key:
