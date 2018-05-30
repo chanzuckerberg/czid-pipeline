@@ -380,6 +380,9 @@ def annotate_fasta_with_accessions(merged_input_fasta, nt_m8, nr_m8,
 def generate_taxon_count_json_from_m8(
         m8_file, hit_level_file, e_value_type, count_type, lineage_map_path,
         deuterostome_path, total_reads, remaining_reads, output_file):
+    # Parse through hit file and m8 input file and format a JSON file with
+    # our desired attributes, including aggregated statistics.
+
     if not SKIP_DEUTERO_FILTER:
         taxids_to_remove = read_file_into_set(deuterostome_path)
 
@@ -452,25 +455,29 @@ def generate_taxon_count_json_from_m8(
             hit_taxids_all_levels, hit_taxid, hit_level)
         assert NUM_RANKS == len(cleaned_hit_taxids_all_levels)
 
-        if not any_hits_to_remove(cleaned_hit_taxids_all_levels):
-            # Aggregate each level
-            agg_key = tuple(cleaned_hit_taxids_all_levels)
-            while agg_key:
-                agg_bucket = aggregation.get(agg_key)
-                if not agg_bucket:
-                    agg_bucket = {
-                        'count': 0,
-                        'sum_percent_identity': 0.0,
-                        'sum_alignment_length': 0.0,
-                        'sum_e_value': 0.0
-                    }
-                    aggregation[agg_key] = agg_bucket
-                agg_bucket['count'] += 1
-                agg_bucket['sum_percent_identity'] += percent_identity
-                agg_bucket['sum_alignment_length'] += alignment_length
-                agg_bucket['sum_e_value'] += e_value
-                # Chomp off the lowest rank as we aggregate up the tree
-                agg_key = agg_key[1:]
+        if any_hits_to_remove(cleaned_hit_taxids_all_levels):
+            hit_line = hit_f.readline()
+            m8_line = m8_f.readline()
+            continue
+
+        # Aggregate each level and collect statistics
+        agg_key = tuple(cleaned_hit_taxids_all_levels)
+        while agg_key:
+            agg_bucket = aggregation.get(agg_key)
+            if not agg_bucket:
+                agg_bucket = {
+                    'count': 0,
+                    'sum_percent_identity': 0.0,
+                    'sum_alignment_length': 0.0,
+                    'sum_e_value': 0.0
+                }
+                aggregation[agg_key] = agg_bucket
+            agg_bucket['count'] += 1
+            agg_bucket['sum_percent_identity'] += percent_identity
+            agg_bucket['sum_alignment_length'] += alignment_length
+            agg_bucket['sum_e_value'] += e_value
+            # Chomp off the lowest rank as we aggregate up the tree
+            agg_key = agg_key[1:]
 
         hit_line = hit_f.readline()
         m8_line = m8_f.readline()
@@ -480,8 +487,9 @@ def generate_taxon_count_json_from_m8(
     for agg_key, agg_bucket in aggregation.iteritems():
         count = agg_bucket['count']
         tax_level = NUM_RANKS - len(agg_key) + 1
+        # TODO: Extend taxonomic ranks as indicated on the commented out lines.
         taxon_counts_attributes.append(
-            {  # TODO: Extend taxonomic ranks as indicated on the commented out lines.
+            {
                 "tax_id":
                 agg_key[0],
                 "tax_level":
@@ -514,6 +522,7 @@ def generate_taxon_count_json_from_m8(
             "taxon_counts_attributes": taxon_counts_attributes
         }
     }
+
     with open(output_file, 'wb') as outf:
         json.dump(output_dict, outf)
     execute_command("aws s3 cp --quiet %s %s/" % (output_file,
