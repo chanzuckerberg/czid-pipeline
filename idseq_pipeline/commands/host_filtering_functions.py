@@ -987,15 +987,15 @@ def upload_pipeline_version_file():
 
 
 def run_stage1(lazy_run=True):
+    execute_command("mkdir -p %s %s %s %s" % (SAMPLE_DIR, FASTQ_DIR,
+                                              RESULT_DIR, SCRATCH_DIR))
+    execute_command("mkdir -p %s " % REF_DIR)
+
     # configure logger
     log_file = "%s/%s.%s.txt" % (RESULT_DIR, LOGS_OUT_BASENAME,
                                  AWS_BATCH_JOB_ID)
     configure_logger(log_file)
-
     print("Starting stage...")
-    execute_command("mkdir -p %s %s %s %s" % (SAMPLE_DIR, FASTQ_DIR,
-                                              RESULT_DIR, SCRATCH_DIR))
-    execute_command("mkdir -p %s " % REF_DIR)
 
     # Get list of input files to fetch
     command = "aws s3 ls %s/ | grep '\\.%s$'" % (SAMPLE_S3_INPUT_PATH,
