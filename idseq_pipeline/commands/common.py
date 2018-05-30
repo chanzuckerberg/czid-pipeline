@@ -876,5 +876,5 @@ def validate_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str):
         cleaned_taxid_lineage(taxid_lineage, hit_taxid_str, hit_level_str))
 
 def mark_job_complete(s3_folder):
-    done_file = "%s.done" % AWS_BATCH_JOB_ID
+    done_file = "%s.done" % os.environ.get('AWS_BATCH_JOB_ID', 'local')
     execute_command("echo '' | aws s3 cp - %s/%s" % (s3_folder, done_file))
