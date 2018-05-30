@@ -29,6 +29,9 @@ When merging a commit to master, you need to increase the version number in `ids
 
 Release notes
 -------------
+- 1.8.2
+   - Code quality and documentation improvements.
+
 - 1.8.1
    - Restore capability to run non-host alignment from the development environment.
 
