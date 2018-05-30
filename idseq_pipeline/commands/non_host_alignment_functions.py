@@ -180,10 +180,9 @@ def subsample_helper(input_file, records_to_keep, type_, output_file):
     # Error checking for mismatch
     if type_ == "record_indices" and len(kept_read_ids) != len(records_to_keep):
         msg = "WARNING: Repeated read IDs in {input_file}: Found {kri} read " \
-              "IDs in {rtk} sampled rows.".format(
-        input_file=input_file,
-        kri=len(kept_read_ids),
-        rtk=len(records_to_keep))
+              "IDs in {rtk} sampled rows.".format(input_file=input_file,
+                                                  kri=len(kept_read_ids),
+                                                  rtk=len(records_to_keep))
         write_to_log(msg)
 
     if type_ == "read_ids" and kept_read_ids != records_to_keep:
@@ -455,29 +454,25 @@ def generate_taxon_count_json_from_m8(
             hit_taxids_all_levels, hit_taxid, hit_level)
         assert NUM_RANKS == len(cleaned_hit_taxids_all_levels)
 
-        if any_hits_to_remove(cleaned_hit_taxids_all_levels):
-            hit_line = hit_f.readline()
-            m8_line = m8_f.readline()
-            continue
-
-        # Aggregate each level and collect statistics
-        agg_key = tuple(cleaned_hit_taxids_all_levels)
-        while agg_key:
-            agg_bucket = aggregation.get(agg_key)
-            if not agg_bucket:
-                agg_bucket = {
-                    'count': 0,
-                    'sum_percent_identity': 0.0,
-                    'sum_alignment_length': 0.0,
-                    'sum_e_value': 0.0
-                }
-                aggregation[agg_key] = agg_bucket
-            agg_bucket['count'] += 1
-            agg_bucket['sum_percent_identity'] += percent_identity
-            agg_bucket['sum_alignment_length'] += alignment_length
-            agg_bucket['sum_e_value'] += e_value
-            # Chomp off the lowest rank as we aggregate up the tree
-            agg_key = agg_key[1:]
+        if not any_hits_to_remove(cleaned_hit_taxids_all_levels):
+            # Aggregate each level and collect statistics
+            agg_key = tuple(cleaned_hit_taxids_all_levels)
+            while agg_key:
+                agg_bucket = aggregation.get(agg_key)
+                if not agg_bucket:
+                    agg_bucket = {
+                        'count': 0,
+                        'sum_percent_identity': 0.0,
+                        'sum_alignment_length': 0.0,
+                        'sum_e_value': 0.0
+                    }
+                    aggregation[agg_key] = agg_bucket
+                agg_bucket['count'] += 1
+                agg_bucket['sum_percent_identity'] += percent_identity
+                agg_bucket['sum_alignment_length'] += alignment_length
+                agg_bucket['sum_e_value'] += e_value
+                # Chomp off the lowest rank as we aggregate up the tree
+                agg_key = agg_key[1:]
 
         hit_line = hit_f.readline()
         m8_line = m8_f.readline()
@@ -488,33 +483,32 @@ def generate_taxon_count_json_from_m8(
         count = agg_bucket['count']
         tax_level = NUM_RANKS - len(agg_key) + 1
         # TODO: Extend taxonomic ranks as indicated on the commented out lines.
-        taxon_counts_attributes.append(
-            {
-                "tax_id":
-                agg_key[0],
-                "tax_level":
-                tax_level,
-                # 'species_taxid' : agg_key[tax_level - 1] if tax_level == 1 else "-100",
-                'genus_taxid':
-                agg_key[2 - tax_level] if tax_level <= 2 else "-200",
-                'family_taxid':
-                agg_key[3 - tax_level] if tax_level <= 3 else "-300",
-                # 'order_taxid' : agg_key[4 - tax_level] if tax_level <= 4 else "-400",
-                # 'class_taxid' : agg_key[5 - tax_level] if tax_level <= 5 else "-500",
-                # 'phyllum_taxid' : agg_key[6 - tax_level] if tax_level <= 6 else "-600",
-                # 'kingdom_taxid' : agg_key[7 - tax_level] if tax_level <= 7 else "-700",
-                # 'domain_taxid' : agg_key[8 - tax_level] if tax_level <= 8 else "-800",
-                "count":
-                count,
-                "percent_identity":
-                agg_bucket['sum_percent_identity'] / count,
-                "alignment_length":
-                agg_bucket['sum_alignment_length'] / count,
-                "e_value":
-                agg_bucket['sum_e_value'] / count,
-                "count_type":
-                count_type
-            })
+        taxon_counts_attributes.append({
+            "tax_id":
+            agg_key[0],
+            "tax_level":
+            tax_level,
+            # 'species_taxid' : agg_key[tax_level - 1] if tax_level == 1 else "-100",
+            'genus_taxid':
+            agg_key[2 - tax_level] if tax_level <= 2 else "-200",
+            'family_taxid':
+            agg_key[3 - tax_level] if tax_level <= 3 else "-300",
+            # 'order_taxid' : agg_key[4 - tax_level] if tax_level <= 4 else "-400",
+            # 'class_taxid' : agg_key[5 - tax_level] if tax_level <= 5 else "-500",
+            # 'phyllum_taxid' : agg_key[6 - tax_level] if tax_level <= 6 else "-600",
+            # 'kingdom_taxid' : agg_key[7 - tax_level] if tax_level <= 7 else "-700",
+            # 'domain_taxid' : agg_key[8 - tax_level] if tax_level <= 8 else "-800",
+            "count":
+            count,
+            "percent_identity":
+            agg_bucket['sum_percent_identity'] / count,
+            "alignment_length":
+            agg_bucket['sum_alignment_length'] / count,
+            "e_value":
+            agg_bucket['sum_e_value'] / count,
+            "count_type":
+            count_type
+        })
     output_dict = {
         "pipeline_output": {
             "total_reads": total_reads,
