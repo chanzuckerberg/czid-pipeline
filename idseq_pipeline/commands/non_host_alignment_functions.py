@@ -303,19 +303,21 @@ def iterate_m8(m8_file, debug_caller=None, logging_interval=25000000):
                 last_invalid_line = line
                 continue
             if debug_caller and line_count % logging_interval == 0:
-                m = "Scanned {} m8 lines from {} for {}, and going."
-                write_to_log(m.format(line_count, m8_file, debug_caller))
+                msg = "Scanned {} m8 lines from {} for {}, and going.".format(
+                    line_count, m8_file, debug_caller)
+                write_to_log(msg)
             yield (read_id, accession_id, percent_id, alignment_length,
                    e_value, line)
 
     # Warn about any invalid hits outputted by GSNAP
     if invalid_hits:
-        m = "Found {} invalid hits in {};  last invalid hit line: {}"
-        write_to_log(
-            m.format(invalid_hits, m8_file, last_invalid_line), warning=True)
+        msg = "Found {} invalid hits in {};  last invalid hit line: {}".format(
+            invalid_hits, m8_file, last_invalid_line)
+        write_to_log(msg, warning=True)
     if debug_caller:
-        m = "Scanned all {} m8 lines from {} for {}."
-        write_to_log(m.format(line_count, m8_file, debug_caller))
+        msg = "Scanned all {} m8 lines from {} for {}.".format(
+            line_count, m8_file, debug_caller)
+        write_to_log(msg)
 
 
 def annotate_fasta_with_accessions(merged_input_fasta, nt_m8, nr_m8,
@@ -586,6 +588,9 @@ def wait_for_server_ip_work(service_name,
         dict_writable = True
 
         def poll_server(ip):
+            # ServerAliveInterval to fix issue with containers keeping open
+            # an SSH connection even after worker machines had finished
+            # running.
             command = 'ssh -o "StrictHostKeyChecking no" -o "ConnectTimeout 5" -o "ServerAliveInterval 60" -i %s %s@%s "ps aux | grep %s | grep -v bash" || echo "error"' % (
                 key_path, remote_username, ip, service_name)
             output = execute_command_with_output(
@@ -695,8 +700,9 @@ def chunk_input(input_files_basenames, chunk_nlines, chunksize):
                 "wc -l %s" % input_file_full_local_path).strip().split()[0])
         # Number of lines should be the same in paired files
         if known_nlines is not None:
-            m = "Mismatched line counts in supposedly paired files: {}"
-            assert nlines == known_nlines, m.format(input_files_basenames)
+            msg = "Mismatched line counts in supposedly paired files: {}".format(
+                input_files_basenames)
+            assert nlines == known_nlines, msg
         known_nlines = nlines
 
         # Set number of pieces and names
@@ -719,16 +725,16 @@ def chunk_input(input_files_basenames, chunk_nlines, chunksize):
         partial_files = []
         paths = execute_command_with_output(
             "ls %s*" % out_prefix).rstrip().split("\n")
-        for partial_file in paths:
-            partial_files.append(os.path.basename(partial_file))
+        for pf in paths:
+            partial_files.append(os.path.basename(pf))
 
         # Check that the partial files match our expected chunking pattern
         pattern = "{:0%dd}" % ndigits
         expected_partial_files = [(out_prefix_base + pattern.format(i))
                                   for i in range(numparts)]
-        msg = "something went wrong with chunking: {} != {}"
-        assert expected_partial_files == partial_files, msg.format(
+        msg = "something went wrong with chunking: {} != {}".format(
             partial_files, expected_partial_files)
+        assert expected_partial_files == partial_files, msg
         part_lists.append(partial_files)
 
     # Ex: [["input_R1.fasta-part-1", "input_R2.fasta-part-1"],
@@ -851,8 +857,51 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir,
 @run_in_subprocess
 def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path,
                  output_m8, output_summary):
-    """Call hits and hit levels from the m8 files and produce cleaned m8 file
-    and summary file.
+    """
+    Determine the optimal taxon assignment for each read from the alignment
+    results. When a read aligns to multiple distinct references, we need to
+    assess at which level in the taxonomic hierarchy the multiple alignments
+    reach consensus. We refer to this process of controlling for specificity
+    as 'hit calling'.
+
+    Input:
+    - m8 file of multiple alignments per read
+
+    Outputs:
+    - cleaned m8 file with a single, optimal alignment per read
+    - file with summary information, including taxonomy level at which
+    specificity is reached
+
+    Details:
+    - A taxon is a group of any rank (e.g. species, genus, family, etc.).
+
+    - A hit is a match of a read to a known reference labeled with an
+    accession ID. We use NCBI's mapping of accession IDs to taxonomy IDs in
+    order to retrieve the full taxonomic hierarchy for the accession ID.
+
+    - The full taxonomy hierarchy for a hit is called its "lineage" (species,
+    genus, family, etc.). A hit will normally have (positive) NCBI taxon IDs
+    at all levels of the hierarchy, but there are some exceptions:
+
+        - We use an artificial negative taxon ID if we have determined that
+        the alignment is not specific at the taxonomy level under
+        consideration. This happens when a read's multiple reference matches
+        do not agree on taxon ID at the given level.
+
+        For example, a read may match 5 references that all belong to
+        different species (e.g. Escherichia albertii, Escherichia vulneris,
+        Escherichia coli, ...), but to the same genus (Escherichia). In this
+        case, we use the taxon ID for the genus (Escherichia) at the
+        genus-level, but we populate the species-level with an artificial
+        negative ID. The artificial ID is defined based on a negative base (
+        INVALID_CALL_BASE_ID), the taxon level (e.g. 2 for genus), and the
+        valid parent ID (e.g. genus Escherichia's taxon ID): see helper
+        function cleaned_taxid_lineage for the precise formula.
+
+        - Certain entries in NCBI may not have a full lineage classification;
+        for example species and family will be defined but genus will be
+        undefined. In this case, we populate the undefined taxonomic level
+        with an artificial negative ID defined in the same manner as above.
     """
     lineage_map = shelve.open(lineage_map_path)
     accession2taxid_dict = shelve.open(accession2taxid_dict_path)
@@ -863,7 +912,8 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path,
 
     def get_lineage(accession_id):
         """Find the lineage of the accession ID and utilize a cache for
-        performance
+        performance by reducing random IOPS, ameliorating a key performance
+        bottleneck
         """
         if accession_id in lineage_cache:
             return lineage_cache[accession_id]
@@ -874,7 +924,9 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path,
         return result
 
     def accumulate(hits, accession_id):
-        """Accumulate hits per level and taxonomy level"""
+        """Accumulate hits for summarizing hit information and specificity at
+        each taxonomy level
+        """
         lineage_taxids = get_lineage(accession_id)
         for level, taxid_at_level in enumerate(lineage_taxids):
             if int(taxid_at_level) < 0:
@@ -919,37 +971,46 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path,
         summary[read_id] = my_best_evalue, call_hit_level(hits)
         count += 1
         if count % LOG_INCREMENT == 0:
-            write_to_log(
-                "Summarized hits for {} read ids from {}, and counting.".
-                format(count, input_m8))
+            msg = "Summarized hits for {} read ids from {}, and counting.".format(count, input_m8)
+            write_to_log(msg)
     write_to_log("Summarized hits for all {} read ids from {}.".format(
         count, input_m8))
 
-    # Generate output files
+    # Generate output files. outf is the main output_m8 file and outf_sum is
+    # the summary level info.
     emitted = set()
     with open(output_m8, "wb") as outf:
         with open(output_summary, "wb") as outf_sum:
-            # Iterator over the lines of the m8 file. Emit only hits that had
-            # the best e-value.
+            # Iterator over the lines of the m8 file. Emit the hit with the
+            # best value that provides the most specific taxonomy
+            # information. If there are multiple hits (also called multiple
+            # accession IDs) for a given read that all have the same e-value,
+            # some may provide species information and some may only provide
+            # genus information. We want to emit the one that provides the
+            # species information because from that we can infer the rest of
+            # the lineage. If we accidentally emitted the one that provided
+            # only genus info, downstream steps may have difficulty
+            # recovering the species.
 
-            # TODO: Emit all hits within a fixed margin of the best e-value.
+            # TODO: Consider all hits within a fixed margin of the best e-value.
             # This change may need to be accompanied by a change to
             # GSNAP/RAPSearch parameters.
-            itr = iterate_m8(input_m8,
-                             "call_hits_m8_emit_deduped_and_summarized_hits")
-            for read_id, accession_id, _percent_id, _alignment_length, e_value, line in itr:
+            for read_id, accession_id, _percent_id, _alignment_length, e_value, line in iterate_m8(input_m8, "call_hits_m8_emit_deduped_and_summarized_hits"):
                 if read_id in emitted:
                     continue
+
+                # Read the fields from the summary level info
                 best_e_value, (hit_level, taxid,
                                best_accession_id) = summary[read_id]
                 if best_e_value == e_value and best_accession_id in (
                         None, accession_id):
+                    # Read out the hit with the best value that provides the
+                    # most specific taxonomy information.
                     emitted.add(read_id)
                     outf.write(line)
-                    m = "{read_id}\t{hit_level}\t{taxid}\n"
-                    outf_sum.write(
-                        m.format(
-                            read_id=read_id, hit_level=hit_level, taxid=taxid))
+                    msg = "{read_id}\t{hit_level}\t{taxid}\n".format(
+                        read_id=read_id, hit_level=hit_level, taxid=taxid)
+                    outf_sum.write(msg)
 
     # Upload results
     execute_command("aws s3 cp --quiet %s %s/" % (output_m8,
@@ -1153,8 +1214,6 @@ def fetch_and_clean_inputs(input_file_list):
 
 
 def run_stage2(lazy_run=True):
-    write_to_log("Starting stage...")
-
     # Make local directories
     execute_command("mkdir -p %s %s %s %s %s" %
                     (SAMPLE_DIR, FASTQ_DIR, RESULT_DIR, CHUNKS_RESULT_DIR,
@@ -1164,6 +1223,8 @@ def run_stage2(lazy_run=True):
     log_file = "%s/%s.%s.txt" % (RESULT_DIR, LOGS_OUT_BASENAME,
                                  AWS_BATCH_JOB_ID)
     configure_logger(log_file)
+
+    write_to_log("Starting stage...")
 
     # Initiate fetch of references
     lineage_paths = [None]
