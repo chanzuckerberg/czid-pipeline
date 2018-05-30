@@ -886,16 +886,17 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path,
         - We use an artificial negative taxon ID if we have determined that
         the alignment is not specific at the taxonomy level under
         consideration. This happens when a read's multiple reference matches
-        do not agree on taxon ID at the given level. For example, a read may
-        match 5 references that all belong to different species (e.g.
-        Escherichia albertii, Escherichia vulneris, Escherichia coli, ...),
-        but to the same genus (Escherichia). In this case, we use the taxon
-        ID for the genus (Escherichia) at the genus-level, but we populate
-        the species-level with an artificial negative ID. The artificial ID
-        is defined based on a negative base (INVALID_CALL_BASE_ID), the taxon
-        level (e.g. 2 for genus), and the valid parent ID (e.g. genus
-        Escherichia's taxon ID): see helper function cleaned_taxid_lineage
-        for the precise formula.
+        do not agree on taxon ID at the given level.
+
+        For example, a read may match 5 references that all belong to
+        different species (e.g. Escherichia albertii, Escherichia vulneris,
+        Escherichia coli, ...), but to the same genus (Escherichia). In this
+        case, we use the taxon ID for the genus (Escherichia) at the
+        genus-level, but we populate the species-level with an artificial
+        negative ID. The artificial ID is defined based on a negative base (
+        INVALID_CALL_BASE_ID), the taxon level (e.g. 2 for genus), and the
+        valid parent ID (e.g. genus Escherichia's taxon ID): see helper
+        function cleaned_taxid_lineage for the precise formula.
 
         - Certain entries in NCBI may not have a full lineage classification;
         for example species and family will be defined but genus will be
@@ -923,7 +924,9 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path,
         return result
 
     def accumulate(hits, accession_id):
-        """Accumulate hits per taxonomy level for summarizing hit information"""
+        """Accumulate hits for summarizing hit information and specificity at
+        each taxonomy level
+        """
         lineage_taxids = get_lineage(accession_id)
         for level, taxid_at_level in enumerate(lineage_taxids):
             if int(taxid_at_level) < 0:
