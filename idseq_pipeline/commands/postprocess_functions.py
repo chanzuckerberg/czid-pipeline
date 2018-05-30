@@ -371,7 +371,7 @@ def run_stage3(lazy_run=False):
                 os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_FAMILY_NR))
     # generate alignment visualization
     log_params = return_merged_dict(DEFAULT_LOG_PARAMS,
-                                   {"title": "run_generate_align_viz"})
+                                    {"title": "run_generate_align_viz"})
     run_and_log(log_params, TARGET_OUTPUTS["run_generate_align_viz"], False,
                 run_generate_align_viz,
                 os.path.join(RESULT_DIR,
@@ -380,7 +380,7 @@ def run_stage3(lazy_run=False):
 
     # combine results
     log_params = return_merged_dict(DEFAULT_LOG_PARAMS,
-                                   {"title": "run_combine_json"})
+                                    {"title": "run_combine_json"})
     input_files_basenames = [
         TAXID_LOCATIONS_JSON_NT, TAXID_LOCATIONS_JSON_NR,
         TAXID_LOCATIONS_JSON_GENUS_NT, TAXID_LOCATIONS_JSON_GENUS_NR,

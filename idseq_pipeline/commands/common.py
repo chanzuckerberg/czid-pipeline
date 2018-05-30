@@ -387,6 +387,8 @@ def execute_command_with_output(command,
 
 
 def remote_command(base_command, key_path, remote_username, instance_ip):
+    # ServerAliveInterval to fix issue with containers keeping open an SSH
+    # connection even after worker machines had finished running.
     return 'ssh -o "StrictHostKeyChecking no" -o "ConnectTimeout 15" -o "ServerAliveInterval 60" -i %s %s@%s "%s"' % (
         key_path, remote_username, instance_ip, base_command)
 
@@ -395,6 +397,8 @@ def scp(key_path, remote_username, instance_ip, remote_path, local_path):
     assert " " not in key_path
     assert " " not in remote_path
     assert " " not in local_path
+    # ServerAliveInterval to fix issue with containers keeping open an SSH
+    # connection even after worker machines had finished running.
     return 'scp -o "StrictHostKeyChecking no" -o "ConnectTimeout 15" -o "ServerAliveInterval 60" -i {key_path} {username}@{ip}:{remote_path} {local_path}'.format(
         key_path=key_path,
         username=remote_username,
@@ -541,7 +545,8 @@ def install_s3mi(installed={}, mutex=threading.RLock()):  #pylint: disable=dange
 
 def fetch_lazy_result(source, destination, allow_s3mi=False):
     return fetch_from_s3(
-        source, destination, auto_unzip=False, allow_s3mi=allow_s3mi) is not None
+        source, destination, auto_unzip=False,
+        allow_s3mi=allow_s3mi) is not None
 
 
 def fetch_reference(source, auto_unzip=True, allow_s3mi=True):
@@ -555,8 +560,8 @@ run_and_log_mutex = threading.RLock()
 
 def run_and_log(log_params, target_outputs, lazy_run, func_name, *args):
     with run_and_log_mutex:
-        return run_and_log_work(log_params, target_outputs, lazy_run, func_name,
-                                os.path.isfile, *args)
+        return run_and_log_work(log_params, target_outputs, lazy_run,
+                                func_name, os.path.isfile, *args)
 
 
 def run_and_log_eager(log_params, target_outputs, func_name, *args):
@@ -574,8 +579,8 @@ def run_and_log_s3(log_params, target_outputs, lazy_run, s3_result_dir,
             allow_s3mi=True)
 
     with run_and_log_mutex:
-        return run_and_log_work(log_params, target_outputs, lazy_run, func_name,
-                                lazy_fetch, *args)
+        return run_and_log_work(log_params, target_outputs, lazy_run,
+                                func_name, lazy_fetch, *args)
 
 
 def run_and_log_work(log_params, target_outputs, lazy_run, func_name,
