@@ -149,10 +149,10 @@ def make_indexes(version, lazy_run=False):
     input_gtf_local = None
     print(INPUT_GTF_S3)
     if INPUT_GTF_S3:
-        input_gtf_local, _version_number = download_reference_locally_with_version_any_source_type(
+        input_gtf_local, _version_number = download_ref_local_with_version_any_type(
             INPUT_GTF_S3, fasta_dir, scratch_dir_star, auto_unzip=True)
 
-    input_fasta_local, version_number = download_reference_locally_with_version_any_source_type(
+    input_fasta_local, version_number = download_ref_local_with_version_any_type(
         INPUT_FASTA_S3, fasta_dir, scratch_dir_star, auto_unzip=True)
 
     # unzip if necessary --- this is only necessary when the data did not come from S3, and should really

@@ -761,8 +761,8 @@ def get_reference_version_number(ncbitool_path, input_fasta_ncbi_path):
     return max(version_numbers)  # use latest available version
 
 
-def download_reference_locally(ncbitool_path, input_fasta_ncbi_path,
-                               version_number, destination_dir):
+def download_ref_local(ncbitool_path, input_fasta_ncbi_path,
+                       version_number, destination_dir):
     command = "cd %s; %s file --download --version-num %s %s" % (
         destination_dir, ncbitool_path, version_number, input_fasta_ncbi_path)
     execute_command(command)
@@ -770,10 +770,10 @@ def download_reference_locally(ncbitool_path, input_fasta_ncbi_path,
                         os.path.basename(input_fasta_ncbi_path))
 
 
-def download_reference_locally_with_version_any_source_type(
+def download_ref_local_with_version_any_type(
         ref_file, dest_dir, ncbitool_dest_dir, auto_unzip=False):
-    # Get input reference and version number.
-    # If download does not use ncbitool (e.g. direct s3 link), indicate that there is no versioning.
+    # Get input reference and version number. If download does not use
+    # ncbitool (e.g. direct s3 link), indicate that there is no versioning.
     input_fasta_name = os.path.basename(ref_file)
     if ref_file.startswith("s3://"):
         input_fasta_local = fetch_from_s3(
@@ -786,21 +786,21 @@ def download_reference_locally_with_version_any_source_type(
     else:
         ncbitool_path = install_ncbitool(ncbitool_dest_dir)
         version_number = get_reference_version_number(ncbitool_path, ref_file)
-        input_fasta_local = download_reference_locally(
+        input_fasta_local = download_ref_local(
             ncbitool_path, ref_file, version_number, dest_dir)
     return input_fasta_local, version_number
 
 
-def download_ref_on_remote_with_tool(ncbitool_path, input_fasta_ncbi_path,
-                                     version_number, dest_dir, key_path,
-                                     remote_username, server_ip):
+def download_ref_remote_with_tool(ncbitool_path, input_fasta_ncbi_path,
+                                  version_number, dest_dir, key_path,
+                                  remote_username, server_ip):
     cmd = "cd %s; sudo %s file --download --version-num %s %s" % (
         dest_dir, ncbitool_path, version_number, input_fasta_ncbi_path)
     execute_command(remote_command(cmd, key_path, remote_username, server_ip))
     return os.path.join(dest_dir, os.path.basename(input_fasta_ncbi_path))
 
 
-def download_reference_on_remote_with_version_any_source_type(
+def download_ref_remote_with_version_any_type(
         ref_file,
         dest_dir,
         local_ncbitool_dest_dir,
@@ -831,7 +831,7 @@ def download_reference_on_remote_with_version_any_source_type(
             local_ncbitool_dest_dir, remote_ncbitool_dest_dir, key_path,
             remote_username, server_ip, sudo)
         version_number = get_reference_version_number(local_ncbitool, ref_file)
-        input_fasta_remote = download_ref_on_remote_with_tool(
+        input_fasta_remote = download_ref_remote_with_tool(
             remote_ncbitool, ref_file, version_number, dest_dir, key_path,
             remote_username, server_ip)
     return input_fasta_remote, version_number

@@ -80,11 +80,11 @@ class Curate_accession2taxid(Base):
         arguments = self.options
         threads = {}
         threads['nt'] = MyThread(
-            target=download_reference_locally_with_version_any_source_type,
+            target=download_ref_local_with_version_any_type,
             args=(arguments['--nt_file'], dest_dir, dest_dir))
         threads['nt'].start()
         threads['nr'] = MyThread(
-            download_reference_locally_with_version_any_source_type,
+            download_ref_local_with_version_any_type,
             (arguments['--nr_file'], dest_dir, dest_dir))
         threads['nr'].start()
         mapping_files_local = []
@@ -94,7 +94,7 @@ class Curate_accession2taxid(Base):
         for f in mapping_files_sources:
             assert f not in threads
             threads[f] = MyThread(
-                target=download_reference_locally_with_version_any_source_type,
+                target=download_ref_local_with_version_any_type,
                 args=(f, dest_dir, dest_dir))
             threads[f].start()
         for f in threads:

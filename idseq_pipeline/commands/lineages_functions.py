@@ -18,7 +18,7 @@ def make_lineages(version):
         % scratch_dir)
 
     # Get input reference and version number
-    _input_fasta_local, version_number = download_reference_locally_with_version_any_source_type(
+    _input_fasta_local, version_number = download_ref_local_with_version_any_type(
         INPUT, work_dir, work_dir)
     command = "cd %s; rm -rfv taxdump; mkdir -p taxdump/taxdump; " % work_dir
     command += "tar zxf %s -C ./taxdump/taxdump" % os.path.basename(
