@@ -39,6 +39,9 @@ print_lock = multiprocessing.RLock()
 # peak network & storage perf for a typical small instance is saturated by just a few concurrent streams
 MAX_CONCURRENT_COPY_OPERATIONS = 8
 iostream = multiprocessing.Semaphore(MAX_CONCURRENT_COPY_OPERATIONS)
+# Make a second semaphore for uploads to reserve some capacity for downloads.
+MAX_CONCURRENT_UPLOAD_OPERATIONS = 4
+iostream_uploads = multiprocessing.Semaphore(MAX_CONCURRENT_UPLOAD_OPERATIONS)
 
 # definitions for integration with web app
 TAX_LEVEL_SPECIES = 1
@@ -513,14 +516,14 @@ def fetch_from_s3(source,
                     assert allow_s3mi
                     execute_command(
                         "s3mi cat {source} {pipe_filter} > {destination}".
-                        format(
+                            format(
                             source=source,
                             pipe_filter=pipe_filter,
                             destination=destination))
                 except:
                     execute_command(
                         "aws s3 cp --quiet {source} - {pipe_filter} > {destination}".
-                        format(
+                            format(
                             source=source,
                             pipe_filter=pipe_filter,
                             destination=destination))

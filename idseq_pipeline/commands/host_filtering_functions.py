@@ -153,26 +153,27 @@ def lzw_fraction(sequence):
 def generate_lzw_filtered_single(fasta_file, output_prefix, cutoff_fractions):
     output_read_1 = open(output_prefix + '.1.fasta', 'wb')
     for cutoff_fraction in cutoff_fractions:
-      read_1 = open(fasta_file, 'rb')
-      count = 0
-      filtered = 0
-      while True:
-          line_r1_header = read_1.readline()
-          line_r1_sequence = read_1.readline()
-          if line_r1_header and line_r1_sequence:
-              fraction_1 = lzw_fraction(line_r1_sequence.rstrip())
-              count += 1
-              if fraction_1 > cutoff_fraction:
-                  output_read_1.write(line_r1_header)
-                  output_read_1.write(line_r1_sequence)
-              else:
-                  filtered += 1
-          else:
-              break
-      print("LZW filter: cutoff_fraction: %f, total reads: %d, filtered reads: %d, kept ratio: %f" %
-            (cutoff_fraction, count, filtered, 1 - float(filtered) / count))
-      if count != filtered:
-        break
+        read_1 = open(fasta_file, 'rb')
+        count = 0
+        filtered = 0
+        while True:
+            line_r1_header = read_1.readline()
+            line_r1_sequence = read_1.readline()
+            if line_r1_header and line_r1_sequence:
+                fraction_1 = lzw_fraction(line_r1_sequence.rstrip())
+                count += 1
+                if fraction_1 > cutoff_fraction:
+                    output_read_1.write(line_r1_header)
+                    output_read_1.write(line_r1_sequence)
+                else:
+                    filtered += 1
+            else:
+                break
+        print(
+            "LZW filter: cutoff_fraction: %f, total reads: %d, filtered reads: %d, kept ratio: %f"
+            % (cutoff_fraction, count, filtered, 1 - float(filtered) / count))
+        if count != filtered:
+            break
     output_read_1.close()
 
 
@@ -181,32 +182,33 @@ def generate_lzw_filtered_paired(fasta_file_1, fasta_file_2, output_prefix,
     output_read_1 = open(output_prefix + '.1.fasta', 'wb')
     output_read_2 = open(output_prefix + '.2.fasta', 'wb')
     for cutoff_fraction in cutoff_fractions:
-      read_1 = open(fasta_file_1, 'rb')
-      read_2 = open(fasta_file_2, 'rb')
-      count = 0
-      filtered = 0
-      while True:
-          line_r1_header = read_1.readline()
-          line_r1_sequence = read_1.readline()
-          line_r2_header = read_2.readline()
-          line_r2_sequence = read_2.readline()
-          if line_r1_header and line_r1_sequence and line_r2_header and line_r2_sequence:
-              fraction_1 = lzw_fraction(line_r1_sequence.rstrip())
-              fraction_2 = lzw_fraction(line_r2_sequence.rstrip())
-              count += 1
-              if fraction_1 > cutoff_fraction and fraction_2 > cutoff_fraction:
-                  output_read_1.write(line_r1_header)
-                  output_read_1.write(line_r1_sequence)
-                  output_read_2.write(line_r2_header)
-                  output_read_2.write(line_r2_sequence)
-              else:
-                  filtered += 1
-          else:
-              break
-      print("LZW filter: cutoff_fraction: %f, total reads: %d, filtered reads: %d, kept ratio: %f" %
-            (cutoff_fraction, count, filtered, 1 - float(filtered) / count))
-      if count != filtered:
-        break
+        read_1 = open(fasta_file_1, 'rb')
+        read_2 = open(fasta_file_2, 'rb')
+        count = 0
+        filtered = 0
+        while True:
+            line_r1_header = read_1.readline()
+            line_r1_sequence = read_1.readline()
+            line_r2_header = read_2.readline()
+            line_r2_sequence = read_2.readline()
+            if line_r1_header and line_r1_sequence and line_r2_header and line_r2_sequence:
+                fraction_1 = lzw_fraction(line_r1_sequence.rstrip())
+                fraction_2 = lzw_fraction(line_r2_sequence.rstrip())
+                count += 1
+                if fraction_1 > cutoff_fraction and fraction_2 > cutoff_fraction:
+                    output_read_1.write(line_r1_header)
+                    output_read_1.write(line_r1_sequence)
+                    output_read_2.write(line_r2_header)
+                    output_read_2.write(line_r2_sequence)
+                else:
+                    filtered += 1
+            else:
+                break
+        print(
+            "LZW filter: cutoff_fraction: %f, total reads: %d, filtered reads: %d, kept ratio: %f"
+            % (cutoff_fraction, count, filtered, 1 - float(filtered) / count))
+        if count != filtered:
+            break
     output_read_1.close()
     output_read_2.close()
 
@@ -767,10 +769,11 @@ def upload_with_retries(from_f, to_f):
 
 def upload(from_f, to_f, status, status_lock=threading.RLock()):
     try:
-        with iostream:
-            upload_with_retries(from_f, to_f)
-        with status_lock:
-            status[from_f] = "success"
+        with iostream_uploads:  # Limit concurrent uploads so as not to stall the pipeline.
+            with iostream:      # Still counts toward the general semaphore.
+                upload_with_retries(from_f, to_f)
+            with status_lock:
+                status[from_f] = "success"
     except:
         with status_lock:
             status[from_f] = "error"
@@ -815,7 +818,8 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
         for i, fname in enumerate(fastq_files):
             assert fname.endswith(".fasta") or fname.endswith(
                 ".fasta.gz"
-            ), "Prefiltered input is not a fasta file: {fname}".format(fname=fname)
+            ), "Prefiltered input is not a fasta file: {fname}".format(
+                fname=fname)
             if fname.endswith(".fasta"):
                 execute_command("mv {fname} {bto}".format(
                     fname=fname, bto=os.path.join(RESULT_DIR, btos[i])))
@@ -890,7 +894,8 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
             input_files = [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1)]
             next_inputs = [os.path.join(RESULT_DIR, FQ2FA_OUT1)]
             if number_of_input_files == 2:
-                input_files.append(os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2))
+                input_files.append(
+                    os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2))
                 next_inputs.append(os.path.join(RESULT_DIR, FQ2FA_OUT2))
             run_and_log_s3(log_params, target_outputs["run_fq2fa"], lazy_run,
                            SAMPLE_S3_OUTPUT_PATH, run_fq2fa, input_files,
@@ -898,7 +903,8 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
         else:
             next_inputs = [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1)]
             if number_of_input_files == 2:
-                next_inputs.append(os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2))
+                next_inputs.append(
+                    os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2))
 
         # Run CD-HIT-DUP
         log_params = return_merged_dict(DEFAULT_LOG_PARAMS,
@@ -930,7 +936,8 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
             after_filetype="fasta_paired")
 
         # Run Bowtie
-        log_params = return_merged_dict(DEFAULT_LOG_PARAMS, {"title": "bowtie2"})
+        log_params = return_merged_dict(DEFAULT_LOG_PARAMS,
+                                        {"title": "bowtie2"})
         input_files = [os.path.join(RESULT_DIR, LZW_OUT1)]
         if number_of_input_files == 2:
             input_files.append(os.path.join(RESULT_DIR, LZW_OUT2))
@@ -950,9 +957,13 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
     # Run GSNAP against host genomes (only available for Human as of 5/1/2018)
     # GSNAP may run again even for pre-filtered inputs
     try:
-        input_files = [os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1)]
+        input_files = [
+            os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1)
+        ]
         if number_of_input_files == 2:
-            input_files.append(os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2))
+            input_files.append(
+                os.path.join(RESULT_DIR,
+                             EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2))
 
         # Skip GSNAP if the number of reads is too big
         # TODO: move gsnap filter to after subsampling
@@ -960,9 +971,9 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
             raise SkipGsnap()
         log_params = return_merged_dict(DEFAULT_LOG_PARAMS,
                                         {"title": "run_gsnap_filter"})
-        run_and_log_s3(log_params, target_outputs["run_gsnap_filter"], lazy_run,
-                       SAMPLE_S3_OUTPUT_PATH, run_gsnap_filter, input_files,
-                       uploader_start)
+        run_and_log_s3(log_params, target_outputs["run_gsnap_filter"],
+                       lazy_run, SAMPLE_S3_OUTPUT_PATH, run_gsnap_filter,
+                       input_files, uploader_start)
         stats.count_reads(
             "run_gsnap_filter",
             before_filename=os.path.join(
