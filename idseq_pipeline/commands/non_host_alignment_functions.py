@@ -737,6 +737,7 @@ def chunk_input(input_files_basenames, chunk_nlines, chunksize):
     """Chunk input files into pieces for performance and parallelism."""
     part_lists = []  # Lists of partial files
     known_nlines = None
+    part_suffix = ""
 
     for input_file in input_files_basenames:
         input_file_full_local_path = result_dir(input_file)
@@ -815,11 +816,17 @@ def remove_blank_line(file_path):
 
 def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir,
               remote_username, input_files, key_path, service, lazy_run):
+    """Dispatch a chunk to worker machines for distributed GSNAP or RAPSearch
+    group machines and handle their execution.
+    """
     assert service in ("gsnap", "rapsearch")
+
     chunk_id = input_files[0].split(part_suffix)[-1]
-    # TODO: Switch to python 3.6 which supports interpolation in string formatting, and we will half the number of lines below.
+    # TODO: Switch to python 3.6 which supports interpolation in string
+    # formatting, and we will half the number of lines below.
+    srvc = "rapsearch2" if service == "rapsearch" else service
     multihit_basename = "multihit-{service}-out{part_suffix}{chunk_id}.m8".format(
-        service="rapsearch2" if service == "rapsearch" else service,
+        service=srvc,
         part_suffix=part_suffix,
         chunk_id=chunk_id,
     )
@@ -827,21 +834,20 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir,
     multihit_remote_outfile = os.path.join(remote_work_dir, multihit_basename)
     multihit_s3_outfile = os.path.join(SAMPLE_S3_OUTPUT_CHUNKS_PATH,
                                        multihit_basename)
+
+    base_str = "aws s3 cp --quiet {s3_path}/{input_fa} {remote_work_dir}/{" \
+               "input_fa} "
     download_input_from_s3 = " ; ".join(
-        "aws s3 cp --quiet {s3_path}/{input_fa} {remote_work_dir}/{input_fa}".
-        format(
+        base_str.format(
             s3_path=SAMPLE_S3_OUTPUT_CHUNKS_PATH,
             input_fa=input_fa,
             remote_work_dir=remote_work_dir) for input_fa in input_files)
-    if service == "gsnap":
-        commands = "mkdir -p {remote_work_dir} ; \
-            {download_input_from_s3} ; \
-            {remote_home_dir}/bin/gsnapl -A m8 --batch=0 --use-shared-memory=0 --gmap-mode=none --npaths=100 --ordered -t 32 --maxsearch=1000 --max-mismatches=40 -D {remote_index_dir} -d nt_k16 {remote_input_files} > {multihit_remote_outfile}"
 
+    base_str = "mkdir -p {remote_work_dir} ; {download_input_from_s3} ; "
+    if service == "gsnap":
+        commands = base_str + "{remote_home_dir}/bin/gsnapl -A m8 --batch=0 --use-shared-memory=0 --gmap-mode=none --npaths=100 --ordered -t 32 --maxsearch=1000 --max-mismatches=40 -D {remote_index_dir} -d nt_k16 {remote_input_files} > {multihit_remote_outfile}"
     else:
-        commands = "mkdir -p {remote_work_dir} ; \
-            {download_input_from_s3} ; \
-            /usr/local/bin/rapsearch -d {remote_index_dir}/nr_rapsearch -e -6 -l 10 -a T -b 0 -v 50 -z 24 -q {remote_input_files} -o {multihit_remote_outfile}"
+        commands = base_str + "/usr/local/bin/rapsearch -d {remote_index_dir}/nr_rapsearch -e -6 -l 10 -a T -b 0 -v 50 -z 24 -q {remote_input_files} -o {multihit_remote_outfile}"
 
     commands = commands.format(
         remote_work_dir=remote_work_dir,
@@ -850,34 +856,40 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir,
         remote_index_dir=remote_index_dir,
         remote_input_files=" ".join(
             remote_work_dir + "/" + input_fa for input_fa in input_files),
-        multihit_remote_outfile=multihit_remote_outfile
-        if service == "gsnap" else
-        multihit_remote_outfile[:
-                                -3]  # strip the .m8 for rapsearch as it adds that
+        multihit_remote_outfile=multihit_remote_outfile if service == "gsnap" else multihit_remote_outfile[:-3]
+        # Strip the .m8 for RAPSearch as it adds that
     )
+
     if not lazy_run or not fetch_lazy_result(multihit_s3_outfile,
                                              multihit_local_outfile):
         correct_number_of_output_columns = 12
         min_column_number = 0
         max_tries = 2
         try_number = 1
-        while min_column_number != correct_number_of_output_columns and try_number <= max_tries:
+        instance_ip = ""
+
+        # Check if every row has correct number of columns (12) in the output
+        # file on the remote machine
+        while min_column_number != correct_number_of_output_columns \
+                and try_number <= max_tries:
             write_to_log("waiting for {} server for chunk {}".format(
                 service, chunk_id))
-            max_concurrent = GSNAPL_MAX_CONCURRENT if service == "gsnap" else RAPSEARCH2_MAX_CONCURRENT
-            instance_ip = wait_for_server_ip(service, key_path,
-                                             remote_username, ENVIRONMENT,
-                                             max_concurrent, chunk_id)
+            if service == "gsnap":
+                max_concurrent = GSNAPL_MAX_CONCURRENT
+            else:
+                max_concurrent = RAPSEARCH2_MAX_CONCURRENT
+
+            instance_ip = wait_for_server_ip(service, key_path, remote_username,
+                                             ENVIRONMENT, max_concurrent, chunk_id)
             write_to_log("starting alignment for chunk %s on %s server %s" %
                          (chunk_id, service, instance_ip))
             execute_command(
-                remote_command(commands, key_path, remote_username,
-                               instance_ip))
-            # check if every row has correct number of columns (12) in the output file on the remote machine
+                remote_command(commands, key_path, remote_username, instance_ip))
+
             if service == "gsnap":
                 verification_command = "cat %s" % multihit_remote_outfile
             else:
-                # for rapsearch, first, remove header lines starting with '#'
+                # For rapsearch, first remove header lines starting with '#'
                 verification_command = "grep -v '^#' %s" % multihit_remote_outfile
             verification_command += " | awk '{print NF}' | sort -nu | head -n 1"
             min_column_number_string = execute_command_with_output(
@@ -887,16 +899,19 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir,
                 min_column_number_string, correct_number_of_output_columns,
                 try_number)
             try_number += 1
-        # move output from remote machine to local
-        assert min_column_number == correct_number_of_output_columns, "Chunk %s output corrupt; not copying to S3. Re-start pipeline to try again." % chunk_id
+            
+        # Move output from remote machine to local machine
+        msg = "Chunk %s output corrupt; not copying to S3. Re-start pipeline " \
+              "to try again." % chunk_id
+        assert min_column_number == correct_number_of_output_columns, msg
+
         with iostream_uploads:  # Limit concurrent uploads so as not to stall the pipeline.
             with iostream:      # Still counts toward the general semaphore.
                 execute_command(
                     scp(key_path, remote_username, instance_ip,
                         multihit_remote_outfile, multihit_local_outfile))
                 execute_command("aws s3 cp --quiet %s %s/" %
-                                (multihit_local_outfile,
-                                 SAMPLE_S3_OUTPUT_CHUNKS_PATH))
+                                (multihit_local_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
         write_to_log("finished alignment for chunk %s on %s server %s" %
                      (chunk_id, service, instance_ip))
     return multihit_local_outfile
