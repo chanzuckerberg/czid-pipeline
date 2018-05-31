@@ -769,10 +769,11 @@ def upload_with_retries(from_f, to_f):
 
 def upload(from_f, to_f, status, status_lock=threading.RLock()):
     try:
-        with iostream:
-            upload_with_retries(from_f, to_f)
-        with status_lock:
-            status[from_f] = "success"
+        with iostream_uploads:  # Limit concurrent uploads so as not to stall the pipeline.
+            with iostream:      # Still counts toward the general semaphore.
+                upload_with_retries(from_f, to_f)
+            with status_lock:
+                status[from_f] = "success"
     except:
         with status_lock:
             status[from_f] = "error"

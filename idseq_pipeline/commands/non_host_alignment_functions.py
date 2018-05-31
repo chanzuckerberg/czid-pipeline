@@ -899,18 +899,19 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir,
                 min_column_number_string, correct_number_of_output_columns,
                 try_number)
             try_number += 1
-
+            
         # Move output from remote machine to local machine
         msg = "Chunk %s output corrupt; not copying to S3. Re-start pipeline " \
               "to try again." % chunk_id
         assert min_column_number == correct_number_of_output_columns, msg
 
-        with iostream:
-            execute_command(
-                scp(key_path, remote_username, instance_ip,
-                    multihit_remote_outfile, multihit_local_outfile))
-            execute_command("aws s3 cp --quiet %s %s/" %
-                            (multihit_local_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
+        with iostream_uploads:  # Limit concurrent uploads so as not to stall the pipeline.
+            with iostream:      # Still counts toward the general semaphore.
+                execute_command(
+                    scp(key_path, remote_username, instance_ip,
+                        multihit_remote_outfile, multihit_local_outfile))
+                execute_command("aws s3 cp --quiet %s %s/" %
+                                (multihit_local_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
         write_to_log("finished alignment for chunk %s on %s server %s" %
                      (chunk_id, service, instance_ip))
     return multihit_local_outfile
@@ -1141,9 +1142,10 @@ def run_remotely(input_files, service, lazy_run):
 
     # Concatenate the pieces and upload results
     concatenate_files(chunk_output_files, result_dir(output_file))
-    with iostream:
-        execute_command("aws s3 cp --quiet %s/%s %s/" %
-                        (RESULT_DIR, output_file, SAMPLE_S3_OUTPUT_PATH))
+    with iostream_uploads:  # Limit concurrent uploads so as not to stall the pipeline.
+        with iostream:      # Still counts toward the general semaphore.
+            execute_command("aws s3 cp --quiet %s/%s %s/" %
+                            (RESULT_DIR, output_file, SAMPLE_S3_OUTPUT_PATH))
 
 
 def fetch_deuterostome_file(lock=threading.RLock()):  #pylint: disable=dangerous-default-value
