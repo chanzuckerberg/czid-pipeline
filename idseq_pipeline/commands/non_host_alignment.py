@@ -17,4 +17,9 @@ class Non_host_alignment(Base):
                 stage1_version, self.version)
             raise RuntimeError(msg)
 
-        run_stage2(True)
+        try:
+          run_stage2(True)
+          mark_job_complete(SAMPLE_S3_OUTPUT_PATH, JOB_SUCCEEDED)
+        except:
+          mark_job_complete(SAMPLE_S3_OUTPUT_PATH, JOB_FAILED)
+          raise RuntimeError("Job failed")

@@ -1076,7 +1076,6 @@ def run_stage1(lazy_run=True):
     run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
                        stats_in is not None)
 
-    # This lets the webapp know the stage has completed.
     stats.save_to_s3()
 
     write_to_log("Host filtering complete")
