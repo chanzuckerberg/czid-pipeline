@@ -32,6 +32,7 @@ Release notes
 
 - 1.8.0 ... 1.8.3
    - Upload a status file that indicates when a job has completed.
+   - Add a dedicated semaphore for S3 uploads.
    - Code quality and documentation improvements.
    - Restore capability to run non-host alignment from the development environment.
    - Try a more relaxed LZW fraction if the initial filter leaves 0 reads
