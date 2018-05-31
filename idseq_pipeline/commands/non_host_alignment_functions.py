@@ -965,6 +965,19 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path,
         for example species and family will be defined but genus will be
         undefined. In this case, we populate the undefined taxonomic level
         with an artificial negative ID defined in the same manner as above.
+
+    - m8 files correspond to BLAST tabular output format 6:
+        Columns: read_id | _ref_id | percent_identity | alignment_length...
+
+        * read_id = query (e.g., gene) sequence id
+        * ref_id = subject (e.g., reference genome) sequence id
+        * percent_identity = percentage of identical matches
+        * alignment_length = length of the alignments
+        * e_value = the expect value
+
+        See:
+        * http://www.metagenomics.wiki/tools/blast/blastn-output-format-6
+        * http://www.metagenomics.wiki/tools/blast/evalue
     """
     lineage_map = shelve.open(lineage_map_path)
     accession2taxid_dict = shelve.open(accession2taxid_dict_path)
