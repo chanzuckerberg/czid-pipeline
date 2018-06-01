@@ -873,11 +873,12 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
         for t in uploader_threads:
             t.join()
         for filename, status in uploader_status.iteritems():
-            assert status == "success", "Bad upload status {} for file {}".format(
-                status, filename)
+            msg = "Bad upload status {} for file {}".format(status, filename)
+            assert status == "success", msg
 
     if prefiltered:
-        # Move input in place of bowtie output (as it represents bowtie output from another run).
+        # Move input in place of bowtie output (as it represents bowtie output
+        # from another run).
         btos = [
             EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1,
             EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2
