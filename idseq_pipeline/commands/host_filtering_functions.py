@@ -290,7 +290,9 @@ def max_input_lines(input_file):
     return MAX_INPUT_READS * 4
 
 
-# job functions
+# Job functions
+
+
 def run_star_part(output_dir, genome_dir, fastq_files, count_genes=False):
     execute_command("mkdir -p %s" % output_dir)
     star_command_params = [
@@ -302,19 +304,21 @@ def run_star_part(output_dir, genome_dir, fastq_files, count_genes=False):
         '--readFilesIn', " ".join(fastq_files)
     ]
     if fastq_files[0][-3:] == '.gz':
-        # create a custom decompressor which does "zcat $input_file | head - ${max_lines}"
-        execute_command(
-            "echo 'zcat ${2} | head -${1}' > %s/gzhead; " % genome_dir)
+        # Create a custom decompressor which does "zcat $input_file | head -
+        # ${max_lines}"
+        cmd = "echo 'zcat ${2} | head -${1}' > %s/gzhead; " % genome_dir
+        execute_command(cmd)
         max_lines = max_input_lines(fastq_files[0])
         star_command_params += [
             '--readFilesCommand',
             '"sh %s/gzhead %d"' % (genome_dir, max_lines)
         ]
-    if count_genes and os.path.isfile(
-            "%s/sjdbList.fromGTF.out.tab" % genome_dir):
+    path = "%s/sjdbList.fromGTF.out.tab" % genome_dir
+    if count_genes and os.path.isfile(path):
         star_command_params += ['--quantMode', 'GeneCounts']
-    execute_command(" ".join(star_command_params),
-                    os.path.join(output_dir, "Log.progress.out"))
+    cmd = " ".join(star_command_params), os.path.join(output_dir,
+                                                      "Log.progress.out")
+    execute_command(cmd)
 
 
 def uncompressed(s3genome):
@@ -331,97 +335,99 @@ def fetch_genome_work(s3genome, strict):
                            "hg38_pantro5_k16"):
         write_to_log("Oh hello interesting new genome {}".format(genome_name))
     genome_dir = os.path.join(REF_DIR, genome_name)
+
     if not os.path.exists(genome_dir):
         try:
-            #TODO Clean up and fold into fetch_reference
-            # Hmm. I understand the desire to create a single function for fetching any reference we might need,
-            # but the functionality of these two functions is actually quite different.  One of them handles
-            # resiliently situations like the destination existing/not existing, being a folder/not a folder, etc.
-            # The other expands an archive into an existing folder, and needs to thoroughly cleanup in case
-            # something does not go as planned, because of the prefetching pattern of use.  Also, this function
-            # will fetch whichever of the "tar" or "tar.gz" versions of the archive actually exist in s3,
-            # even if the other version has been specified.  So the two functions are resilient in different ways.
             install_s3mi()
             tarfile = uncompressed(s3genome)
             try:
-                execute_command(
-                    "s3mi cat {tarfile} | tar xvf - -C {refdir}".format(
-                        tarfile=tarfile, refdir=REF_DIR))
+                print("Trying to download compressed genome...")
+                cmd = "s3mi cat {tarfile} | tar xvf - -C {refdir}".format(
+                    tarfile=tarfile, refdir=REF_DIR)
+                execute_command(cmd)
                 assert os.path.isdir(genome_dir)
             except:
                 if tarfile != s3genome:
-                    # The uncompressed version doesn't exist.   This is much slower, but no choice.
+                    print("Uncompressed version doesn't exist. Downloading "
+                          "compressed version...")
+                    # The uncompressed version doesn't exist. This is much
+                    # slower, but no choice.
                     execute_command("rm -rf {}".format(genome_dir))
-                    execute_command(
-                        "s3mi cat {s3genome} | tar xvfz - -C {refdir}".format(
-                            s3genome=s3genome, refdir=REF_DIR))
+                    cmd = "s3mi cat {s3genome} | tar xvfz - -C {refdir}".format(
+                        s3genome=s3genome, refdir=REF_DIR)
+                    execute_command(cmd)
                     assert os.path.isdir(genome_dir)
                 else:
                     # Okay, may be s3mi is broken.  We'll try aws cp next.
+                    print("Error in downloading with s3mi. Trying aws cp...")
                     raise
         except:
             try:
                 execute_command("rm -rf {}".format(genome_dir))
-                execute_command(
-                    "aws s3 cp --quiet {s3genome} - | tar xvf - -C {refdir}".
-                    format(s3genome=s3genome, refdir=REF_DIR))
+                cmd = "aws s3 cp --quiet {s3genome} - | tar xvf - -C {refdir}".format(
+                    s3genome=s3genome, refdir=REF_DIR)
+                execute_command(cmd)
                 assert os.path.isdir(genome_dir)
             except:
-                write_to_log(
-                    "Failed to download index {}, it might not exist.".format(
-                        s3genome))
+                msg = "Failed to download index {}, it might not exist.".format(
+                    s3genome)
+                write_to_log(msg)
                 if strict:
                     raise
                 genome_dir = None
                 # Note we do not reraise the exception here, just print it.
                 traceback.print_exc()
         if genome_dir:
-            write_to_log("downloaded index {}".format(s3genome))
+            write_to_log("successfully downloaded index {}".format(s3genome))
     return genome_dir
 
 
 def fetch_genome(s3genome, strict=True, mutex=threading.RLock(), mutexes={}):  #pylint: disable=dangerous-default-value
-    """Fetch and expand genome archive from s3 into local dir.  Return that local dir.
-    If already downloaded, return right away.  If a fetch of the same genome is already
-    in progress on another thread, wait for it to complete or fail;  and if it failed,
-    try again. If all tries fail, raise an exception (strict) or return None (not strict).
+    """Fetch and expand genome archive from s3 into local dir. Return that local
+    dir. If already downloaded, return right away. If a fetch of the same genome
+    is already in progress on another thread, wait for it to complete or fail;
+    and if it failed, try again. If all tries fail, raise an exception (strict)
+    or return None (not strict).
 
     Typical use:
 
-            fruitfly_dir = fetch_genome("s3://fruitfly_genome.tar")
-            # Prefetching optimization:  While doing compute intensive work on fruit flies,
-            # start fetching the butterfly genome.
-            threading.Thread(target=fetch_genome, args=["s3://butterfly_genome.tar"]).start()
-            ... do some compute intensive work on fruit flies ...
-            butterfly_dir = fetch_genome("s3://butterfly_genome.tar")
-            threading.Thread(target=fetch_genome, args=["s3://firefly_genome.tar"]).start()
-            ... do some compute intensive work on butterflies ...
-            firefly_dir = fetch_genome("s3://firefly_genome.tar")
-            ...
+        fruitfly_dir = fetch_genome("s3://fruitfly_genome.tar")
+        # Prefetching optimization:  While doing compute intensive work on fruit flies,
+        # start fetching the butterfly genome.
+        threading.Thread(target=fetch_genome, args=["s3://butterfly_genome.tar"]).start()
+        ... do some compute intensive work on fruit flies ...
+        butterfly_dir = fetch_genome("s3://butterfly_genome.tar")
+        threading.Thread(target=fetch_genome, args=["s3://firefly_genome.tar"]).start()
+        ... do some compute intensive work on butterflies ...
+        firefly_dir = fetch_genome("s3://firefly_genome.tar")
+        ...
 
-    Without the prefetching thread, the compute intensive work on butterflies would have
-    to wait for the entire butterfly genome to be downloaded.   With prefetching like this,
-    the download of the butterfly genome proceeds in parallel with the fruit fly computation,
-    and by the time the butterfly genome is needed, it may already have been fully downloaded,
-    so the butterfly computation won't have to wait for it.  Similarly, the download of the
-    firefly genome proceeds in parallel with the butterfly computation, and the firefly genome
-    will be ready by the time it's needed.  The program would still work corerctly if we
-    comment out all the prefetching threads, but would take much longer to execute.
+    Without the pre-fetching thread, the compute intensive work on butterflies
+    would have to wait for the entire butterfly genome to be downloaded. With
+    pre-fetching like this, the download of the butterfly genome proceeds in
+    parallel with the fruit fly computation, and by the time the butterfly
+    genome is needed, it may already have been fully downloaded, so the
+    butterfly computation won't have to wait for it. Similarly, the download
+    of the firefly genome proceeds in parallel with the butterfly computation,
+    and the firefly genome will be ready by the time it's needed. The program
+    would still work correctly if we comment out all the pre-fetching threads,
+    but would take much longer to execute.
 
-    It may be tempting to initiate all fetching parallel at the start of the program,
-    but that's undesirable for two reasons:
+    It may be tempting to initiate all fetching parallel at the start of the
+    program, but that's undesirable for two reasons:
 
       1) Fetching data with s3mi fully utilizes the I/O bandwidth of moderately
     sized instances, so fetching multiple streams in parallel will just slow them
     down and delay the moment we can begin computing.
 
-      2) If the different computation stages support result caching, so that typically
-    the first N stages would be cached from a previous run, and the computation would
-    resume from stage N+1, this pattern beautifully avoids any unnecessary fetching
-    of data that won't be needed for the cached stages, while still fetching
-    the data needed for stage N+1.  If, instead, we were to initiate prefetching at
-    the beginning of the program, we would have to carefully ensure we only prefetch
-    data that will in fact be needed, by replicating some of the caching logic.
+      2) If the different computation stages support result caching, so that
+      typically the first N stages would be cached from a previous run, and the
+      computation would resume from stage N+1, this pattern beautifully avoids
+      any unnecessary fetching of data that won't be needed for the cached
+      stages, while still fetching the data needed for stage N+1. If, instead,
+      we were to initiate pre-fetching at the beginning of the program, we would
+      have to carefully ensure we only prefetch data that will in fact be
+      needed, by replicating some of the caching logic.
     """
     with mutex:
         if s3genome not in mutexes:
@@ -434,16 +440,16 @@ def fetch_genome(s3genome, strict=True, mutex=threading.RLock(), mutexes={}):  #
 def get_read(f):
     # The FASTQ format specifies that each read consists of 4 lines,
     # the first of which begins with @ followed by read ID.
-    r, rid = [], None
+    read, rid = [], None
     line = f.readline()
     if line:
         assert line[0] == "@"
         rid = line.split("\t", 1)[0].strip()
-        r.append(line)
-        r.append(f.readline())
-        r.append(f.readline())
-        r.append(f.readline())
-    return r, rid
+        read.append(line)
+        read.append(f.readline())
+        read.append(f.readline())
+        read.append(f.readline())
+    return read, rid
 
 
 def write_lines(of, lines):
@@ -480,7 +486,8 @@ def sync_pairs_work(of0, of1, if0, if1):
         if not r0 and not r1:
             break
         if r0id == r1id:
-            # If the input pairs are already synchronized, we take this branch on every iteration.
+            # If the input pairs are already synchronized, we take this branch
+            # on every iteration.
             write_lines(of0, r0)
             write_lines(of1, r1)
         else:
@@ -494,8 +501,7 @@ def sync_pairs_work(of0, of1, if0, if1):
 
 
 def sync_pairs(fastq_files, max_discrepancies=0):
-    """
-    The given fastq_files contain the same read IDs but in different order.
+    """The given fastq_files contain the same read IDs but in different order.
     Output the same data in sycnhronized order.  Omit up to max_discrepancies
     if necessary.  If more must be suppressed, raise assertion.
     """
