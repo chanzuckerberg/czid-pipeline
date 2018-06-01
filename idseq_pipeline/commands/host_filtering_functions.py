@@ -118,10 +118,10 @@ GSNAPL = "gsnapl"
 LZW_FRACTION_CUTOFFS = [0.45, 0.42]
 
 
-# convenience functions
+# Convenience functions
 def fq2fa(input_fastq, output_fasta):
-    execute_command("sed -n '1~4s/^@/>/p;2~4p' <%s >%s" % (input_fastq,
-                                                           output_fasta))
+    cmd = "sed -n '1~4s/^@/>/p;2~4p' <%s >%s" % (input_fastq, output_fasta)
+    execute_command(cmd)
 
 
 def lzw_fraction(sequence):
@@ -134,6 +134,7 @@ def lzw_fraction(sequence):
     for c in sequence:
         dict_size += 1
         dictionary[c] = dict_size
+
     word = ""
     results = []
     for c in sequence:
@@ -150,9 +151,9 @@ def lzw_fraction(sequence):
     return float(len(results)) / len(sequence)
 
 
-def generate_lzw_filtered_single(fasta_file, output_prefix, cutoff_fractions):
-    output_read_1 = open(output_prefix + '.1.fasta', 'wb')
-    for cutoff_fraction in cutoff_fractions:
+def generate_lzw_filtered_single(fasta_file, out_prefix, cutoff_fractions):
+    out_read_1 = open(out_prefix + '.1.fasta', 'wb')
+    for cutoff_frac in cutoff_fractions:
         read_1 = open(fasta_file, 'rb')
         count = 0
         filtered = 0
@@ -162,113 +163,130 @@ def generate_lzw_filtered_single(fasta_file, output_prefix, cutoff_fractions):
             if line_r1_header and line_r1_sequence:
                 fraction_1 = lzw_fraction(line_r1_sequence.rstrip())
                 count += 1
-                if fraction_1 > cutoff_fraction:
-                    output_read_1.write(line_r1_header)
-                    output_read_1.write(line_r1_sequence)
+                if fraction_1 > cutoff_frac:
+                    out_read_1.write(line_r1_header)
+                    out_read_1.write(line_r1_sequence)
                 else:
                     filtered += 1
             else:
                 break
-        print(
-            "LZW filter: cutoff_fraction: %f, total reads: %d, filtered reads: %d, kept ratio: %f"
-            % (cutoff_fraction, count, filtered, 1 - float(filtered) / count))
+        msg = "LZW filter: cutoff_frac: %f, total reads: %d, filtered reads: %d, " \
+              "kept ratio: %f" % (cutoff_frac, count, filtered, 1 - float(filtered) / count)
+        print(msg)
         if count != filtered:
             break
-    output_read_1.close()
+    out_read_1.close()
 
 
-def generate_lzw_filtered_paired(fasta_file_1, fasta_file_2, output_prefix,
+def generate_lzw_filtered_paired(fasta_file_1, fasta_file_2, out_prefix,
                                  cutoff_fractions):
-    output_read_1 = open(output_prefix + '.1.fasta', 'wb')
-    output_read_2 = open(output_prefix + '.2.fasta', 'wb')
-    for cutoff_fraction in cutoff_fractions:
+    out_read_1 = open(out_prefix + '.1.fasta', 'wb')
+    out_read_2 = open(out_prefix + '.2.fasta', 'wb')
+    for cutoff_frac in cutoff_fractions:
         read_1 = open(fasta_file_1, 'rb')
         read_2 = open(fasta_file_2, 'rb')
         count = 0
         filtered = 0
         while True:
             line_r1_header = read_1.readline()
-            line_r1_sequence = read_1.readline()
+            line_r1_seq = read_1.readline()
             line_r2_header = read_2.readline()
-            line_r2_sequence = read_2.readline()
-            if line_r1_header and line_r1_sequence and line_r2_header and line_r2_sequence:
-                fraction_1 = lzw_fraction(line_r1_sequence.rstrip())
-                fraction_2 = lzw_fraction(line_r2_sequence.rstrip())
+            line_r2_seq = read_2.readline()
+            if line_r1_header and line_r1_seq and line_r2_header and line_r2_seq:
+                fraction_1 = lzw_fraction(line_r1_seq.rstrip())
+                fraction_2 = lzw_fraction(line_r2_seq.rstrip())
                 count += 1
-                if fraction_1 > cutoff_fraction and fraction_2 > cutoff_fraction:
-                    output_read_1.write(line_r1_header)
-                    output_read_1.write(line_r1_sequence)
-                    output_read_2.write(line_r2_header)
-                    output_read_2.write(line_r2_sequence)
+                if fraction_1 > cutoff_frac and fraction_2 > cutoff_frac:
+                    out_read_1.write(line_r1_header)
+                    out_read_1.write(line_r1_seq)
+                    out_read_2.write(line_r2_header)
+                    out_read_2.write(line_r2_seq)
                 else:
                     filtered += 1
             else:
                 break
-        print(
-            "LZW filter: cutoff_fraction: %f, total reads: %d, filtered reads: %d, kept ratio: %f"
-            % (cutoff_fraction, count, filtered, 1 - float(filtered) / count))
+        msg = "LZW filter: cutoff_frac: %f, total reads: %d, filtered reads: %d, " \
+              "kept ratio: %f" % (cutoff_frac, count, filtered, 1 - float(filtered) / count)
+        print(msg)
         if count != filtered:
             break
-    output_read_1.close()
-    output_read_2.close()
+    out_read_1.close()
+    out_read_2.close()
 
 
 def generate_unmapped_singles_from_sam(sam_file, output_prefix):
-    """Output a single file containing every unmapped read after bowtie2."""
-    with open(output_prefix + '.1.fasta', 'wb') as output_read_1:
-        with open(sam_file, 'rb') as samf:
-            # skip headers
-            read1 = samf.readline()
-            while read1 and read1[0] == '@':
-                read1 = samf.readline()
-            while read1:
-                parts1 = read1.split("\t")
-                if parts1[
-                        1] == "4":  # read unmapped, see https://broadinstitute.github.io/picard/explain-flags.html
-                    output_read_1.write(
-                        ">%s\n%s\n" %
-                        (parts1[0], parts1[9]))  # do NOT append /1 to read id
-                read1 = samf.readline()
+    """Output a single file containing every unmapped read after bowtie2.
+
+    SAM file alignments:
+    - See: https://en.wikipedia.org/wiki/SAM_(file_format)
+         - https://broadinstitute.github.io/picard/explain-flags.html
+    - part[0] = query template name
+    - part[1] = bitwise flag
+    - part[9] = segment sequence
+    """
+    with open(output_prefix + '.1.fasta', 'wb') as output_read:
+        with open(sam_file, 'rb') as sam_f:
+            # Skip headers
+            read = sam_f.readline()
+            while read and read[0] == '@':
+                read = sam_f.readline()
+            while read:
+                part = read.split("\t")
+                # Read unmapped
+                if part[1] == "4":
+                    # Do NOT append /1 to read id
+                    output_read.write(">%s\n%s\n" % (part[0], part[9]))
+                read = sam_f.readline()
 
 
-def generate_unmapped_pairs_from_sam_work(output_read_1, output_read_2,
-                                          output_merged_read, samf):
-    # skip headers
-    read1 = samf.readline()
+def generate_unmapped_pairs_from_sam_work(out_read_1, out_read_2,
+                                          out_merged_read, sam_f):
+    """SAM file alignments:
+    - See: https://en.wikipedia.org/wiki/SAM_(file_format)
+         - https://broadinstitute.github.io/picard/explain-flags.html
+    - part[0] = query template name
+    - part[1] = bitwise flag
+    - part[9] = segment sequence
+    """
+    # Skip headers
+    read1 = sam_f.readline()
     while read1 and read1[0] == '@':
-        read1 = samf.readline()
-    read2 = samf.readline()
+        read1 = sam_f.readline()
+    read2 = sam_f.readline()
+
     while read1 and read2:
-        parts1 = read1.split("\t")
-        parts2 = read2.split("\t")
-        if parts1[1] == "77" and parts2[1] == "141":  # both parts unmapped, see https://broadinstitute.github.io/picard/explain-flags.html
-            output_read_1.write(">%s\n%s\n" % (parts1[0], parts1[9]))
-            output_read_2.write(">%s\n%s\n" % (parts2[0], parts2[9]))
-            output_merged_read.write(
-                ">%s/1\n%s\n" % (parts1[0], parts1[9]))  # append /1 to read id
-            output_merged_read.write(
-                ">%s/2\n%s\n" % (parts2[0], parts2[9]))  # append /2 to read id
-        read1 = samf.readline()
-        read2 = samf.readline()
+        part1 = read1.split("\t")
+        part2 = read2.split("\t")
+        if part1[1] == "77" and part2[1] == "141":  # Both parts unmapped
+            out_read_1.write(">%s\n%s\n" % (part1[0], part1[9]))
+            out_read_2.write(">%s\n%s\n" % (part2[0], part2[9]))
+            # Append /1 to read id
+            out_merged_read.write(">%s/1\n%s\n" % (part1[0], part1[9]))
+            # Append /2 to read id
+            out_merged_read.write(">%s/2\n%s\n" % (part2[0], part2[9]))
+        read1 = sam_f.readline()
+        read2 = sam_f.readline()
 
 
-def generate_unmapped_pairs_from_sam(sam_file, output_prefix):
+def generate_unmapped_pairs_from_sam(sam_file, out_prefix):
     """Output 1.fasta and 2.fasta containing the unmapped pairs from bowtie2.
-    Also output .merged.fasta multiplxing read ids by appending /1 and /2."""
-    with open(output_prefix + '.1.fasta', 'wb') as output_read_1:
-        with open(output_prefix + '.2.fasta', 'wb') as output_read_2:
-            with open(output_prefix + '.merged.fasta',
-                      'wb') as output_merged_read:
-                with open(sam_file, 'rb') as samf:
+    Also output .merged.fasta and multiplex read ids by appending /1 and /2.
+    """
+    with open(out_prefix + '.1.fasta', 'wb') as out_read_1:
+        with open(out_prefix + '.2.fasta', 'wb') as out_read_2:
+            with open(out_prefix + '.merged.fasta', 'wb') as out_merged_read:
+                with open(sam_file, 'rb') as sam_f:
                     generate_unmapped_pairs_from_sam_work(
-                        output_read_1, output_read_2, output_merged_read, samf)
+                        out_read_1, out_read_2, out_merged_read, sam_f)
 
 
 def max_input_lines(input_file):
-    ''' Returning number of lines corresponding to MAX_INPUT_READS based on file type '''
+    """Returning number of lines corresponding to MAX_INPUT_READS based on file
+    type.
+    """
     if "fasta" in input_file:
         return MAX_INPUT_READS * 2
-    # assume it's fastq
+    # Assume it's FASTQ
     return MAX_INPUT_READS * 4
 
 
@@ -770,7 +788,7 @@ def upload_with_retries(from_f, to_f):
 def upload(from_f, to_f, status, status_lock=threading.RLock()):
     try:
         with iostream_uploads:  # Limit concurrent uploads so as not to stall the pipeline.
-            with iostream:      # Still counts toward the general semaphore.
+            with iostream:  # Still counts toward the general semaphore.
                 upload_with_retries(from_f, to_f)
             with status_lock:
                 status[from_f] = "success"

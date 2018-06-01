@@ -85,11 +85,8 @@ TARGET_OUTPUTS = {
     [os.path.join(RESULT_DIR, "%s.summary" % ALIGN_VIZ_DIR)]
 }
 
-# references
-# from common import ACCESSION2TAXID
 
-
-# processing functions
+# Processing functions
 def remove_annotation(read_id):
     result = re.sub(r'NT:(.*?):', '', read_id)
     result = re.sub(r'NR:(.*?):', '', result)
@@ -97,7 +94,7 @@ def remove_annotation(read_id):
 
 
 def parse_hits(hit_summary_files):
-    # Return map of {NT, NR} => read_id => (hit_taxid_str, hit_level_str)
+    """Return map of {NT, NR} => read_id => (hit_taxid_str, hit_level_str)"""
     valid_hits = {}
     for count_type, summary_file in hit_summary_files.items():
         hits = {}
@@ -114,16 +111,20 @@ def parse_hits(hit_summary_files):
 
 
 def generate_taxid_fasta_from_hit_summaries(
-        input_fasta_file, hit_summary_files, lineagePath, output_fasta_file):
-    lineage_map = shelve.open(lineagePath)
+        input_fasta_file, hit_summary_files, lineage_path, output_fasta_file):
+    """Intermediate conversion step that includes handling of non-specific
+    hits with artificial tax_ids.
+    """
+    lineage_map = shelve.open(lineage_path)
     valid_hits = parse_hits(hit_summary_files)
 
     def get_valid_lineage(read_id, count_type):
-        # If the read aligned to something, then it would be present in the summary file
-        # for count type, and correspondingly in valid_hits[count_type], even if the
-        # hits disagree so much that the "valid_hits" entry is just ("-1", "-1").
-        # If the read didn't align to anything, we also represent that with ("-1", "-1).
-        # This ("-1", "-1) gets translated to NULL_LINEAGE.
+        # If the read aligned to something, then it would be present in the
+        # summary file for count type, and correspondingly in valid_hits[
+        # count_type], even if the hits disagree so much that the
+        # "valid_hits" entry is just ("-1", "-1"). If the read didn't align
+        # to anything, we also represent that with ("-1", "-1"). This ("-1",
+        # "-1") gets translated to NULL_LINEAGE.
         hit_taxid_str, hit_level_str = valid_hits[count_type].get(
             read_id, ("-1", "-1"))
         hit_lineage = lineage_map.get(hit_taxid_str, NULL_LINEAGE)
@@ -135,9 +136,11 @@ def generate_taxid_fasta_from_hit_summaries(
     sequence_name = input_fasta_f.readline()
     sequence_data = input_fasta_f.readline()
     while len(sequence_name) > 0 and len(sequence_data) > 0:
-        accession_annotated_read_id = sequence_name.rstrip().lstrip(
-            '>'
-        )  # example read_id: "NR::NT:CP010376.2:NB501961:14:HM7TLBGX2:1:23109:12720:8743/2"
+        # Example read_id: "NR::NT:CP010376.2:NB501961:14:HM7TLBGX2:1:23109
+        # :12720:8743/2"
+        # Translate the read information into our custom format with fake
+        # taxids.
+        accession_annotated_read_id = sequence_name.rstrip().lstrip('>')
         read_id = accession_annotated_read_id.split(":", 4)[-1]
 
         nr_taxid_species, nr_taxid_genus, nr_taxid_family = get_valid_lineage(
@@ -145,11 +148,11 @@ def generate_taxid_fasta_from_hit_summaries(
         nt_taxid_species, nt_taxid_genus, nt_taxid_family = get_valid_lineage(
             read_id, 'NT')
 
-        new_read_name = (
-            'family_nr:' + nr_taxid_family + ':family_nt:' + nt_taxid_family +
-            ':genus_nr:' + nr_taxid_genus + ':genus_nt:' + nt_taxid_genus +
-            ':species_nr:' + nr_taxid_species + ':species_nt:' +
-            nt_taxid_species + ':' + accession_annotated_read_id)
+        family_str = 'family_nr:' + nr_taxid_family + ':family_nt:' + nt_taxid_family
+        genus_str = ':genus_nr:' + nr_taxid_genus + ':genus_nt:' + nt_taxid_genus
+        species_str = ':species_nr:' + nr_taxid_species + ':species_nt:' + nt_taxid_species
+        new_read_name = (family_str + genus_str + species_str + ':' + accession_annotated_read_id)
+
         output_fasta_f.write(">%s\n" % new_read_name)
         output_fasta_f.write(sequence_data)
         sequence_name = input_fasta_f.readline()
@@ -161,10 +164,11 @@ def generate_taxid_fasta_from_hit_summaries(
 def get_taxid(sequence_name, taxid_field):
     parts = sequence_name.replace('>', ':').split(":%s:" % taxid_field)
     if len(parts) <= 1:
-        # sequence_name empty or taxid_field not found
+        # Sequence_name empty or taxid_field not found
         return 'none'
     taxid = parts[1].split(":")[0]
-    # example sequence_name: ">nr:-100:nt:684552:NR::NT:LT629734.1:HWI-ST640:828:H917FADXX:2:1101:1424:15119/1"
+    # Example sequence_name: ">nr:-100:nt:684552:NR::NT:LT629734.1:HWI-ST640
+    # :828:H917FADXX:2:1101:1424:15119/1"
     return taxid
 
 
@@ -177,19 +181,23 @@ def get_taxid_field_num(taxid_field, input_fasta):
 def generate_taxid_locator(input_fasta, taxid_field, hit_type, output_fasta,
                            output_json):
     taxid_field_num = get_taxid_field_num(taxid_field, input_fasta)
-    # put every 2-line fasta record on a single line with delimiter ":lineseparator:":
-    command = "awk 'NR % 2 == 1 { o=$0 ; next } { print o \":lineseparator:\" $0 }' " + input_fasta
-    # sort the records based on the field containing the taxids:
-    command += " | sort -T %s --key %s --field-separator ':' --numeric-sort" % (
+    # Put every 2-line fasta record on a single line with delimiter
+    # ":lineseparator:":
+    cmd = "awk 'NR % 2 == 1 { o=$0 ; next } { print o \":lineseparator:\" $0 }' " + input_fasta
+    # Sort the records based on the field containing the taxids
+    cmd += " | sort -T %s --key %s --field-separator ':' --numeric-sort" % (
         TEMP_DIR, taxid_field_num)
-    # split every record back over 2 lines:
-    command += " | sed 's/:lineseparator:/\\n/g' > %s" % output_fasta
-    subprocess.check_output(command, shell=True)
-    # make json giving byte range of file corresponding to each taxid:
+    # Split every record back over 2 lines
+    cmd += " | sed 's/:lineseparator:/\\n/g' > %s" % output_fasta
+    subprocess.check_output(cmd, shell=True)
+
+    # Make JSON file giving the byte range of the file corresponding to each
+    # taxid
     taxon_sequence_locations = []
     f = open(output_fasta, 'rb')
     sequence_name = f.readline()
     sequence_data = f.readline()
+
     taxid = get_taxid(sequence_name, taxid_field)
     first_byte = 0
     end_byte = first_byte + len(sequence_name) + len(sequence_data)
@@ -199,7 +207,7 @@ def generate_taxid_locator(input_fasta, taxid_field, hit_type, output_fasta,
         new_taxid = get_taxid(sequence_name, taxid_field)
         if new_taxid != taxid:
             # Note on boundary condition: when end of file is reached, then
-            # sequence_name == '' => new_taxid=='none' => new_taxid != taxid
+            # sequence_name == '' => new_taxid == 'none' => new_taxid != taxid
             # so last record will be written to output correctly.
             taxon_sequence_locations.append({
                 'taxid': int(taxid),
@@ -213,6 +221,7 @@ def generate_taxid_locator(input_fasta, taxid_field, hit_type, output_fasta,
         else:
             end_byte += len(sequence_name) + len(sequence_data)
     f.close()
+
     with open(output_json, 'wb') as f:
         json.dump(taxon_sequence_locations, f)
 
@@ -226,46 +235,51 @@ def combine_json(input_json_list, output_json):
         json.dump(output, outf)
 
 
-# job functions
+# Job functions
 
 
 def run_generate_align_viz(input_fasta, input_m8, output_dir):
+    print("Generating alignment visualization...")
     nt_loc_db = fetch_reference(NT_LOC_DB)
     summary_file_name = accessionid2seq_functions.generate_alignment_viz_json(
         NT_DB, nt_loc_db, "NT", input_m8, input_fasta, output_dir)
-    # copy the data over
-    execute_command("aws s3 cp --quiet %s %s/align_viz --recursive" %
-                    (output_dir, SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp --quiet %s %s/" % (summary_file_name,
-                                                  SAMPLE_S3_OUTPUT_PATH))
+    # Copy the data over
+    cmd = "aws s3 cp --quiet %s %s/align_viz --recursive" % (output_dir,
+                                                             SAMPLE_S3_OUTPUT_PATH)
+    execute_command(cmd)
+    cmd = "aws s3 cp --quiet %s %s/" % (summary_file_name, SAMPLE_S3_OUTPUT_PATH)
+    execute_command(cmd)
 
 
 def run_generate_taxid_fasta_from_hit_summaries(input_fasta, hit_summary_files,
                                                 output_fasta):
+    print("Generating tax_id FASTA from hit summaries...")
     lineage_path = fetch_reference(LINEAGE_SHELF)
     generate_taxid_fasta_from_hit_summaries(input_fasta, hit_summary_files,
                                             lineage_path, output_fasta)
     logging.getLogger().info("finished job")
-    execute_command("aws s3 cp --quiet %s %s/" % (output_fasta,
-                                                  SAMPLE_S3_OUTPUT_PATH))
+    cmd = "aws s3 cp --quiet %s %s/" % (output_fasta, SAMPLE_S3_OUTPUT_PATH)
+    execute_command(cmd)
 
 
 def run_generate_taxid_locator(input_fasta, taxid_field, hit_type,
                                output_fasta, output_json):
+    print("Generating tax_id locator...")
     generate_taxid_locator(input_fasta, taxid_field, hit_type, output_fasta,
                            output_json)
     logging.getLogger().info("finished job")
-    execute_command("aws s3 cp --quiet %s %s/" % (output_fasta,
-                                                  SAMPLE_S3_OUTPUT_PATH))
-    execute_command("aws s3 cp --quiet %s %s/" % (output_json,
-                                                  SAMPLE_S3_OUTPUT_PATH))
+    cmd = "aws s3 cp --quiet %s %s/" % (output_fasta, SAMPLE_S3_OUTPUT_PATH)
+    execute_command(cmd)
+    cmd = "aws s3 cp --quiet %s %s/" % (output_json, SAMPLE_S3_OUTPUT_PATH)
+    execute_command(cmd)
 
 
 def run_combine_json(input_json_list, output_json):
+    print("Combining JSON files...")
     combine_json(input_json_list, output_json)
     logging.getLogger().info("finished job")
-    execute_command("aws s3 cp --quiet %s %s/" % (output_json,
-                                                  SAMPLE_S3_OUTPUT_PATH))
+    cmd = "aws s3 cp --quiet %s %s/" % (output_json, SAMPLE_S3_OUTPUT_PATH)
+    execute_command(cmd)
 
 
 def run_stage3(lazy_run=False):

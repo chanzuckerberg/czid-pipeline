@@ -61,6 +61,9 @@ AWS_BATCH_JOB_ID = os.environ.get('AWS_BATCH_JOB_ID', 'local')
 
 
 class StatsFile(object):
+    """StatsFile is for handling statistics (e.g. task, reads before,
+    reads after) in external command execution.
+    """
     def __init__(self, stats_filename, local_results_dir, s3_input_dir,
                  s3_output_dir):
         self.local_results_dir = local_results_dir
@@ -75,12 +78,14 @@ class StatsFile(object):
     def load_from_s3(self):
         stats_s3_path = os.path.join(self.s3_input_dir, self.stats_filename)
         try:
-            execute_command("aws s3 cp --quiet %s %s/" %
-                            (stats_s3_path, self.local_results_dir))
+            cmd = "aws s3 cp --quiet %s %s/" % (stats_s3_path,
+                                                self.local_results_dir)
+            execute_command(cmd)
         except:
             time.sleep(1.0)
-            execute_command("aws s3 cp --quiet %s %s/" %
-                            (stats_s3_path, self.local_results_dir))
+            cmd = "aws s3 cp --quiet %s %s/" % (stats_s3_path,
+                                                self.local_results_dir)
+            execute_command(cmd)
         self._load()
 
     def _load(self):
@@ -95,8 +100,9 @@ class StatsFile(object):
     def save_to_s3(self):
         with self.mutex:
             self._save()
-            execute_command("aws s3 cp --quiet %s %s/" % (self.stats_path,
-                                                          self.s3_output_dir))
+            cmd = "aws s3 cp --quiet %s %s/" % (self.stats_path,
+                                                self.s3_output_dir)
+            execute_command(cmd)
 
     def get_item_value(self, key):
         for item in self.data:
@@ -131,9 +137,10 @@ class StatsFile(object):
         new_data = [
             datum for datum in self.data if datum.get('task') != func_name
         ]
+
         if len(new_data) != len(self.data):
-            write_to_log(
-                "Overwriting counts for {}".format(func_name), warning=True)
+            msg = "Overwriting counts for {}".format(func_name)
+            write_to_log(msg, warning=True)
             self.data = new_data
         self.data.append({
             'task': func_name,
@@ -596,7 +603,7 @@ def fetch_lazy_result(source, destination, allow_s3mi=False):
 
 def fetch_reference(source, auto_unzip=True, allow_s3mi=True):
     path = fetch_from_s3(source, REF_DIR, auto_unzip, allow_s3mi=allow_s3mi)
-    assert path is not None
+    assert path is not None, "Failed to fetch reference from S3."
     return path
 
 
