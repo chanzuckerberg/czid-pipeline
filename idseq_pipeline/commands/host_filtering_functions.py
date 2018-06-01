@@ -605,7 +605,7 @@ def run_star(fastq_files, uploader_start, total_counts_from_star):
     result_files = [gene_count_output] + unmapped
     for i, f in enumerate(result_files):
         if f is not None:
-            output_i = os.path.join(RESULT_DIR, star_outputs[i])
+            output_i = result_path(star_outputs[i])
             execute_command("mv %s %s;" % (f, output_i))
             uploader_start(output_i, SAMPLE_S3_OUTPUT_PATH + "/")
     # Cleanup
