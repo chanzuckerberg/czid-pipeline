@@ -124,6 +124,10 @@ def fq2fa(input_fastq, output_fasta):
     execute_command(cmd)
 
 
+def result_path(basename):
+    return os.path.join(RESULT_DIR, basename)
+
+
 def lzw_fraction(sequence):
     if sequence == "":
         return 0.0
@@ -639,28 +643,28 @@ def run_priceseqfilter(input_fqs, uploader_start):
     execute_command(" ".join(priceseq_params))
     write_to_log("Finished running PriceSeqFilter.")
 
-    out_path = os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1)
+    out_path = result_path(PRICESEQFILTER_OUT1)
     execute_command("mv %s %s" % (output_files[0], out_path))
     s3_dst = SAMPLE_S3_OUTPUT_PATH + "/"
     uploader_start(out_path, s3_dst)
 
     if len(input_fqs) == 2:
-        out_path = os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2)
+        out_path = result_path(PRICESEQFILTER_OUT2)
         execute_command("mv %s %s" % (output_files[1], out_path))
         uploader_start(out_path, s3_dst)
 
 
 def run_fq2fa(input_fqs, uploader_start):
     """FASTQ to FASTA conversion."""
-    fq2fa(input_fqs[0], os.path.join(RESULT_DIR, FQ2FA_OUT1))
+    fq2fa(input_fqs[0], result_path(FQ2FA_OUT1))
     if len(input_fqs) == 2:
-        fq2fa(input_fqs[1], os.path.join(RESULT_DIR, FQ2FA_OUT2))
+        fq2fa(input_fqs[1], result_path(FQ2FA_OUT2))
     write_to_log("Finished FASTQ to FASTA conversion.")
 
     dst = SAMPLE_S3_OUTPUT_PATH + "/"
-    uploader_start(os.path.join(RESULT_DIR, FQ2FA_OUT1), dst)
+    uploader_start(result_path(FQ2FA_OUT1), dst)
     if len(input_fqs) == 2:
-        uploader_start(os.path.join(RESULT_DIR, FQ2FA_OUT2), dst)
+        uploader_start(result_path(FQ2FA_OUT2), dst)
 
 
 def run_cdhitdup(input_fas, uploader_start):
@@ -670,23 +674,23 @@ def run_cdhitdup(input_fas, uploader_start):
     See: http://weizhongli-lab.org/cd-hit/
     """
     cdhitdup_params = [
-        CDHITDUP, '-i', input_fas[0], '-o', RESULT_DIR + '/' + CDHITDUP_OUT1,
+        CDHITDUP, '-i', input_fas[0], '-o', result_path(CDHITDUP_OUT1),
         '-e', '0.05', '-u', '70'
     ]
     if len(input_fas) == 2:
         cdhitdup_params.extend(
-            ['-i2', input_fas[1], '-o2', RESULT_DIR + '/' + CDHITDUP_OUT2])
+            ['-i2', input_fas[1], '-o2', result_path(CDHITDUP_OUT2)])
     execute_command(" ".join(cdhitdup_params))
 
     dst = SAMPLE_S3_OUTPUT_PATH + "/"
-    uploader_start(os.path.join(RESULT_DIR, CDHITDUP_OUT1), dst)
+    uploader_start(result_path(CDHITDUP_OUT1), dst)
     if len(input_fas) == 2:
-        uploader_start(os.path.join(RESULT_DIR, CDHITDUP_OUT2), dst)
+        uploader_start(result_path(CDHITDUP_OUT2), dst)
     print("Finished CD-HIT-DUP.")
 
 
 def run_lzw(input_fas, uploader_start):
-    output_prefix = RESULT_DIR + '/' + LZW_OUT1[:-8]
+    output_prefix = result_path(LZW_OUT1[:-8])
     if len(input_fas) == 2:
         generate_lzw_filtered_paired(input_fas[0], input_fas[1], output_prefix,
                                      LZW_FRACTION_CUTOFFS)
@@ -695,9 +699,9 @@ def run_lzw(input_fas, uploader_start):
                                      LZW_FRACTION_CUTOFFS)
     # Copy back to aws
     dst = SAMPLE_S3_OUTPUT_PATH + "/"
-    uploader_start(os.path.join(RESULT_DIR, LZW_OUT1), dst)
+    uploader_start(result_path(LZW_OUT1), dst)
     if len(input_fas) == 2:
-        uploader_start(os.path.join(RESULT_DIR, LZW_OUT2), dst)
+        uploader_start(result_path(LZW_OUT2), dst)
     print("Finished running LZW.")
 
 
@@ -707,10 +711,6 @@ def run_bowtie2(input_fas, uploader_start):
 
     http://bowtie-bio.sourceforge.net/index.shtml
     """
-
-    def result_path(basename):
-        return os.path.join(RESULT_DIR, basename)
-
     # Check if genome downloaded already
     genome_dir = fetch_genome(BOWTIE2_GENOME)
 
@@ -779,10 +779,6 @@ def run_gsnap_filter(input_fas, uploader_start):
 
     http://research-pub.gene.com/gmap/
     """
-
-    def result_path(basename):
-        return os.path.join(RESULT_DIR, basename)
-
     # Unpack the gsnap genome
     genome_dir = fetch_genome(GSNAP_GENOME, strict=False)
     if genome_dir is None:
@@ -885,17 +881,17 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
         ]
         unzip_threads = []
         for i, fname in enumerate(fastq_files):
-            assert fname.endswith(".fasta") or fname.endswith(
-                ".fasta.gz"
-            ), "Prefiltered input is not a fasta file: {fname}".format(
+            msg = "Prefiltered input is not a fasta file: {fname}".format(
                 fname=fname)
+            assert fname.endswith(".fasta") or fname.endswith(".fasta.gz"), msg
             if fname.endswith(".fasta"):
-                execute_command("mv {fname} {bto}".format(
-                    fname=fname, bto=os.path.join(RESULT_DIR, btos[i])))
+                cmd = "mv {fname} {bto}".format(
+                    fname=fname, bto=result_path(btos[i]))
+                execute_command(cmd)
             else:
                 t = MyThread(
-                    target=unzip_to_file,
-                    args=[fname, os.path.join(RESULT_DIR, btos[i])])
+                    target=unzip_to_file, args=[fname,
+                                                result_path(btos[i])])
                 t.start()
                 unzip_threads.append(t)
         for t in unzip_threads:
@@ -909,14 +905,16 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
             DEFAULT_LOG_PARAMS, {
                 "title": "STAR",
                 "version_file_s3": STAR_BOWTIE_VERSION_FILE_S3,
-                "output_version_file": os.path.join(RESULT_DIR, VERSION_OUT)
+                "output_version_file": result_path(VERSION_OUT)
             })
         run_and_log_s3(log_params, target_outputs["run_star"], lazy_run,
                        SAMPLE_S3_OUTPUT_PATH, run_star, fastq_files,
                        uploader_start, total_counts_from_star)
         if not total_counts_from_star.get('total_reads'):
-            # Total reads not set. Most likely it's lazy run. Will have to actually count the reads.
-            # TODO: Remove this when we also lazy load the stats.json file
+            # Total reads not set. Most likely it's lazy run. Will have to
+            # actually count the reads.
+            #
+            # TODO: Remove this when we also lazy load the stats.json file.
             max_reads = MAX_INPUT_READS * len(fastq_files)
             total_reads = count_reads(fastq_files[0],
                                       initial_file_type_for_log, max_reads)
@@ -930,50 +928,50 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
             "run_star",
             before_filename=fastq_files[0],
             before_filetype=initial_file_type_for_log,
-            after_filename=os.path.join(RESULT_DIR, STAR_OUT1),
+            after_filename=result_path(STAR_OUT1),
             after_filetype=initial_file_type_for_log)
 
         if total_counts_from_star.get('truncated'):
-            # Upload the truncation file to notify web that the input files are truncated
-            execute_command("echo %d | aws s3 cp - %s/%s" %
-                            (total_counts_from_star['total_reads'],
-                             SAMPLE_S3_OUTPUT_PATH, INPUT_TRUNCATED_FILE))
+            # Upload the truncation file to notify web that the input files are
+            # truncated.
+            cmd = "echo %d | aws s3 cp - %s/%s" % (
+                total_counts_from_star['total_reads'], SAMPLE_S3_OUTPUT_PATH,
+                INPUT_TRUNCATED_FILE)
+            execute_command(cmd)
 
         # Run PriceSeqFilter
         log_params = return_merged_dict(DEFAULT_LOG_PARAMS,
                                         {"title": "PriceSeqFilter"})
-        input_files = [os.path.join(RESULT_DIR, STAR_OUT1)]
+        input_files = [result_path(STAR_OUT1)]
         if number_of_input_files == 2:
-            input_files.append(os.path.join(RESULT_DIR, STAR_OUT2))
+            input_files.append(result_path(STAR_OUT2))
 
         run_and_log_s3(log_params, target_outputs["run_priceseqfilter"],
                        lazy_run, SAMPLE_S3_OUTPUT_PATH, run_priceseqfilter,
                        input_files, uploader_start)
         stats.count_reads(
             "run_priceseqfilter",
-            before_filename=os.path.join(RESULT_DIR, STAR_OUT1),
+            before_filename=result_path(STAR_OUT1),
             before_filetype=initial_file_type_for_log,
-            after_filename=os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1),
+            after_filename=result_path(PRICESEQFILTER_OUT1),
             after_filetype=initial_file_type_for_log)
 
         # Run FASTQ to FASTA
         if "fastq" in FILE_TYPE:
             log_params = return_merged_dict(DEFAULT_LOG_PARAMS,
                                             {"title": "FASTQ to FASTA"})
-            input_files = [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1)]
-            next_inputs = [os.path.join(RESULT_DIR, FQ2FA_OUT1)]
+            input_files = [result_path(PRICESEQFILTER_OUT1)]
+            next_inputs = [result_path(FQ2FA_OUT1)]
             if number_of_input_files == 2:
-                input_files.append(
-                    os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2))
-                next_inputs.append(os.path.join(RESULT_DIR, FQ2FA_OUT2))
+                input_files.append(result_path(PRICESEQFILTER_OUT2))
+                next_inputs.append(result_path(FQ2FA_OUT2))
             run_and_log_s3(log_params, target_outputs["run_fq2fa"], lazy_run,
                            SAMPLE_S3_OUTPUT_PATH, run_fq2fa, input_files,
                            uploader_start)
         else:
-            next_inputs = [os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1)]
+            next_inputs = [result_path(PRICESEQFILTER_OUT1)]
             if number_of_input_files == 2:
-                next_inputs.append(
-                    os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2))
+                next_inputs.append(result_path(PRICESEQFILTER_OUT2))
 
         # Run CD-HIT-DUP
         log_params = return_merged_dict(DEFAULT_LOG_PARAMS,
@@ -985,52 +983,48 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
             "run_cdhitdup",
             before_filename=next_inputs[0],
             before_filetype="fasta_paired",
-            after_filename=os.path.join(RESULT_DIR, CDHITDUP_OUT1),
+            after_filename=result_path(CDHITDUP_OUT1),
             after_filetype="fasta_paired")
 
         # Run LZW filter
         log_params = return_merged_dict(DEFAULT_LOG_PARAMS,
                                         {"title": "LZW filter"})
-        input_files = [os.path.join(RESULT_DIR, CDHITDUP_OUT1)]
+        input_files = [result_path(CDHITDUP_OUT1)]
         if number_of_input_files == 2:
-            input_files.append(os.path.join(RESULT_DIR, CDHITDUP_OUT2))
+            input_files.append(result_path(CDHITDUP_OUT2))
         run_and_log_s3(log_params, target_outputs["run_lzw"], lazy_run,
                        SAMPLE_S3_OUTPUT_PATH, run_lzw, input_files,
                        uploader_start)
         stats.count_reads(
             "run_lzw",
-            before_filename=os.path.join(RESULT_DIR, CDHITDUP_OUT1),
+            before_filename=result_path(CDHITDUP_OUT1),
             before_filetype="fasta_paired",
-            after_filename=os.path.join(RESULT_DIR, LZW_OUT1),
+            after_filename=result_path(LZW_OUT1),
             after_filetype="fasta_paired")
 
         # Run Bowtie
         log_params = return_merged_dict(DEFAULT_LOG_PARAMS,
                                         {"title": "bowtie2"})
-        input_files = [os.path.join(RESULT_DIR, LZW_OUT1)]
+        input_files = [result_path(LZW_OUT1)]
         if number_of_input_files == 2:
-            input_files.append(os.path.join(RESULT_DIR, LZW_OUT2))
+            input_files.append(result_path(LZW_OUT2))
         run_and_log_s3(log_params, target_outputs["run_bowtie2"], lazy_run,
                        SAMPLE_S3_OUTPUT_PATH, run_bowtie2, input_files,
                        uploader_start)
         stats.count_reads(
             "run_bowtie2",
-            before_filename=os.path.join(RESULT_DIR, LZW_OUT1),
+            before_filename=result_path(LZW_OUT1),
             before_filetype="fasta_paired",
-            after_filename=os.path.join(RESULT_DIR,
-                                        EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1),
+            after_filename=result_path(EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1),
             after_filetype="fasta_paired")
 
     # Run GSNAP against host genomes (only available for Human as of 5/1/2018)
     # GSNAP may run again even for pre-filtered inputs
     try:
-        input_files = [
-            os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1)
-        ]
+        input_files = [result_path(EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1)]
         if number_of_input_files == 2:
             input_files.append(
-                os.path.join(RESULT_DIR,
-                             EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2))
+                result_path(EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2))
 
         # Skip GSNAP if the number of reads is too big
         # TODO: move gsnap filter to after subsampling
@@ -1043,15 +1037,12 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
                        input_files, uploader_start)
         stats.count_reads(
             "run_gsnap_filter",
-            before_filename=os.path.join(
-                RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1),
+            before_filename=result_path(EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1),
             before_filetype="fasta_paired",
-            after_filename=os.path.join(RESULT_DIR,
-                                        EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1),
+            after_filename=result_path(EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1),
             after_filetype="fasta_paired")
     except SkipGsnap:
-        write_to_log(
-            "Skipping gsnap is for prefilterd input or too many reads")
+        write_to_log("Skipping gsnap for prefilterd input or too many reads")
         pass
 
     # Finalize the remaining reads
@@ -1103,11 +1094,11 @@ def run_stage1(lazy_run=True):
         assert t.completed and not t.exception
 
     # Check FASTQ files
-    fastq_files = execute_command_with_output(
-        "ls %s/*.%s" % (FASTQ_DIR, FILE_TYPE)).rstrip().split("\n")
+    cmd = "ls %s/*.%s" % (FASTQ_DIR, FILE_TYPE)
+    fastq_files = execute_command_with_output(cmd).rstrip().split("\n")
     if len(fastq_files) not in [1, 2]:
-        write_to_log(
-            "Number of input files was neither 1 nor 2. Aborting computation.")
+        msg = "Number of input files was neither 1 nor 2. Aborting computation."
+        write_to_log(msg)
         return  # only support either 1 file or 2 (paired) files
 
     initial_file_type_for_log = "fasta"
@@ -1119,18 +1110,18 @@ def run_stage1(lazy_run=True):
     # Instantiate a stats instance
     stats = StatsFile(STATS_OUT, RESULT_DIR, None, SAMPLE_S3_OUTPUT_PATH)
 
-    # Download total_reads.json input, if present.  This is only provided with post-filtered inputs,
-    # where we don't have the reads prior to host filtering.
-    # Record total number of input reads
+    # Download total_reads.json input, if present. This is only provided with
+    # post-filtered inputs, where we don't have the reads prior to host
+    # filtering. Record total number of input reads.
     try:
         stats_in = StatsFile(STATS_IN, RESULT_DIR, SAMPLE_S3_INPUT_PATH,
                              SAMPLE_S3_OUTPUT_PATH)
         stats_in.load_from_s3()
         total_reads = stats_in.get_total_reads()
         assert total_reads == int(total_reads)
-        write_to_log(
-            "Post-filtered input with {total_reads} original total reads.".
-            format(total_reads=total_reads))
+        msg = "Post-filtered input with {total_reads} original total reads.".format(
+            total_reads=total_reads)
+        write_to_log(msg)
     except:
         total_reads = None
         stats_in = None
