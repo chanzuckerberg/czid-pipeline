@@ -475,7 +475,7 @@ def handle_outstanding_read(r0, r0id, outstanding_r0, outstanding_r1, of0, of1,
 
 
 def sync_pairs_work(of0, of1, if0, if1):
-    # TODO:  Use this as a template for merging fasta?
+    # TODO: Use this as a template for merging fasta?
     outstanding_r0 = {}
     outstanding_r1 = {}
     mem = 0
@@ -502,48 +502,53 @@ def sync_pairs_work(of0, of1, if0, if1):
 
 def sync_pairs(fastq_files, max_discrepancies=0):
     """The given fastq_files contain the same read IDs but in different order.
-    Output the same data in sycnhronized order.  Omit up to max_discrepancies
-    if necessary.  If more must be suppressed, raise assertion.
+    Output the same data in synchronized order. Omit up to max_discrepancies
+    if necessary. If more must be suppressed, raise assertion.
     """
     if len(fastq_files) != 2:
         return fastq_files
-    output_filenames = [ifn + ".synchornized_pairs.fq" for ifn in fastq_files]
+
+    output_fnames = [ifn + ".synchronized_pairs.fq" for ifn in fastq_files]
     with open(fastq_files[0], "rb") as if_0:
         with open(fastq_files[1], "rb") as if_1:
-            with open(output_filenames[0], "wb") as of_0:
-                with open(output_filenames[1], "wb") as of_1:
+            with open(output_fnames[0], "wb") as of_0:
+                with open(output_fnames[1], "wb") as of_1:
                     outstanding_r0, outstanding_r1, max_mem = sync_pairs_work(
                         of_0, of_1, if_0, if_1)
     if max_mem:
         # This will be printed if some pairs were out of order.
-        warning_message = "WARNING:  Pair order out of sync in {fqf}.  Synchronized using RAM for {max_mem} pairs.".format(
+        warning_message = "WARNING: Pair order out of sync in {fqf}. " \
+                          "Synchronized using RAM for {max_mem} pairs.".format(
             fqf=fastq_files, max_mem=max_mem)
         write_to_log(warning_message)
+
     discrepancies_count = len(outstanding_r0) + len(outstanding_r1)
     if discrepancies_count:
-        warning_message = "WARNING:  Found {dc} broken pairs in {fqf}, e.g., {example}.".format(
+        warning_message = "WARNING: Found {dc} broken pairs in {fqf}, e.g., " \
+                          "{example}.".format(
             dc=discrepancies_count,
             fqf=fastq_files,
             example=(outstanding_r0 or outstanding_r1).popitem()[0])
         write_to_log(warning_message)
         assert discrepancies_count <= max_discrepancies, warning_message
-    return output_filenames
+    return output_fnames
 
 
 def extract_total_counts_from_star_output(result_dir, num_fastqs,
                                           total_counts_from_star):
-    ''' Grab the total reads from the Log.final.out file '''
+    """Grab the total reads from the Log.final.out file."""
     log_file = os.path.join(result_dir, "Log.final.out")
-    total_reads = execute_command_with_output(
-        "grep 'Number of input reads' %s" % log_file).split("\t")[1]
+    cmd = "grep 'Number of input reads' %s" % log_file
+    total_reads = execute_command_with_output(cmd).split("\t")[1]
     total_reads = int(total_reads)
-    if total_reads == MAX_INPUT_READS:  # if it's exactly the same. it must have been truncated
+    # If it's exactly the same, it must have been truncated.
+    if total_reads == MAX_INPUT_READS:
         total_counts_from_star['truncated'] = 1
     total_counts_from_star['total_reads'] = total_reads * num_fastqs
 
 
 def run_star(fastq_files, uploader_start, total_counts_from_star):
-    ''' Run STAR to filter out host '''
+    """Run STAR to filter out host reads."""
     star_outputs = [STAR_COUNTS_OUT, STAR_OUT1, STAR_OUT2]
     num_fastqs = len(fastq_files)
     gene_count_output = None
@@ -556,28 +561,35 @@ def run_star(fastq_files, uploader_start, total_counts_from_star):
 
     genome_dir = fetch_genome(STAR_GENOME)
     assert genome_dir is not None
-    # If we are here, we are also going to need a bowtie genome later;  start fetching it now
-    # This is the absolute PERFECT PLACE for this fetch.  If we are computing from scratch,
-    # the download has plenty of time to complete before bowtie needs it.  If we are doing
-    # a lazy rerun, this function gets skipped, and we avoid a huge unnecessary download.
+    # If we are here, we are also going to need a bowtie genome later; start
+    # fetching it now. This is the absolute PERFECT PLACE for this fetch. If
+    # we are computing from scratch, the download has plenty of time to
+    # complete before bowtie needs it. If we are doing a lazy rerun,
+    # this function gets skipped, and we avoid a huge unnecessary download.
     threading.Thread(target=fetch_genome, args=[BOWTIE2_GENOME]).start()
-    # Check if parts.txt file exists, if so use the new version of (partitioned indices). Otherwise, stay put
-    parts_file = os.path.join(genome_dir, "parts.txt")
 
+    # Check if parts.txt file exists. If so, use the new version of partitioned
+    # indices. Otherwise, stay put.
+    parts_file = os.path.join(genome_dir, "parts.txt")
     assert os.path.isfile(parts_file)
     with open(parts_file, 'rb') as parts_f:
         num_parts = int(parts_f.read())
+
     unmapped = fastq_files
     for part_idx in range(num_parts):
         tmp_result_dir = "%s/star-part-%d" % (SCRATCH_DIR, part_idx)
         genome_part = "%s/part-%d" % (genome_dir, part_idx)
         run_star_part(tmp_result_dir, genome_part, unmapped, part_idx == 0)
+
         unmapped = sync_pairs(unmapped_files_in(tmp_result_dir))
-        # run part 0 in gene-counting mode:
+
+        # Run part 0 in gene-counting mode:
         # (a) ERCCs are doped into part 0 and we want their counts
-        # (b) if there is only 1 part (e.g. human), the host gene counts also make sense
-        # (c) at part 0, we can also extract out total input reads and if the total_counts is exactly the
-        #     same as MAX_INPUT_READS then we know the input file is truncated.
+        # (b) if there is only 1 part (e.g. human), the host gene counts also
+        # make sense
+        # (c) at part 0, we can also extract out total input reads and if the
+        # total_counts is exactly the same as MAX_INPUT_READS then we know the
+        # input file is truncated.
         if part_idx == 0:
             gene_count_file = os.path.join(tmp_result_dir,
                                            "ReadsPerGene.out.tab")
@@ -592,12 +604,17 @@ def run_star(fastq_files, uploader_start, total_counts_from_star):
             output_i = os.path.join(RESULT_DIR, star_outputs[i])
             execute_command("mv %s %s;" % (f, output_i))
             uploader_start(output_i, SAMPLE_S3_OUTPUT_PATH + "/")
-    # cleanup
+    # Cleanup
     execute_command("cd %s; rm -rf *" % SCRATCH_DIR)
-    write_to_log("finished job")
+    print("Finished running STAR.")
 
 
 def run_priceseqfilter(input_fqs, uploader_start):
+    """PriceSeqFilter is used to filter input data based on quality. Two FASTQ
+    inputs means paired reads.
+
+    See: http://derisilab.ucsf.edu/software/price/
+    """
     # PriceSeqFilter determines input type based on extension.
     # It will throw an exception if output extension doesn't match input.
     correct_file_extension = os.path.splitext(FILE_TYPE)[0]
@@ -606,6 +623,7 @@ def run_priceseqfilter(input_fqs, uploader_start):
         "%s_priceseqfilter_output.%s" % (f, correct_file_extension)
         for f in input_files
     ]
+
     for fq, f in zip(input_fqs, input_files):
         execute_command("ln %s %s" % (fq, f))
     priceseq_params = [PRICESEQ_FILTER, '-a', '12', '-rnf', '90', '-log', 'c']
@@ -619,35 +637,38 @@ def run_priceseqfilter(input_fqs, uploader_start):
     if "fastq" in FILE_TYPE:
         priceseq_params.extend(['-rqf', '85', '0.98'])
     execute_command(" ".join(priceseq_params))
-    write_to_log("finished job")
-    execute_command("mv %s %s" %
-                    (output_files[0],
-                     os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1)))
-    uploader_start(
-        os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1),
-        SAMPLE_S3_OUTPUT_PATH + "/")
+    write_to_log("Finished running PriceSeqFilter.")
+
+    out_path = os.path.join(RESULT_DIR, PRICESEQFILTER_OUT1)
+    execute_command("mv %s %s" % (output_files[0], out_path))
+    s3_dst = SAMPLE_S3_OUTPUT_PATH + "/"
+    uploader_start(out_path, s3_dst)
+
     if len(input_fqs) == 2:
-        execute_command("mv %s %s" %
-                        (output_files[1],
-                         os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2)))
-        uploader_start(
-            os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2),
-            SAMPLE_S3_OUTPUT_PATH + "/")
+        out_path = os.path.join(RESULT_DIR, PRICESEQFILTER_OUT2)
+        execute_command("mv %s %s" % (output_files[1], out_path))
+        uploader_start(out_path, s3_dst)
 
 
 def run_fq2fa(input_fqs, uploader_start):
+    """FASTQ to FASTA conversion."""
     fq2fa(input_fqs[0], os.path.join(RESULT_DIR, FQ2FA_OUT1))
     if len(input_fqs) == 2:
         fq2fa(input_fqs[1], os.path.join(RESULT_DIR, FQ2FA_OUT2))
-    write_to_log("finished job")
-    uploader_start(
-        os.path.join(RESULT_DIR, FQ2FA_OUT1), SAMPLE_S3_OUTPUT_PATH + "/")
+    write_to_log("Finished FASTQ to FASTA conversion.")
+
+    dst = SAMPLE_S3_OUTPUT_PATH + "/"
+    uploader_start(os.path.join(RESULT_DIR, FQ2FA_OUT1), dst)
     if len(input_fqs) == 2:
-        uploader_start(
-            os.path.join(RESULT_DIR, FQ2FA_OUT2), SAMPLE_S3_OUTPUT_PATH + "/")
+        uploader_start(os.path.join(RESULT_DIR, FQ2FA_OUT2), dst)
 
 
 def run_cdhitdup(input_fas, uploader_start):
+    """CD-HIT-DUP is used to identify duplicates from single or paired reads.
+    Two FASTQ inputs means paired reads.
+
+    See: http://weizhongli-lab.org/cd-hit/
+    """
     cdhitdup_params = [
         CDHITDUP, '-i', input_fas[0], '-o', RESULT_DIR + '/' + CDHITDUP_OUT1,
         '-e', '0.05', '-u', '70'
@@ -656,13 +677,12 @@ def run_cdhitdup(input_fas, uploader_start):
         cdhitdup_params.extend(
             ['-i2', input_fas[1], '-o2', RESULT_DIR + '/' + CDHITDUP_OUT2])
     execute_command(" ".join(cdhitdup_params))
-    uploader_start(
-        os.path.join(RESULT_DIR, CDHITDUP_OUT1), SAMPLE_S3_OUTPUT_PATH + "/")
+
+    dst = SAMPLE_S3_OUTPUT_PATH + "/"
+    uploader_start(os.path.join(RESULT_DIR, CDHITDUP_OUT1), dst)
     if len(input_fas) == 2:
-        uploader_start(
-            os.path.join(RESULT_DIR, CDHITDUP_OUT2),
-            SAMPLE_S3_OUTPUT_PATH + "/")
-    write_to_log("finished job")
+        uploader_start(os.path.join(RESULT_DIR, CDHITDUP_OUT2), dst)
+    print("Finished CD-HIT-DUP.")
 
 
 def run_lzw(input_fas, uploader_start):
@@ -673,66 +693,79 @@ def run_lzw(input_fas, uploader_start):
     else:
         generate_lzw_filtered_single(input_fas[0], output_prefix,
                                      LZW_FRACTION_CUTOFFS)
-    # copy back to aws
-    uploader_start(
-        os.path.join(RESULT_DIR, LZW_OUT1), SAMPLE_S3_OUTPUT_PATH + "/")
+    # Copy back to aws
+    dst = SAMPLE_S3_OUTPUT_PATH + "/"
+    uploader_start(os.path.join(RESULT_DIR, LZW_OUT1), dst)
     if len(input_fas) == 2:
-        uploader_start(
-            os.path.join(RESULT_DIR, LZW_OUT2), SAMPLE_S3_OUTPUT_PATH + "/")
-    write_to_log("finished job")
+        uploader_start(os.path.join(RESULT_DIR, LZW_OUT2), dst)
+    print("Finished running LZW.")
 
 
 def run_bowtie2(input_fas, uploader_start):
-    # check if genome downloaded already
+    """Bowtie is an aligner used for filtering out host genomes. Two input
+    FASTAs means paired reads.
+
+    http://bowtie-bio.sourceforge.net/index.shtml
+    """
+
+    def result_path(basename):
+        return os.path.join(RESULT_DIR, basename)
+
+    # Check if genome downloaded already
     genome_dir = fetch_genome(BOWTIE2_GENOME)
 
-    # If we are here, we are also going to need a gsnap genome later;  start fetching it now.
-    # This is actually THE PERFECT PLACE to initiate this fetch.  When we are running from
-    # scratch, there is plenty of time to download the gsnap genome while bowtie is running.
-    # When we are doing a lazy rerun, this function gets skipped, and the fetching of gsnap
-    # genome is not initiated.  That's brilliant -- we don't fetch the gsnap genome if
-    # we won't be needing it, and lazy reruns are very quick.
+    # If we are here, we are also going to need a gsnap genome later; start
+    # fetching it now. This is actually THE PERFECT PLACE to initiate this
+    # fetch. When we are running from scratch, there is plenty of time to
+    # download the gsnap genome while bowtie is running. When we are doing a
+    # lazy rerun, this function gets skipped, and the fetching of gsnap genome
+    # is not initiated. That's brilliant -- we don't fetch the gsnap genome
+    # if we won't be needing it, and lazy reruns are very quick.
     threading.Thread(target=fetch_genome, args=[GSNAP_GENOME]).start()
-    # the file structure looks like "bowtie2_genome/GRCh38.primary_assembly.genome.3.bt2"
-    # the code below will handle up to "bowtie2_genome/GRCh38.primary_assembly.genome.99.bt2" but not 100
-    local_genome_dir_ls = execute_command_with_output(
-        "ls {genome_dir}/*.bt2*".format(genome_dir=genome_dir))
+
+    # The file structure looks like
+    # "bowtie2_genome/GRCh38.primary_assembly.genome.3.bt2"
+    # The code below will handle up to "bowtie2_genome/GRCh38.primary_assembly.
+    # genome.99.bt2" but not 100.
+    cmd = "ls {genome_dir}/*.bt2*".format(genome_dir=genome_dir)
+    local_genome_dir_ls = execute_command_with_output(cmd)
     genome_basename = local_genome_dir_ls.split("\n")[0][:-6]
     if genome_basename[-1] == '.':
         genome_basename = genome_basename[:-1]
     bowtie2_params = [
         BOWTIE2, '-q', '-p',
         str(multiprocessing.cpu_count()), '-x', genome_basename, '-f',
-        '--very-sensitive-local', '-S', RESULT_DIR + '/' + BOWTIE2_OUT
+        '--very-sensitive-local', '-S',
+        result_path(BOWTIE2_OUT)
     ]
+
     if len(input_fas) == 2:
         bowtie2_params.extend(['-1', input_fas[0], '-2', input_fas[1]])
     else:
         bowtie2_params.extend(['-U', input_fas[0]])
     execute_command(" ".join(bowtie2_params))
-    write_to_log("finished alignment")
-    # extract out unmapped files from sam
-    output_prefix = RESULT_DIR + '/' + EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1[:
-                                                                             -8]
+    print("Finished Bowtie alignment.")
+
+    # Extract out unmapped files from sam
+    output_prefix = result_path(EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1[:-8])
     if len(input_fas) == 2:
-        generate_unmapped_pairs_from_sam(RESULT_DIR + '/' + BOWTIE2_OUT,
-                                         output_prefix)
+        generate_unmapped_pairs_from_sam(
+            result_path(BOWTIE2_OUT), output_prefix)
     else:
-        generate_unmapped_singles_from_sam(RESULT_DIR + '/' + BOWTIE2_OUT,
-                                           output_prefix)
-    uploader_start(
-        os.path.join(RESULT_DIR, BOWTIE2_OUT), SAMPLE_S3_OUTPUT_PATH + "/")
-    uploader_start(
-        os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1),
-        SAMPLE_S3_OUTPUT_PATH + "/")
+        generate_unmapped_singles_from_sam(
+            result_path(BOWTIE2_OUT), output_prefix)
+
+    dst = SAMPLE_S3_OUTPUT_PATH + "/"
+
+    def upload_to_dst(src):
+        uploader_start(result_path(src), dst)
+
+    upload_to_dst(BOWTIE2_OUT)
+    upload_to_dst(EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1)
     if len(input_fas) == 2:
-        uploader_start(
-            os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2),
-            SAMPLE_S3_OUTPUT_PATH + "/")
-        uploader_start(
-            os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT3),
-            SAMPLE_S3_OUTPUT_PATH + "/")
-    write_to_log("extracted unmapped fragments from SAM file")
+        upload_to_dst(EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT2)
+        upload_to_dst(EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT3)
+    print("Extracted unmapped fragments from Bowtie SAM file.")
 
 
 # Can remove this once the todo below, issue #173, is addressed.
@@ -741,12 +774,23 @@ class SkipGsnap(Exception):
 
 
 def run_gsnap_filter(input_fas, uploader_start):
+    """GSNAP is an aligner used for filtering out host genomes. Two input
+    FASTAs means paired reads.
+
+    http://research-pub.gene.com/gmap/
+    """
+
+    def result_path(basename):
+        return os.path.join(RESULT_DIR, basename)
+
     # Unpack the gsnap genome
     genome_dir = fetch_genome(GSNAP_GENOME, strict=False)
     if genome_dir is None:
-        # Apparently if the GSNAP_GENOME file doesn't exist, we are supposed to skip this step.
-        # TODO (yunfang):  An independent way to specify whether this step should be executed,
-        # so that operational errors don't just silently cause the step to be skipped. See #173.
+        # Apparently if the GSNAP_GENOME file doesn't exist, we are supposed
+        # to skip this step.
+        # TODO (yunfang):  An independent way to specify whether this step
+        # should be executed, so that operational errors don't just silently
+        # cause the step to be skipped. See #173.
         raise SkipGsnap()
     gsnap_base_dir = os.path.dirname(genome_dir)
     gsnap_index_name = os.path.basename(genome_dir)
@@ -756,33 +800,33 @@ def run_gsnap_filter(input_fas, uploader_start):
         GSNAPL, '-A sam', '--batch=0', '--use-shared-memory=0',
         '--gmap-mode=all', '--npaths=1', '--ordered', '-t 32',
         '--max-mismatches=40', '-D', gsnap_base_dir, '-d', gsnap_index_name,
-        '-o', RESULT_DIR + '/' + GSNAP_FILTER_SAM
+        '-o',
+        result_path(GSNAP_FILTER_SAM)
     ]
     gsnap_params += input_fas
     execute_command(" ".join(gsnap_params))
-    write_to_log("finished alignment")
-    # extract out unmapped files from sam
-    output_prefix = RESULT_DIR + '/' + EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1[:-8]
+    write_to_log("Finished GSNAP alignment.")
+
+    # Extract out unmapped files from sam
+    output_prefix = result_path(EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1[:-8])
     if len(input_fas) == 2:
-        generate_unmapped_pairs_from_sam(RESULT_DIR + '/' + GSNAP_FILTER_SAM,
-                                         output_prefix)
+        generate_unmapped_pairs_from_sam(
+            result_path(GSNAP_FILTER_SAM), output_prefix)
     else:
-        generate_unmapped_singles_from_sam(RESULT_DIR + '/' + GSNAP_FILTER_SAM,
-                                           output_prefix)
-    uploader_start(
-        os.path.join(RESULT_DIR, GSNAP_FILTER_SAM),
-        SAMPLE_S3_OUTPUT_PATH + "/")
-    uploader_start(
-        os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1),
-        SAMPLE_S3_OUTPUT_PATH + "/")
+        generate_unmapped_singles_from_sam(
+            result_path(GSNAP_FILTER_SAM), output_prefix)
+    dst = SAMPLE_S3_OUTPUT_PATH + "/"
+
+    def upload_to_dst(src):
+        uploader_start(result_path(src), dst)
+
+    upload_to_dst(GSNAP_FILTER_SAM)
+    upload_to_dst(EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1)
     if len(input_fas) == 2:
-        uploader_start(
-            os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT2),
-            SAMPLE_S3_OUTPUT_PATH + "/")
-        uploader_start(
-            os.path.join(RESULT_DIR, EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT3),
-            SAMPLE_S3_OUTPUT_PATH + "/")
-    write_to_log("extracted unmapped fragments from SAM file for gsnap output")
+        upload_to_dst(EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT2)
+        upload_to_dst(EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT3)
+    write_to_log(
+        "Extracted unmapped fragments from SAM file for GSNAP output.")
 
 
 @retry
@@ -965,8 +1009,6 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
         input_files = [os.path.join(RESULT_DIR, LZW_OUT1)]
         if number_of_input_files == 2:
             input_files.append(os.path.join(RESULT_DIR, LZW_OUT2))
-
-        # Upload Bowtie2 results
         run_and_log_s3(log_params, target_outputs["run_bowtie2"], lazy_run,
                        SAMPLE_S3_OUTPUT_PATH, run_bowtie2, input_files,
                        uploader_start)
