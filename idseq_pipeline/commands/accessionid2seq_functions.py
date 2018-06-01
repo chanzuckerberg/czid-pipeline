@@ -382,13 +382,15 @@ def get_sequence_by_accession_id_s3(accession_id, nt_loc_dict, nt_bucket,
                     executable='/bin/bash',
                     shell=True).split(" ", 1)[1]
                 exitcode = get_range_proc.wait()
-                assert exitcode == 0
+                msg = "Error in get_sequence_by_accession_id_s3."
+                assert exitcode == 0, msg
                 seq_len = os.stat(accession_file).st_size
                 break
             except:
                 if attempt + 1 < NUM_RETRIES:
                     time.sleep(1.0 * (4**attempt))
                 else:
+                    print("All retries failed for get_sequence_by_accession_id_s3.")
                     raise
             finally:
                 try:
