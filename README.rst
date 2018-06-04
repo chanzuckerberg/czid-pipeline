@@ -30,7 +30,7 @@ When merging a commit to master, you need to increase the version number in `ids
 Release notes
 -------------
 
-- 1.8.4
+- 1.8.4 ... 1.8.5
    - Minor code quality, documentation, and logging improvements.
 
 - 1.8.0 ... 1.8.3

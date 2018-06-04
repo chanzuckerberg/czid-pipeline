@@ -46,7 +46,7 @@ def make_index(version):
         LOCAL_WORK_DIR, WORK_DIR, KEY_PATH, REMOTE_USERNAME, SERVER_IP, True)
 
     # download reference and unzip
-    input_fasta_zipped, version_number = download_reference_on_remote_with_version_any_source_type(
+    input_fasta_zipped, version_number = download_ref_remote_with_version_any_type(
         INPUT_FASTA_S3, WORK_DIR, LOCAL_WORK_DIR, WORK_DIR, KEY_PATH,
         REMOTE_USERNAME, SERVER_IP, True)
     input_fasta_unzipped = input_fasta_zipped[:-3]  # gunzip removes .gz

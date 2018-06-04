@@ -22,7 +22,6 @@ sample_name = SAMPLE_S3_INPUT_PATH[5:].rstrip('/').replace('/', '-')
 SAMPLE_DIR = DEST_DIR + '/' + sample_name
 INPUT_DIR = SAMPLE_DIR + '/inputs'
 RESULT_DIR = SAMPLE_DIR + '/results'
-DEFAULT_LOG_PARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH}
 
 NT_LOC_DB = os.environ.get('NT_LOC_DB',
                            "s3://idseq-database/20170824/blast_db/nt_loc.db")
@@ -151,7 +150,8 @@ def generate_taxid_fasta_from_hit_summaries(
         family_str = 'family_nr:' + nr_taxid_family + ':family_nt:' + nt_taxid_family
         genus_str = ':genus_nr:' + nr_taxid_genus + ':genus_nt:' + nt_taxid_genus
         species_str = ':species_nr:' + nr_taxid_species + ':species_nt:' + nt_taxid_species
-        new_read_name = (family_str + genus_str + species_str + ':' + accession_annotated_read_id)
+        new_read_name = (family_str + genus_str + species_str + ':' +
+                         accession_annotated_read_id)
 
         output_fasta_f.write(">%s\n" % new_read_name)
         output_fasta_f.write(sequence_data)
@@ -244,10 +244,11 @@ def run_generate_align_viz(input_fasta, input_m8, output_dir):
     summary_file_name = accessionid2seq_functions.generate_alignment_viz_json(
         NT_DB, nt_loc_db, "NT", input_m8, input_fasta, output_dir)
     # Copy the data over
-    cmd = "aws s3 cp --quiet %s %s/align_viz --recursive" % (output_dir,
-                                                             SAMPLE_S3_OUTPUT_PATH)
+    cmd = "aws s3 cp --quiet %s %s/align_viz --recursive" % (
+        output_dir, SAMPLE_S3_OUTPUT_PATH)
     execute_command(cmd)
-    cmd = "aws s3 cp --quiet %s %s/" % (summary_file_name, SAMPLE_S3_OUTPUT_PATH)
+    cmd = "aws s3 cp --quiet %s %s/" % (summary_file_name,
+                                        SAMPLE_S3_OUTPUT_PATH)
     execute_command(cmd)
 
 
@@ -283,30 +284,31 @@ def run_combine_json(input_json_list, output_json):
 
 
 def run_stage3(lazy_run=False):
+    assert not lazy_run, "run_stage3 was called with lazy_run"
 
-    assert lazy_run == False, "we seem to be hardwiring that..."
-
-    # make data directories
+    # Make data directories
     execute_command("mkdir -p %s %s %s %s" % (SAMPLE_DIR, RESULT_DIR, REF_DIR,
                                               TEMP_DIR))
 
-    # configure logger
+    # Configure logger
     log_file = "%s/%s.%s.txt" % (RESULT_DIR, LOGS_OUT_BASENAME,
                                  AWS_BATCH_JOB_ID)
     configure_logger(log_file)
 
-    # download input
+    print("Starting stage...")
+
+    # Download input
     execute_command("aws s3 cp --quiet %s/%s %s/" %
                     (SAMPLE_S3_INPUT_PATH, ACCESSION_ANNOTATED_FASTA,
                      INPUT_DIR))
     input_file = os.path.join(INPUT_DIR, ACCESSION_ANNOTATED_FASTA)
 
-    # download m8
+    # Download m8
     execute_command("aws s3 cp --quiet %s/%s %s/" % (SAMPLE_S3_INPUT_PATH,
                                                      GSNAP_M8_FILE, INPUT_DIR))
     input_m8 = os.path.join(INPUT_DIR, GSNAP_M8_FILE)
 
-    # download hit level files
+    # Download hit level files
     hit_summary_files = {
         'NT': os.path.join(INPUT_DIR, SUMMARY_MULTIHIT_GSNAPL_OUT),
         'NR': os.path.join(INPUT_DIR, SUMMARY_MULTIHIT_RAPSEARCH_OUT)
@@ -316,19 +318,25 @@ def run_stage3(lazy_run=False):
                         (SAMPLE_S3_INPUT_PATH, os.path.basename(local_file),
                          INPUT_DIR))
 
-    # generate taxid fasta
-    log_params = return_merged_dict(
-        DEFAULT_LOG_PARAMS,
-        {"title": "run_generate_taxid_fasta_from_hit_summaries"})
+    def s3_out_and_title(title):
+        return {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH, "title": title}
+
+    # Ex: run_and_log(log_params, target_outputs, lazy_run, func_name, *args)
+    # TODO: Get rid of run_and_log pattern for simplification
+
+    # Generate taxid fasta
+    log_params = s3_out_and_title(
+        "run_generate_taxid_fasta_from_hit_summaries")
     run_and_log(log_params,
                 TARGET_OUTPUTS["run_generate_taxid_fasta_from_hit_summaries"],
                 False, run_generate_taxid_fasta_from_hit_summaries, input_file,
                 hit_summary_files, os.path.join(RESULT_DIR, TAXID_ANNOT_FASTA))
 
     # SPECIES level
-    # generate taxid locator for NT
-    log_params = return_merged_dict(
-        DEFAULT_LOG_PARAMS, {"title": "run_generate_taxid_locator for NT"})
+
+    # Generate taxid locator for NT
+    log_params = s3_out_and_title(
+        "run_generate_taxid_locator for NT")
     run_and_log(log_params, TARGET_OUTPUTS["run_generate_taxid_locator__1"],
                 False, run_generate_taxid_locator,
                 os.path.join(RESULT_DIR,
@@ -336,9 +344,9 @@ def run_stage3(lazy_run=False):
                 os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_NT),
                 os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_NT))
 
-    # generate taxid locator for NR
-    log_params = return_merged_dict(
-        DEFAULT_LOG_PARAMS, {"title": "run_generate_taxid_locator for NR"})
+    # Generate taxid locator for NR
+    log_params = s3_out_and_title(
+        "run_generate_taxid_locator for NR")
     run_and_log(log_params, TARGET_OUTPUTS["run_generate_taxid_locator__2"],
                 False, run_generate_taxid_locator,
                 os.path.join(RESULT_DIR,
@@ -347,18 +355,19 @@ def run_stage3(lazy_run=False):
                 os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_NR))
 
     # GENUS level
-    # generate taxid locator for NT
-    log_params = return_merged_dict(
-        DEFAULT_LOG_PARAMS, {"title": "run_generate_taxid_locator for NT"})
+
+    # Generate taxid locator for NT
+    log_params = s3_out_and_title(
+        "run_generate_taxid_locator for NT")
     run_and_log(log_params, TARGET_OUTPUTS["run_generate_taxid_locator__3"],
                 False, run_generate_taxid_locator,
                 os.path.join(RESULT_DIR, TAXID_ANNOT_FASTA), 'genus_nt', 'NT',
                 os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_GENUS_NT),
                 os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_GENUS_NT))
 
-    # generate taxid locator for NR
-    log_params = return_merged_dict(
-        DEFAULT_LOG_PARAMS, {"title": "run_generate_taxid_locator for NR"})
+    # Generate taxid locator for NR
+    log_params = s3_out_and_title(
+        "run_generate_taxid_locator for NR")
     run_and_log(log_params, TARGET_OUTPUTS["run_generate_taxid_locator__4"],
                 False, run_generate_taxid_locator,
                 os.path.join(RESULT_DIR, TAXID_ANNOT_FASTA), 'genus_nr', 'NR',
@@ -366,35 +375,35 @@ def run_stage3(lazy_run=False):
                 os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_GENUS_NR))
 
     # FAMILY level
-    # generate taxid locator for NT
-    log_params = return_merged_dict(
-        DEFAULT_LOG_PARAMS, {"title": "run_generate_taxid_locator for NT"})
+
+    # Generate taxid locator for NT
+    log_params = s3_out_and_title(
+        "run_generate_taxid_locator for NT")
     run_and_log(log_params, TARGET_OUTPUTS["run_generate_taxid_locator__5"],
                 False, run_generate_taxid_locator,
                 os.path.join(RESULT_DIR, TAXID_ANNOT_FASTA), 'family_nt', 'NT',
                 os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_FAMILY_NT),
                 os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_FAMILY_NT))
 
-    # generate taxid locator for NR
-    log_params = return_merged_dict(
-        DEFAULT_LOG_PARAMS, {"title": "run_generate_taxid_locator for NR"})
+    # Generate taxid locator for NR
+    log_params = s3_out_and_title(
+        "run_generate_taxid_locator for NR")
     run_and_log(log_params, TARGET_OUTPUTS["run_generate_taxid_locator__6"],
                 False, run_generate_taxid_locator,
                 os.path.join(RESULT_DIR, TAXID_ANNOT_FASTA), 'family_nr', 'NR',
                 os.path.join(RESULT_DIR, TAXID_ANNOT_SORTED_FASTA_FAMILY_NR),
                 os.path.join(RESULT_DIR, TAXID_LOCATIONS_JSON_FAMILY_NR))
-    # generate alignment visualization
-    log_params = return_merged_dict(DEFAULT_LOG_PARAMS,
-                                    {"title": "run_generate_align_viz"})
+
+    # Generate alignment visualization
+    log_params = s3_out_and_title("run_generate_align_viz")
     run_and_log(log_params, TARGET_OUTPUTS["run_generate_align_viz"], False,
                 run_generate_align_viz,
                 os.path.join(RESULT_DIR,
                              TAXID_ANNOT_SORTED_FASTA_NT), input_m8,
                 os.path.join(RESULT_DIR, ALIGN_VIZ_DIR))
 
-    # combine results
-    log_params = return_merged_dict(DEFAULT_LOG_PARAMS,
-                                    {"title": "run_combine_json"})
+    # Combine results
+    log_params = s3_out_and_title("run_combine_json")
     input_files_basenames = [
         TAXID_LOCATIONS_JSON_NT, TAXID_LOCATIONS_JSON_NR,
         TAXID_LOCATIONS_JSON_GENUS_NT, TAXID_LOCATIONS_JSON_GENUS_NR,
