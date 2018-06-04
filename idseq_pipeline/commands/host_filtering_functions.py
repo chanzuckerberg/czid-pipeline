@@ -341,6 +341,7 @@ def fetch_genome_work(s3genome, strict):
     genome_dir = os.path.join(REF_DIR, genome_name)
 
     if not os.path.exists(genome_dir):
+        # Can consider merging with fetch_reference: idseq-pipeline/issues/223
         try:
             install_s3mi()
             tarfile = uncompressed(s3genome)
