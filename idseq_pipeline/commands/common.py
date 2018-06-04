@@ -640,8 +640,7 @@ def run_and_log_work(log_params, target_outputs, lazy_run, func_name,
     global OUTPUT_VERSIONS
     global run_and_log_mutex
 
-    logger = logging.getLogger()
-    logger.info("========== %s ==========", log_params.get("title"))
+    write_to_log("========== %s ==========", log_params.get("title"))
 
     # record version of any reference index used
     version_file_s3 = log_params.get("version_file_s3")
@@ -671,9 +670,9 @@ def run_and_log_work(log_params, target_outputs, lazy_run, func_name,
         run_and_log_mutex.acquire()
 
     if was_lazy:
-        logger.info("output exists, lazy run")
+        write_to_log("output exists, lazy run")
     else:
-        logger.info(
+        write_to_log(
             "non-lazy run completed, output may be in the process of being uploaded"
         )
 
