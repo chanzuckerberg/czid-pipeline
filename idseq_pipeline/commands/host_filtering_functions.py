@@ -345,7 +345,7 @@ def fetch_genome_work(s3genome, strict):
             install_s3mi()
             tarfile = uncompressed(s3genome)
             try:
-                print("Trying to download compressed genome...")
+                write_to_log("Trying to download compressed genome...")
                 cmd = "s3mi cat {tarfile} | tar xvf - -C {refdir}".format(
                     tarfile=tarfile, refdir=REF_DIR)
                 execute_command(cmd)
@@ -363,7 +363,7 @@ def fetch_genome_work(s3genome, strict):
                     assert os.path.isdir(genome_dir)
                 else:
                     # Okay, may be s3mi is broken.  We'll try aws cp next.
-                    print("Error in downloading with s3mi. Trying aws cp...")
+                    write_to_log("Error in downloading with s3mi. Trying aws cp...")
                     raise
         except:
             try:
@@ -610,7 +610,7 @@ def run_star(fastq_files, uploader_start, total_counts_from_star):
             uploader_start(output_i, SAMPLE_S3_OUTPUT_PATH + "/")
     # Cleanup
     execute_command("cd %s; rm -rf *" % SCRATCH_DIR)
-    print("Finished running STAR.")
+    write_to_log("Finished running STAR.")
 
 
 def run_priceseqfilter(input_fqs, uploader_start):
@@ -706,8 +706,8 @@ def run_lzw(input_fas, uploader_start):
 
 
 def run_bowtie2(input_fas, uploader_start):
-    """Bowtie is an aligner used for filtering out host genomes. Two input
-    FASTAs means paired reads.
+    """Bowtie2 is an aligner we use for filtering out reads that map to the
+    host genome. Two input FASTAs means paired reads.
 
     http://bowtie-bio.sourceforge.net/index.shtml
     """
@@ -744,7 +744,7 @@ def run_bowtie2(input_fas, uploader_start):
     else:
         bowtie2_params.extend(['-U', input_fas[0]])
     execute_command(" ".join(bowtie2_params))
-    print("Finished Bowtie alignment.")
+    write_to_log("Finished Bowtie alignment.")
 
     # Extract out unmapped files from sam
     output_prefix = result_path(EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1[:-8])
@@ -774,8 +774,8 @@ class SkipGsnap(Exception):
 
 
 def run_gsnap_filter(input_fas, uploader_start):
-    """GSNAP is an aligner used for filtering out host genomes. Two input
-    FASTAs means paired reads.
+    """GSNAP is an aligner we use for filtering out reads that map to the host
+    genome. Two input FASTAs means paired reads.
 
     http://research-pub.gene.com/gmap/
     """
