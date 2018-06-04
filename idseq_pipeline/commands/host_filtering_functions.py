@@ -774,8 +774,11 @@ class SkipGsnap(Exception):
 
 
 def run_gsnap_filter(input_fas, uploader_start):
-    """GSNAP is an aligner we use for filtering out reads that map to the host
-    genome. Two input FASTAs means paired reads.
+    """GSNAP is an aligner we use to filter out reads mapping to the host
+    genome. We add this additional step after STAR/Bowtie-based filtering to
+    increase our sensitivity to host filtering. Currently only runs on the
+    human host with a chimp reference genome to increase sensitivity to human
+    matches. Two input FASTAs means paired reads.
 
     http://research-pub.gene.com/gmap/
     """
