@@ -124,17 +124,15 @@ DEUTEROSTOME_TAXIDS = ("%s/%s/deuterostome_taxids.txt" % (base_s3, base_dt))
 
 # convenience functions
 def count_lines(input_file):
-    return int(
-        execute_command_with_output(
-            "wc -l %s" % input_file).strip().split()[0])
+    cmd = "wc -l %s" % input_file
+    return int(execute_command_with_output(cmd).strip().split()[0])
 
 
 def count_lines_in_paired_files(input_files):
     distinct_counts = list(set(map(count_lines, input_files)))
-    assert len(
-        distinct_counts
-    ) == 1, "Mismatched line counts in supposedly paired files: {}".format(
+    msg = "Mismatched line counts in supposedly paired files: {}".format(
         input_files)
+    assert len(distinct_counts) == 1, msg
     return distinct_counts[0]
 
 
