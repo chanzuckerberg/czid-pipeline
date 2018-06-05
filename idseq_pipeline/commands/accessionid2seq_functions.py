@@ -385,7 +385,6 @@ def get_sequence_by_accession_id_s3(accession_id, nt_loc_dict, nt_bucket,
 
     accession_file = 'accession-%s' % accession_id
     NUM_RETRIES = 3
-    pipe_file = ''
     for attempt in range(NUM_RETRIES):
         try:
             pipe_file = 'pipe-{attempt}-accession-{accession_id}'.format(
@@ -415,8 +414,7 @@ def get_sequence_by_accession_id_s3(accession_id, nt_loc_dict, nt_bucket,
                 raise
         finally:
             try:
-                if pipe_file != '':
-                    os.remove(pipe_file)
+                os.remove(pipe_file)
             except:
                 pass
     return seq_len, seq_name
