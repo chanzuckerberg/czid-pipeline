@@ -86,11 +86,11 @@ FASTQ_DIR = SAMPLE_DIR + '/fastqs'
 RESULT_DIR = SAMPLE_DIR + '/results'
 
 
-def result_dir(basename):
+def result_path(basename):
     return os.path.join(RESULT_DIR, basename)
 
 
-CHUNKS_RESULT_DIR = result_dir("chunks")
+CHUNKS_RESULT_DIR = result_path("chunks")
 DEFAULT_LOG_PARAMS = {"sample_s3_output_path": SAMPLE_S3_OUTPUT_PATH}
 
 # For reproducibility of random operations
@@ -200,7 +200,7 @@ def subsample_single_fasta(input_files_basename,
                            target_n_reads,
                            randgen=random.Random(x=hash(SAMPLE_NAME))):
     """Randomly subsample a single unpaired FASTA file."""
-    input_file = result_dir(input_files_basename)
+    input_file = result_path(input_files_basename)
     # Each FASTA record spans 2 lines
     total_records = count_lines(input_file) // 2
     write_to_log("total unpaired reads: %d" % total_records)
@@ -228,8 +228,8 @@ def subsample_paired_fastas(input_files_basenames,
     """Randomly subsample a paired FASTA file. A paired read means reading
     from both ends of a DNA/RNA fragment.
     """
-    input_files = [result_dir(f) for f in input_files_basenames]
-    merged_file = result_dir(merged_file_basename)
+    input_files = [result_path(f) for f in input_files_basenames]
+    merged_file = result_path(merged_file_basename)
     # Each FASTA record spans 2 lines
     total_records = count_lines_in_paired_files(input_files) // 2
     write_to_log("total read pairs: %d" % total_records)
@@ -739,7 +739,7 @@ def chunk_input(input_files_basenames, chunk_nlines, chunksize):
     part_suffix = ""
 
     for input_file in input_files_basenames:
-        input_file_full_local_path = result_dir(input_file)
+        input_file_full_local_path = result_path(input_file)
 
         # Count number of lines in the file
         nlines = int(
@@ -1159,7 +1159,7 @@ def run_remotely(input_files, service, lazy_run):
     assert None not in chunk_output_files
 
     # Concatenate the pieces and upload results
-    concatenate_files(chunk_output_files, result_dir(output_file))
+    concatenate_files(chunk_output_files, result_path(output_file))
     with iostream_uploads:  # Limit concurrent uploads so as not to stall the pipeline.
         with iostream:  # Still counts toward the general semaphore.
             execute_command("aws s3 cp --quiet %s/%s %s/" %
@@ -1222,7 +1222,7 @@ def fetch_input_and_replace_whitespace(input_filename, result):
     s3_output_path = os.path.join(
         SAMPLE_S3_OUTPUT_PATH,
         input_filename)  # usually the same as the input path
-    cleaned_input_path = result_dir("nospace.%s" % input_filename)
+    cleaned_input_path = result_path("nospace.%s" % input_filename)
     try:
         stdouterr = execute_command_with_output(
             "aws s3 cp --quiet {s3_input_path} - | sed 's/[[:blank:]]/{replacement}/g' > {cleaned_input_path}".
@@ -1371,14 +1371,14 @@ def run_stage2(lazy_run=True):
             subsampled_gsnapl_input_files = [subsampled_merged_fasta]
 
         gsnapl_input_files = subsampled_gsnapl_input_files
-        merged_fasta = result_dir(subsampled_merged_fasta)
+        merged_fasta = result_path(subsampled_merged_fasta)
 
         for i, f in enumerate(gsnapl_input_files):
             thread_name = "uploader_{}".format(i)
             uploader_threads[thread_name] = threading.Thread(
                 target=upload,
                 args=[thread_name,
-                      result_dir(f), SAMPLE_S3_OUTPUT_PATH + "/"])
+                      result_path(f), SAMPLE_S3_OUTPUT_PATH + "/"])
             uploader_threads[thread_name].start()
 
         if len(gsnapl_input_files) == 2:
@@ -1397,22 +1397,22 @@ def run_stage2(lazy_run=True):
             DEFAULT_LOG_PARAMS, {
                 "title": "GSNAPL",
                 "version_file_s3": GSNAP_VERSION_FILE_S3,
-                "output_version_file": result_dir(VERSION_OUT)
+                "output_version_file": result_path(VERSION_OUT)
             })
-        run_and_log_s3(log_params, [result_dir(MULTIHIT_GSNAPL_OUT)], lazy_run,
+        run_and_log_s3(log_params, [result_path(MULTIHIT_GSNAPL_OUT)], lazy_run,
                        SAMPLE_S3_OUTPUT_PATH, run_remotely, gsnapl_input_files,
                        "gsnap", lazy_run)
 
         reference_fetcher_thread.join()
         call_hits_m8(
-            result_dir(MULTIHIT_GSNAPL_OUT), lineage_paths[0],
-            accession2taxid_paths[0], result_dir(DEDUP_MULTIHIT_GSNAPL_OUT),
-            result_dir(SUMMARY_MULTIHIT_GSNAPL_OUT))
+            result_path(MULTIHIT_GSNAPL_OUT), lineage_paths[0],
+            accession2taxid_paths[0], result_path(DEDUP_MULTIHIT_GSNAPL_OUT),
+            result_path(SUMMARY_MULTIHIT_GSNAPL_OUT))
         stats.count_reads(
             "run_gsnapl_remotely",
             before_filename=before_file_name_for_log,
             before_filetype=before_file_type_for_log,
-            after_filename=result_dir(DEDUP_MULTIHIT_GSNAPL_OUT),
+            after_filename=result_path(DEDUP_MULTIHIT_GSNAPL_OUT),
             after_filetype="m8")
 
         deuterostome_path = None
@@ -1421,10 +1421,10 @@ def run_stage2(lazy_run=True):
             deuterostome_path = fetch_deuterostome_file()
 
         generate_taxon_count_json_from_m8(
-            result_dir(DEDUP_MULTIHIT_GSNAPL_OUT),
-            result_dir(SUMMARY_MULTIHIT_GSNAPL_OUT), 'raw', 'NT',
+            result_path(DEDUP_MULTIHIT_GSNAPL_OUT),
+            result_path(SUMMARY_MULTIHIT_GSNAPL_OUT), 'raw', 'NT',
             lineage_paths[0], deuterostome_path, stats.get_total_reads(),
-            stats.get_remaining_reads(), result_dir(MULTIHIT_NT_JSON_OUT))
+            stats.get_remaining_reads(), result_path(MULTIHIT_NT_JSON_OUT))
 
         with thread_success_lock:
             thread_success["gsnap"] = True
@@ -1434,22 +1434,22 @@ def run_stage2(lazy_run=True):
             DEFAULT_LOG_PARAMS, {
                 "title": "RAPSearch2",
                 "version_file_s3": RAPSEARCH_VERSION_FILE_S3,
-                "output_version_file": result_dir(VERSION_OUT)
+                "output_version_file": result_path(VERSION_OUT)
             })
-        run_and_log_s3(log_params, [result_dir(MULTIHIT_RAPSEARCH_OUT)],
+        run_and_log_s3(log_params, [result_path(MULTIHIT_RAPSEARCH_OUT)],
                        lazy_run, SAMPLE_S3_OUTPUT_PATH, run_remotely,
                        [merged_fasta], "rapsearch", lazy_run)
 
         reference_fetcher_thread.join()
         call_hits_m8(
-            result_dir(MULTIHIT_RAPSEARCH_OUT), lineage_paths[0],
-            accession2taxid_paths[0], result_dir(DEDUP_MULTIHIT_RAPSEARCH_OUT),
-            result_dir(SUMMARY_MULTIHIT_RAPSEARCH_OUT))
+            result_path(MULTIHIT_RAPSEARCH_OUT), lineage_paths[0],
+            accession2taxid_paths[0], result_path(DEDUP_MULTIHIT_RAPSEARCH_OUT),
+            result_path(SUMMARY_MULTIHIT_RAPSEARCH_OUT))
         stats.count_reads(
             "run_rapsearch2_remotely",
-            before_filename=result_dir(merged_fasta),
+            before_filename=result_path(merged_fasta),
             before_filetype="fasta",
-            after_filename=result_dir(DEDUP_MULTIHIT_RAPSEARCH_OUT),
+            after_filename=result_path(DEDUP_MULTIHIT_RAPSEARCH_OUT),
             after_filetype="m8")
 
         deuterostome_path = None
@@ -1459,10 +1459,10 @@ def run_stage2(lazy_run=True):
 
         # PRODUCE NEW MULTIHIT NR OUTPUT
         generate_taxon_count_json_from_m8(
-            result_dir(DEDUP_MULTIHIT_RAPSEARCH_OUT),
-            result_dir(SUMMARY_MULTIHIT_RAPSEARCH_OUT), 'log10', 'NR',
+            result_path(DEDUP_MULTIHIT_RAPSEARCH_OUT),
+            result_path(SUMMARY_MULTIHIT_RAPSEARCH_OUT), 'log10', 'NR',
             lineage_paths[0], deuterostome_path, stats.get_total_reads(),
-            stats.get_remaining_reads(), result_dir(MULTIHIT_NR_JSON_OUT))
+            stats.get_remaining_reads(), result_path(MULTIHIT_NR_JSON_OUT))
 
         with thread_success_lock:
             thread_success["rapsearch2"] = True
@@ -1471,8 +1471,8 @@ def run_stage2(lazy_run=True):
 
         # COMBINE NEW MULTIHIT NT AND NR OUTPUTS
         combine_pipeline_output_json(
-            result_dir(MULTIHIT_NT_JSON_OUT), result_dir(MULTIHIT_NR_JSON_OUT),
-            result_dir(MULTIHIT_COMBINED_JSON_OUT), stats)
+            result_path(MULTIHIT_NT_JSON_OUT), result_path(MULTIHIT_NR_JSON_OUT),
+            result_path(MULTIHIT_COMBINED_JSON_OUT), stats)
 
         with thread_success_lock:
             thread_success["additional_steps"] = True
@@ -1480,22 +1480,22 @@ def run_stage2(lazy_run=True):
     def run_annotation_steps():
         # Annotate fasta with accessions
         annotate_fasta_with_accessions(
-            merged_fasta, result_dir(DEDUP_MULTIHIT_GSNAPL_OUT),
-            result_dir(DEDUP_MULTIHIT_RAPSEARCH_OUT),
-            result_dir(ACCESSION_ANNOTATED_FASTA))
+            merged_fasta, result_path(DEDUP_MULTIHIT_GSNAPL_OUT),
+            result_path(DEDUP_MULTIHIT_RAPSEARCH_OUT),
+            result_path(ACCESSION_ANNOTATED_FASTA))
 
         log_params = return_merged_dict(
             DEFAULT_LOG_PARAMS,
             {"title": "generate FASTA of unidentified reads"})
-        run_and_log_eager(log_params, [result_dir(UNIDENTIFIED_FASTA_OUT)],
+        run_and_log_eager(log_params, [result_path(UNIDENTIFIED_FASTA_OUT)],
                           run_generate_unidentified_fasta,
-                          result_dir(ACCESSION_ANNOTATED_FASTA),
-                          result_dir(UNIDENTIFIED_FASTA_OUT))
+                          result_path(ACCESSION_ANNOTATED_FASTA),
+                          result_path(UNIDENTIFIED_FASTA_OUT))
         stats.count_reads(
             "run_generate_unidentified_fasta",
-            before_filename=result_dir(ACCESSION_ANNOTATED_FASTA),
+            before_filename=result_path(ACCESSION_ANNOTATED_FASTA),
             before_filetype="fasta",
-            after_filename=result_dir(UNIDENTIFIED_FASTA_OUT),
+            after_filename=result_path(UNIDENTIFIED_FASTA_OUT),
             after_filetype="fasta")
 
         with thread_success_lock:
