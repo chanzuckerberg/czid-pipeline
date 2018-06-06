@@ -640,7 +640,8 @@ def run_and_log_work(log_params, target_outputs, lazy_run, func_name,
     global OUTPUT_VERSIONS
     global run_and_log_mutex
 
-    write_to_log("========== %s ==========", log_params.get("title"))
+    msg = "========== %s ==========" % log_params.get("title")
+    write_to_log(msg)
 
     # record version of any reference index used
     version_file_s3 = log_params.get("version_file_s3")

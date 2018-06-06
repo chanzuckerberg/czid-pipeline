@@ -239,7 +239,7 @@ def combine_json(input_json_list, output_json):
 
 
 def run_generate_align_viz(input_fasta, input_m8, output_dir):
-    print("Generating alignment visualization...")
+    write_to_log("Generating alignment visualization...")
     nt_loc_db = fetch_reference(NT_LOC_DB)
     summary_file_name = accessionid2seq_functions.generate_alignment_viz_json(
         NT_DB, nt_loc_db, "NT", input_m8, input_fasta, output_dir)
@@ -254,7 +254,7 @@ def run_generate_align_viz(input_fasta, input_m8, output_dir):
 
 def run_generate_taxid_fasta_from_hit_summaries(input_fasta, hit_summary_files,
                                                 output_fasta):
-    print("Generating tax_id FASTA from hit summaries...")
+    write_to_log("Generating tax_id FASTA from hit summaries...")
     lineage_path = fetch_reference(LINEAGE_SHELF)
     generate_taxid_fasta_from_hit_summaries(input_fasta, hit_summary_files,
                                             lineage_path, output_fasta)
@@ -265,7 +265,7 @@ def run_generate_taxid_fasta_from_hit_summaries(input_fasta, hit_summary_files,
 
 def run_generate_taxid_locator(input_fasta, taxid_field, hit_type,
                                output_fasta, output_json):
-    print("Generating tax_id locator...")
+    write_to_log("Generating tax_id locator...")
     generate_taxid_locator(input_fasta, taxid_field, hit_type, output_fasta,
                            output_json)
     logging.getLogger().info("finished job")
@@ -276,7 +276,7 @@ def run_generate_taxid_locator(input_fasta, taxid_field, hit_type,
 
 
 def run_combine_json(input_json_list, output_json):
-    print("Combining JSON files...")
+    write_to_log("Combining JSON files...")
     combine_json(input_json_list, output_json)
     logging.getLogger().info("finished job")
     cmd = "aws s3 cp --quiet %s %s/" % (output_json, SAMPLE_S3_OUTPUT_PATH)

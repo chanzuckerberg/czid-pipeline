@@ -176,7 +176,7 @@ def generate_lzw_filtered_single(fasta_file, out_prefix, cutoff_fractions):
                 break
         msg = "LZW filter: cutoff_frac: %f, total reads: %d, filtered reads: %d, " \
               "kept ratio: %f" % (cutoff_frac, count, filtered, 1 - float(filtered) / count)
-        print(msg)
+        write_to_log(msg)
         if count != filtered:
             break
     out_read_1.close()
@@ -211,7 +211,7 @@ def generate_lzw_filtered_paired(fasta_file_1, fasta_file_2, out_prefix,
                 break
         msg = "LZW filter: cutoff_frac: %f, total reads: %d, filtered reads: %d, " \
               "kept ratio: %f" % (cutoff_frac, count, filtered, 1 - float(filtered) / count)
-        print(msg)
+        write_to_log(msg)
         if count != filtered:
             break
     out_read_1.close()
@@ -1068,7 +1068,7 @@ def run_stage1(lazy_run=True):
     log_file = "%s/%s.%s.txt" % (RESULT_DIR, LOGS_OUT_BASENAME,
                                  AWS_BATCH_JOB_ID)
     configure_logger(log_file)
-    print("Starting stage...")
+    write_to_log("Starting stage...")
 
     # Get list of input files to fetch
     command = "aws s3 ls %s/ | grep '\\.%s$'" % (SAMPLE_S3_INPUT_PATH,
@@ -1091,7 +1091,7 @@ def run_stage1(lazy_run=True):
             t.start()
             input_fetch_threads.append(t)
         else:
-            print("%s doesn't match %s" % (line, FILE_TYPE))
+            write_to_log("%s doesn't match %s" % (line, FILE_TYPE))
     for t in input_fetch_threads:
         # Check thread completion
         t.join()

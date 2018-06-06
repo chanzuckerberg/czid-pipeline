@@ -124,9 +124,8 @@ DEUTEROSTOME_TAXIDS = ("%s/%s/deuterostome_taxids.txt" % (base_s3, base_dt))
 
 # convenience functions
 def count_lines(input_file):
-    return int(
-        execute_command_with_output(
-            "wc -l %s" % input_file).strip().split()[0])
+    cmd = "wc -l %s" % input_file
+    return int(execute_command_with_output(cmd).strip().split()[0])
 
 
 def count_lines_in_paired_files(input_files):
@@ -856,7 +855,8 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir,
         remote_index_dir=remote_index_dir,
         remote_input_files=" ".join(
             remote_work_dir + "/" + input_fa for input_fa in input_files),
-        multihit_remote_outfile=multihit_remote_outfile if service == "gsnap" else multihit_remote_outfile[:-3]
+        multihit_remote_outfile=multihit_remote_outfile
+        if service == "gsnap" else multihit_remote_outfile[:-3]
         # Strip the .m8 for RAPSearch as it adds that
     )
 
@@ -879,12 +879,14 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir,
             else:
                 max_concurrent = RAPSEARCH2_MAX_CONCURRENT
 
-            instance_ip = wait_for_server_ip(service, key_path, remote_username,
-                                             ENVIRONMENT, max_concurrent, chunk_id)
+            instance_ip = wait_for_server_ip(service, key_path,
+                                             remote_username, ENVIRONMENT,
+                                             max_concurrent, chunk_id)
             write_to_log("starting alignment for chunk %s on %s server %s" %
                          (chunk_id, service, instance_ip))
             execute_command(
-                remote_command(commands, key_path, remote_username, instance_ip))
+                remote_command(commands, key_path, remote_username,
+                               instance_ip))
 
             if service == "gsnap":
                 verification_command = "cat %s" % multihit_remote_outfile
@@ -899,19 +901,20 @@ def run_chunk(part_suffix, remote_home_dir, remote_index_dir, remote_work_dir,
                 min_column_number_string, correct_number_of_output_columns,
                 try_number)
             try_number += 1
-            
+
         # Move output from remote machine to local machine
         msg = "Chunk %s output corrupt; not copying to S3. Re-start pipeline " \
               "to try again." % chunk_id
         assert min_column_number == correct_number_of_output_columns, msg
 
         with iostream_uploads:  # Limit concurrent uploads so as not to stall the pipeline.
-            with iostream:      # Still counts toward the general semaphore.
+            with iostream:  # Still counts toward the general semaphore.
                 execute_command(
                     scp(key_path, remote_username, instance_ip,
                         multihit_remote_outfile, multihit_local_outfile))
                 execute_command("aws s3 cp --quiet %s %s/" %
-                                (multihit_local_outfile, SAMPLE_S3_OUTPUT_CHUNKS_PATH))
+                                (multihit_local_outfile,
+                                 SAMPLE_S3_OUTPUT_CHUNKS_PATH))
         write_to_log("finished alignment for chunk %s on %s server %s" %
                      (chunk_id, service, instance_ip))
     return multihit_local_outfile
@@ -1047,7 +1050,8 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path,
         summary[read_id] = my_best_evalue, call_hit_level(hits)
         count += 1
         if count % LOG_INCREMENT == 0:
-            msg = "Summarized hits for {} read ids from {}, and counting.".format(count, input_m8)
+            msg = "Summarized hits for {} read ids from {}, and counting.".format(
+                count, input_m8)
             write_to_log(msg)
     write_to_log("Summarized hits for all {} read ids from {}.".format(
         count, input_m8))
@@ -1071,7 +1075,8 @@ def call_hits_m8(input_m8, lineage_map_path, accession2taxid_dict_path,
             # TODO: Consider all hits within a fixed margin of the best e-value.
             # This change may need to be accompanied by a change to
             # GSNAP/RAPSearch parameters.
-            for read_id, accession_id, _percent_id, _alignment_length, e_value, line in iterate_m8(input_m8, "call_hits_m8_emit_deduped_and_summarized_hits"):
+            for read_id, accession_id, _percent_id, _alignment_length, e_value, line in iterate_m8(
+                    input_m8, "call_hits_m8_emit_deduped_and_summarized_hits"):
                 if read_id in emitted:
                     continue
 
@@ -1156,7 +1161,7 @@ def run_remotely(input_files, service, lazy_run):
     # Concatenate the pieces and upload results
     concatenate_files(chunk_output_files, result_path(output_file))
     with iostream_uploads:  # Limit concurrent uploads so as not to stall the pipeline.
-        with iostream:      # Still counts toward the general semaphore.
+        with iostream:  # Still counts toward the general semaphore.
             execute_command("aws s3 cp --quiet %s/%s %s/" %
                             (RESULT_DIR, output_file, SAMPLE_S3_OUTPUT_PATH))
 
