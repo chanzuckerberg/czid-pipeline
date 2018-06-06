@@ -37,21 +37,21 @@ def parse_reads(annotated_fasta, db_type):
         for line in af:
             if line[0] == '>':
                 read_id = line
-                continue
-            sequence = line
-            m = re.search("%s:([\d-]*)" % search_string, read_id)
-            if m:
-                species_id = int(m.group(1))
-                if species_id > 0 or species_id < INVALID_CALL_BASE_ID:
-                    # Match found
-                    ma = re.search(adv_search_string, read_id)
-                    if ma:
-                        read2seq[ma.group(4).rstrip()] = [
-                            sequence.rstrip(),
-                            ma.group(1),
-                            ma.group(2),
-                            ma.group(3)
-                        ]
+            else:
+                sequence = line
+                m = re.search("%s:([\d-]*)" % search_string, read_id)
+                if m:
+                    species_id = int(m.group(1))
+                    if species_id > 0 or species_id < INVALID_CALL_BASE_ID:
+                        # Match found
+                        ma = re.search(adv_search_string, read_id)
+                        if ma:
+                            read2seq[ma.group(4).rstrip()] = [
+                                sequence.rstrip(),
+                                ma.group(1),
+                                ma.group(2),
+                                ma.group(3)
+                            ]
     return read2seq
 
 
@@ -156,9 +156,9 @@ def generate_alignment_viz_json(nt_file, nt_loc_db, db_type, annotated_m8,
                     (ref_start, ref_end) = (ref_end, ref_start)
                 ref_start -= 1
 
-                prev_start = 0
-                if (ref_start - REF_DISPLAY_RANGE) > 0:
-                    prev_start = (ref_start - REF_DISPLAY_RANGE)
+                prev_start = ref_start - REF_DISPLAY_RANGE
+                if prev_start < 0:
+                    prev_start = 0
                 post_end = ref_end + REF_DISPLAY_RANGE
                 markers = (prev_start, ref_start, ref_end, post_end)
                 ad['reads'].append([read_id, sequence, metrics, markers])
