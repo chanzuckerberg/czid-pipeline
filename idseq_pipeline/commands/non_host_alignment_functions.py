@@ -573,19 +573,12 @@ def fetch_key(environment, mutex=threading.RLock()):
 
 @retry
 def get_server_ips_work(service_name, environment):
-    tag = "service"
-    value = "%s-%s" % (service_name, environment_for_aligners(environment))
-    describe_json = json.loads(
-        execute_command_with_output(
-            "aws ec2 describe-instances --filters 'Name=tag:%s,Values=%s' 'Name=instance-state-name,Values=running'"
-            % (tag, value)))
-    server_ips = []
-    for reservation in describe_json["Reservations"]:
-        for instance in reservation["Instances"]:
-            server_ips += [
-                instance["NetworkInterfaces"][0]["Association"]["PublicIp"]
-            ]
-    return server_ips
+    if service_name == 'gsnap':
+      return ['54.202.155.230']
+    elif service_name == 'rapsearch':
+      return ['34.219.254.155']
+    else:
+      return []
 
 
 def get_server_ips(service_name,
