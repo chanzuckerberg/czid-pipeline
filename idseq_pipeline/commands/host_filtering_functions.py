@@ -1076,11 +1076,11 @@ def run_stage1(lazy_run=True):
     try:
         output = execute_command_with_output(command).rstrip().split("\n")
     except:
-        if len(output) == 0 or output[0] == "":
-            # TODO: Duct-tape for now.
-            if "fastq.gz" in FILE_TYPE:
-                command = "aws s3 ls %s/ | grep '\\.%s$'" % (SAMPLE_S3_INPUT_PATH, "fq.gz")
-                output = execute_command_with_output(command).rstrip().split("\n")
+        # TODO: Duct-tape for now.
+        write_to_log("FILE TYPE: " + FILE_TYPE)
+        if "fastq.gz" in FILE_TYPE:
+            command = "aws s3 ls %s/ | grep '\\.%s$'" % (SAMPLE_S3_INPUT_PATH, "fq.gz")
+            output = execute_command_with_output(command).rstrip().split("\n")
     input_fetch_threads = []
 
     def fetch_input(input_basename):
