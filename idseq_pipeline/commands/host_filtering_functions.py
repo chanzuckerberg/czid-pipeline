@@ -1079,6 +1079,7 @@ def run_stage1(lazy_run=True):
         # TODO: Duct-tape for now.
         write_to_log("FILE TYPE: " + FILE_TYPE)
         if "fastq.gz" in FILE_TYPE:
+            global FILE_TYPE
             FILE_TYPE = "fq.gz"
             command = "aws s3 ls %s/ | grep '\\.%s$'" % (SAMPLE_S3_INPUT_PATH, "fq.gz")
             output = execute_command_with_output(command).rstrip().split("\n")
