@@ -1076,12 +1076,11 @@ def run_stage1(lazy_run=True):
     try:
         output = execute_command_with_output(command).rstrip().split("\n")
     except:
-        # TODO: Duct-tape for now.
-        write_to_log("FILE TYPE: " + FILE_TYPE)
+        # TODO: Duct-tape for now to resolve fq.gz vs fastq.gz issue.
         if "fastq.gz" in FILE_TYPE:
             global FILE_TYPE
             FILE_TYPE = "fq.gz"
-            command = "aws s3 ls %s/ | grep '\\.%s$'" % (SAMPLE_S3_INPUT_PATH, "fq.gz")
+            command = "aws s3 ls %s/ | grep '\\.%s$'" % (SAMPLE_S3_INPUT_PATH, FILE_TYPE)
             output = execute_command_with_output(command).rstrip().split("\n")
     input_fetch_threads = []
 
