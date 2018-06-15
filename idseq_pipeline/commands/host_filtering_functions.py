@@ -639,7 +639,7 @@ def run_priceseqfilter(input_fqs, uploader_start):
         ])
     else:
         priceseq_params.extend(['-f', input_files[0], '-o', output_files[0]])
-    if "fastq" in FILE_TYPE:
+    if "fastq" in FILE_TYPE or "fq" in FILE_TYPE:
         priceseq_params.extend(['-rqf', '85', '0.98'])
     execute_command(" ".join(priceseq_params))
     write_to_log("Finished running PriceSeqFilter.")
@@ -961,7 +961,7 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
             after_filetype=initial_file_type_for_log)
 
         # Run FASTQ to FASTA
-        if "fastq" in FILE_TYPE:
+        if "fastq" in FILE_TYPE or "fq" in FILE_TYPE:
             log_params = return_merged_dict(DEFAULT_LOG_PARAMS,
                                             {"title": "FASTQ to FASTA"})
             input_files = [result_path(PRICESEQFILTER_OUT1)]
@@ -1073,7 +1073,15 @@ def run_stage1(lazy_run=True):
     # Get list of input files to fetch
     command = "aws s3 ls %s/ | grep '\\.%s$'" % (SAMPLE_S3_INPUT_PATH,
                                                  FILE_TYPE)
-    output = execute_command_with_output(command).rstrip().split("\n")
+    try:
+        output = execute_command_with_output(command).rstrip().split("\n")
+    except:
+        # TODO: Duct-tape for now to resolve fq.gz vs fastq.gz issue.
+        if "fastq.gz" in FILE_TYPE:
+            global FILE_TYPE
+            FILE_TYPE = "fq.gz"
+            command = "aws s3 ls %s/ | grep '\\.%s$'" % (SAMPLE_S3_INPUT_PATH, FILE_TYPE)
+            output = execute_command_with_output(command).rstrip().split("\n")
     input_fetch_threads = []
 
     def fetch_input(input_basename):
@@ -1106,7 +1114,7 @@ def run_stage1(lazy_run=True):
         return  # only support either 1 file or 2 (paired) files
 
     initial_file_type_for_log = "fasta"
-    if "fastq" in FILE_TYPE:
+    if "fastq" in FILE_TYPE or "fq" in FILE_TYPE:
         initial_file_type_for_log = "fastq"
     if len(fastq_files) == 2:
         initial_file_type_for_log += "_paired"
