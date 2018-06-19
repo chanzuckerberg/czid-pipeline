@@ -976,6 +976,9 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
             next_inputs = [result_path(PRICESEQFILTER_OUT1)]
             if number_of_input_files == 2:
                 next_inputs.append(result_path(PRICESEQFILTER_OUT2))
+        initial_file_type_for_log = "fasta"
+        if number_of_input_files == 2:
+            initial_file_type_for_log = "fasta_paired"
 
         # Run CD-HIT-DUP
         log_params = return_merged_dict(DEFAULT_LOG_PARAMS,
