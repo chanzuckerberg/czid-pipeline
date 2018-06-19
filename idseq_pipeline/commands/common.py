@@ -130,23 +130,36 @@ class StatsFile(object):
     def gsnap_ran_in_host_filtering(self):
         return self.get_item_for_task("run_gsnap_filter") is not None
 
-    def count_reads(self, func_name, before_filename, before_filetype,
-                    after_filename, after_filetype):
-        records_before = count_reads(before_filename, before_filetype)
-        records_after = count_reads(after_filename, after_filetype)
-        new_data = [
-            datum for datum in self.data if datum.get('task') != func_name
-        ]
+    def should_count_any_line(_line):
+        return True
 
-        if len(new_data) != len(self.data):
-            msg = "Overwriting counts for {}".format(func_name)
-            write_to_log(msg, warning=True)
-            self.data = new_data
-        self.data.append({
-            'task': func_name,
-            'reads_before': records_before,
-            'reads_after': records_after
-        })
+    def should_count_m8_non_comment(line):
+        return not line.startswith("#")
+
+    def should_count_fasta_header(line):
+        return line.startswith(">")
+
+    COUNTING_LOGIC = {
+        "fastq_paired": {'step': 2.0 / 4.0, 'should_count': should_count_any_line},
+        "fastq":        {'step': 1.0 / 4.0, 'should_count': should_count_any_line},
+        "fasta_paired": {'step': 2.0 / 1.0, 'should_count': should_count_fasta_header},
+        "fasta":        {'step': 1.0 / 1.0, 'should_count': should_count_fasta_header},
+        "m8":           {'step': 1.0 / 1.0, 'should_count': should_count_m8_non_comment}
+    }
+
+    def count_reads(self, file_name, file_type):
+        """Count number of reads/records in different file types."""
+        count = 0.0
+        step = self.COUNTING_LOGIC[file_type]['step']
+        should_count = self.COUNTING_LOGIC[file_type]['should_count']
+        file_opener = open
+        if file_name.endswith(".gz"):
+            file_opener = gzip.open
+        with file_opener(file_name) as f:
+            for line in f:
+                if should_count(line):
+                    count += step
+        return count
 
     def set_remaining_reads(self):
         last_entry = self.data[-1] or {}
