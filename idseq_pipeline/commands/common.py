@@ -471,17 +471,18 @@ def count_reads(file_name, file_type, max_reads=None):
             count += 2. / 4
         elif file_type == "fastq":
             count += 1. / 4
-        elif file_type == "fasta_paired" and line.startswith('>'):
-            count += 2
-        elif file_type == "m8" and line[0] == '#':  # Comment lines
+        elif file_type == "fasta_paired":
+            if line.startswith('>'):
+                count += 2
+        elif file_type == "fasta":
+            if line.startswith('>'):
+                count += 1
+        elif file_type == "m8" and line[0] == '#':
             pass
-        # elif file_type == "fasta" and line.startswith('>'):
-        #     count += 1
         else:
             count += 1
-
         if max_reads is not None and count > max_reads:
-            # If more than max, return early. Using > because of floating point.
+            # if more than max, return early. using > because of floating point
             break
     f.close()
     return int(count)
