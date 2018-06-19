@@ -492,6 +492,7 @@ def count_reads(file_name, file_type, max_reads=None):
             if should_count(line):
                 count += step
             if max_reads is not None and count > max_reads:
+                # If more than max, return early. Using > because of floating point.
                 break
     return int(count)
 
