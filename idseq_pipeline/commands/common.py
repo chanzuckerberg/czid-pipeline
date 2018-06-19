@@ -479,7 +479,7 @@ COUNTING_LOGIC = {
 }
 
 
-def count_reads(file_name, file_type):
+def count_reads(file_name, file_type, max_reads=None):
     """Count number of reads/records in different file types."""
     count = 0.0
     step = COUNTING_LOGIC[file_type]['step']
@@ -491,6 +491,8 @@ def count_reads(file_name, file_type):
         for line in f:
             if should_count(line):
                 count += step
+            if max_reads is not None and count > max_reads:
+                break
     return int(count)
 
 
