@@ -491,7 +491,7 @@ def count_reads(file_name, file_type):
         for line in f:
             if should_count(line):
                 count += step
-    return count
+    return int(count)
 
 
 def return_merged_dict(dict1, dict2):
