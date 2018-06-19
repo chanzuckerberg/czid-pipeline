@@ -130,36 +130,23 @@ class StatsFile(object):
     def gsnap_ran_in_host_filtering(self):
         return self.get_item_for_task("run_gsnap_filter") is not None
 
-    def should_count_any_line(_line):
-        return True
+    def count_reads(self, func_name, before_filename, before_filetype,
+                    after_filename, after_filetype):
+        records_before = count_reads(before_filename, before_filetype)
+        records_after = count_reads(after_filename, after_filetype)
+        new_data = [
+            datum for datum in self.data if datum.get('task') != func_name
+        ]
 
-    def should_count_m8_non_comment(line):
-        return not line.startswith("#")
-
-    def should_count_fasta_header(line):
-        return line.startswith(">")
-
-    COUNTING_LOGIC = {
-        "fastq_paired": {'step': 2.0 / 4.0, 'should_count': should_count_any_line},
-        "fastq":        {'step': 1.0 / 4.0, 'should_count': should_count_any_line},
-        "fasta_paired": {'step': 2.0 / 1.0, 'should_count': should_count_fasta_header},
-        "fasta":        {'step': 1.0 / 1.0, 'should_count': should_count_fasta_header},
-        "m8":           {'step': 1.0 / 1.0, 'should_count': should_count_m8_non_comment}
-    }
-
-    def count_reads(self, file_name, file_type):
-        """Count number of reads/records in different file types."""
-        count = 0.0
-        step = self.COUNTING_LOGIC[file_type]['step']
-        should_count = self.COUNTING_LOGIC[file_type]['should_count']
-        file_opener = open
-        if file_name.endswith(".gz"):
-            file_opener = gzip.open
-        with file_opener(file_name) as f:
-            for line in f:
-                if should_count(line):
-                    count += step
-        return count
+        if len(new_data) != len(self.data):
+            msg = "Overwriting counts for {}".format(func_name)
+            write_to_log(msg, warning=True)
+            self.data = new_data
+        self.data.append({
+            'task': func_name,
+            'reads_before': records_before,
+            'reads_after': records_after
+        })
 
     def set_remaining_reads(self):
         last_entry = self.data[-1] or {}
@@ -471,34 +458,40 @@ def percent_str(percent):
         return str(percent)
 
 
-def count_reads(file_name, file_type, max_reads=None):
-    """Count number of reads/records in different file types."""
-    count = 0
-    if file_name[-3:] == '.gz':
-        f = gzip.open(file_name)
-    else:
-        f = open(file_name)
+def should_count_any_line(_line):
+    return True
 
-    for line in f:
-        if file_type == "fastq_paired":
-            count += 2. / 4
-        elif file_type == "fastq":
-            count += 1. / 4
-        elif file_type == "fasta_paired":
-            if line.startswith('>'):
-                count += 2
-        elif file_type == "fasta":
-            if line.startswith('>'):
-                count += 1
-        elif file_type == "m8" and line[0] == '#':
-            pass
-        else:
-            count += 1
-        if max_reads is not None and count > max_reads:
-            # if more than max, return early. using > because of floating point
-            break
-    f.close()
-    return int(count)
+
+def should_count_m8_non_comment(line):
+    return not line.startswith("#")
+
+
+def should_count_fasta_header(line):
+    return line.startswith(">")
+
+
+COUNTING_LOGIC = {
+    "fastq_paired": {'step': 2.0 / 4.0, 'should_count': should_count_any_line},
+    "fastq":        {'step': 1.0 / 4.0, 'should_count': should_count_any_line},
+    "fasta_paired": {'step': 2.0 / 1.0, 'should_count': should_count_fasta_header},
+    "fasta":        {'step': 1.0 / 1.0, 'should_count': should_count_fasta_header},
+    "m8":           {'step': 1.0 / 1.0, 'should_count': should_count_m8_non_comment}
+}
+
+
+def count_reads(file_name, file_type):
+    """Count number of reads/records in different file types."""
+    count = 0.0
+    step = COUNTING_LOGIC[file_type]['step']
+    should_count = COUNTING_LOGIC[file_type]['should_count']
+    file_opener = open
+    if file_name.endswith(".gz"):
+        file_opener = gzip.open
+    with file_opener(file_name) as f:
+        for line in f:
+            if should_count(line):
+                count += step
+    return count
 
 
 def return_merged_dict(dict1, dict2):
