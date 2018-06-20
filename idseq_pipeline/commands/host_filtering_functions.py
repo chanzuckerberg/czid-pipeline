@@ -976,6 +976,9 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
             next_inputs = [result_path(PRICESEQFILTER_OUT1)]
             if number_of_input_files == 2:
                 next_inputs.append(result_path(PRICESEQFILTER_OUT2))
+        file_type_for_log = "fasta"
+        if number_of_input_files == 2:
+            file_type_for_log = "fasta_paired"
 
         # Run CD-HIT-DUP
         log_params = return_merged_dict(DEFAULT_LOG_PARAMS,
@@ -986,9 +989,9 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
         stats.count_reads(
             "run_cdhitdup",
             before_filename=next_inputs[0],
-            before_filetype="fasta_paired",
+            before_filetype=file_type_for_log,
             after_filename=result_path(CDHITDUP_OUT1),
-            after_filetype="fasta_paired")
+            after_filetype=file_type_for_log)
 
         # Run LZW filter
         log_params = return_merged_dict(DEFAULT_LOG_PARAMS,
@@ -1002,9 +1005,9 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
         stats.count_reads(
             "run_lzw",
             before_filename=result_path(CDHITDUP_OUT1),
-            before_filetype="fasta_paired",
+            before_filetype=file_type_for_log,
             after_filename=result_path(LZW_OUT1),
-            after_filetype="fasta_paired")
+            after_filetype=file_type_for_log)
 
         # Run Bowtie
         log_params = return_merged_dict(DEFAULT_LOG_PARAMS,
@@ -1018,9 +1021,9 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
         stats.count_reads(
             "run_bowtie2",
             before_filename=result_path(LZW_OUT1),
-            before_filetype="fasta_paired",
+            before_filetype=file_type_for_log,
             after_filename=result_path(EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1),
-            after_filetype="fasta_paired")
+            after_filetype=file_type_for_log)
 
     # Run GSNAP against host genomes (only available for Human as of 5/1/2018)
     # GSNAP may run again even for pre-filtered inputs
@@ -1042,9 +1045,9 @@ def run_host_filtering(fastq_files, initial_file_type_for_log, lazy_run, stats,
         stats.count_reads(
             "run_gsnap_filter",
             before_filename=result_path(EXTRACT_UNMAPPED_FROM_BOWTIE_SAM_OUT1),
-            before_filetype="fasta_paired",
+            before_filetype=file_type_for_log,
             after_filename=result_path(EXTRACT_UNMAPPED_FROM_GSNAP_SAM_OUT1),
-            after_filetype="fasta_paired")
+            after_filetype=file_type_for_log)
     except SkipGsnap:
         write_to_log("Skipping gsnap for prefilterd input or too many reads")
         pass
