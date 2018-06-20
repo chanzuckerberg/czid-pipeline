@@ -30,6 +30,9 @@ When merging a commit to master, you need to increase the version number in `ids
 Release notes
 -------------
 
+- 1.8.7
+   - Bug fix for count_reads and non-host read counts.
+
 - 1.8.4 ... 1.8.6
    - Minor code quality, documentation, and logging improvements.
 
