@@ -5,8 +5,8 @@ import subprocess
 import time
 
 from .idseq_step_setup import IdseqStepSetup
-from idseq_dag.engine.pipeline_flow import PipelineFlow
-from idseq_dag.steps.run_lzw import PipelineStepRunLZW
+from idseq_pipeline.engine.pipeline_flow import PipelineFlow
+from idseq_pipeline.steps.run_lzw import PipelineStepRunLZW
 
 class RunLZWTest(unittest.TestCase):
 

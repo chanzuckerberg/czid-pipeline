@@ -5,12 +5,12 @@ import os
 import threading
 import traceback
 
-import idseq_dag
-import idseq_dag.util.s3
-import idseq_dag.util.command as command
-import idseq_dag.util.log as log
-import idseq_dag.util.count as count
-from idseq_dag.engine.pipeline_step import PipelineStep
+import idseq_pipeline
+import idseq_pipeline.util.s3
+import idseq_pipeline.util.command as command
+import idseq_pipeline.util.log as log
+import idseq_pipeline.util.count as count
+from idseq_pipeline.engine.pipeline_step import PipelineStep
 
 DEFAULT_OUTPUT_DIR_LOCAL = '/mnt/idseq/results/%d' % os.getpid()
 DEFAULT_REF_DIR_LOCAL = '/mnt/idseq/ref'
@@ -19,7 +19,7 @@ class PipelineFlow(object):
     def __init__(self, lazy_run, dag_json):
         '''
             See examples/example_dag.json and
-                idseq_dag.main.validate_dag_json for more details.
+                idseq_pipeline.main.validate_dag_json for more details.
         '''
         self.lazy_run = lazy_run
         dag = PipelineFlow.parse_and_validate_conf(dag_json)
@@ -27,7 +27,7 @@ class PipelineFlow(object):
         self.steps = dag["steps"]
         self.given_targets = dag["given_targets"]
         self.output_dir_s3 = os.path.join(dag["output_dir_s3"],
-                                          self.parse_output_version(idseq_dag.__version__))
+                                          self.parse_output_version(idseq_pipeline.__version__))
         self.output_dir_local = dag.get("output_dir_local", DEFAULT_OUTPUT_DIR_LOCAL).rstrip('/')
         self.ref_dir_local = dag.get("ref_dir_local", DEFAULT_REF_DIR_LOCAL)
         self.large_file_list = []
@@ -42,7 +42,7 @@ class PipelineFlow(object):
         log.write("downloading large files: %s" % ",".join(self.large_file_list))
         for f in self.large_file_list:
             log.write("downloading %s" % f)
-            idseq_dag.util.s3.fetch_from_s3(f, self.ref_dir_local, allow_s3mi=True, auto_untar=True)
+            idseq_pipeline.util.s3.fetch_from_s3(f, self.ref_dir_local, allow_s3mi=True, auto_untar=True)
 
     @staticmethod
     def parse_and_validate_conf(dag_json):
@@ -77,7 +77,7 @@ class PipelineFlow(object):
             covered_targets.add(target_name)
             for file_name in targets[target_name]:
                 s3_file = os.path.join(s3_path, file_name)
-                if not idseq_dag.util.s3.check_s3_presence(s3_file):
+                if not idseq_pipeline.util.s3.check_s3_presence(s3_file):
                     raise ValueError("%s file doesn't exist" % s3_file)
         # Check that all targets are covered
         # ALL Inputs Outputs VALIDATED
@@ -118,9 +118,9 @@ class PipelineFlow(object):
                     if step_can_be_run: # All the input is satisfied
                         steps_complete.add(step["out"])
                         file_list= self.targets[step["out"]]
-                        if lazy_run and idseq_dag.util.s3.check_s3_presence_for_file_list(self.output_dir_s3, file_list):
+                        if lazy_run and idseq_pipeline.util.s3.check_s3_presence_for_file_list(self.output_dir_s3, file_list):
                             # output can be lazily generated. touch the output
-                            #idseq_dag.util.s3.touch_s3_file_list(self.output_dir_s3, file_list)
+                            #idseq_pipeline.util.s3.touch_s3_file_list(self.output_dir_s3, file_list)
                             s3_downloadable = True
                         else:
                             # steps need to be run
@@ -142,7 +142,7 @@ class PipelineFlow(object):
             local_dir = os.path.dirname(local_file)
             command.execute("mkdir -p %s" % local_dir)
             # copy the file over
-            idseq_dag.util.s3.fetch_from_s3(s3_file, local_dir, allow_s3mi=True)
+            idseq_pipeline.util.s3.fetch_from_s3(s3_file, local_dir, allow_s3mi=True)
             # write the done_file
             done_file = PipelineStep.done_file(local_file)
             command.execute("date > %s" % done_file)
@@ -163,7 +163,7 @@ class PipelineFlow(object):
 
         with open(local_count_file, 'w') as count_file:
             json.dump(counts_dict, count_file)
-        idseq_dag.util.s3.upload_with_retries(local_count_file, s3_count_file)
+        idseq_pipeline.util.s3.upload_with_retries(local_count_file, s3_count_file)
 
 
     def fetch_target_from_s3(self, target):

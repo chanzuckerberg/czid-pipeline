@@ -1,7 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="ec5a6f30-ff43-4eac-b3f3-99d185d42858" name="Default" comment="" />
+    <list default="true" id="ec5a6f30-ff43-4eac-b3f3-99d185d42858" name="Default" comment="">
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/custom_test_1.json" beforeDir="false" afterPath="$PROJECT_DIR$/examples/custom_test_1.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/host_filter_dag.json" beforeDir="false" afterPath="$PROJECT_DIR$/examples/host_filter_dag.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/paired_dag.json" beforeDir="false" afterPath="$PROJECT_DIR$/examples/paired_dag.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/postprocess_dag.json" beforeDir="false" afterPath="$PROJECT_DIR$/examples/postprocess_dag.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/single_dag.json" beforeDir="false" afterPath="$PROJECT_DIR$/examples/single_dag.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/idseq_pipeline/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/idseq_pipeline/__main__.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/__main__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/idseq_pipeline/engine/pipeline_flow.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/engine/pipeline_flow.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/idseq_pipeline/engine/pipeline_step.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/engine/pipeline_step.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/idseq_pipeline/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/idseq_pipeline/steps/generate_alignment_viz.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/steps/generate_alignment_viz.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/idseq_pipeline/steps/generate_taxid_fasta.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/steps/generate_taxid_fasta.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/idseq_pipeline/steps/generate_taxid_locator.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/steps/generate_taxid_locator.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/idseq_pipeline/steps/run_bowtie2.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/steps/run_bowtie2.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/idseq_pipeline/steps/run_cdhitdup.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/steps/run_cdhitdup.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/idseq_pipeline/steps/run_gsnap_filter.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/steps/run_gsnap_filter.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/idseq_pipeline/steps/run_lzw.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/steps/run_lzw.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/idseq_pipeline/steps/run_priceseq.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/steps/run_priceseq.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/idseq_pipeline/steps/run_star.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/steps/run_star.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/idseq_pipeline/steps/run_subsample.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/steps/run_subsample.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/idseq_pipeline/util/command.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/util/command.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/idseq_pipeline/util/convert.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/util/convert.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/idseq_pipeline/util/count.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/util/count.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/idseq_pipeline/util/s3.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/util/s3.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/setup.py" beforeDir="false" afterPath="$PROJECT_DIR$/setup.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/custom_test_1.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/custom_test_1.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/generate_alignment_viz.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/generate_alignment_viz.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/generate_taxid_fasta.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/generate_taxid_fasta.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/generate_taxid_locator.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/generate_taxid_locator.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/idseq_step_setup.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/idseq_step_setup.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/run_bowtie2.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/run_bowtie2.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/run_cdhitdup.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/run_cdhitdup.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/run_gsnap_filter.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/run_gsnap_filter.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/run_lzw.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/run_lzw.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/run_priceseq.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/run_priceseq.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/run_star.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/run_star.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/run_subsample.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/run_subsample.py" afterDir="false" />
+    </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -14,104 +54,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="postprocess_functions.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/postprocess_functions.py">
+      <file leaf-file-name="__init__.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/idseq_pipeline/__init__.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="320">
-              <caret line="257" column="31" selection-start-line="257" selection-start-column="31" selection-end-line="257" selection-end-column="31" />
-              <folding>
-                <element signature="e#0#9#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="host_filtering_functions.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/host_filtering_functions.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="19500">
-              <caret line="978" selection-start-line="978" selection-end-line="978" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="accessionid2seq_functions.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/accessionid2seq_functions.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1099">
-              <caret line="463" selection-start-line="463" selection-end-line="463" />
-              <folding>
-                <element signature="e#0#13#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="__init__.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/__init__.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="20">
-              <caret line="12" selection-start-line="12" selection-end-line="12" />
-              <folding>
-                <element signature="e#0#29#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="__init__.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/idseq_pipeline/version/__init__.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state>
-              <caret column="20" selection-start-column="20" selection-end-column="20" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="README.rst" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/README.rst">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="740">
-              <caret line="37" selection-start-line="37" selection-end-line="37" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="non_host_alignment_functions.py" pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/non_host_alignment_functions.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-1496">
-              <caret line="1426" column="66" lean-forward="true" selection-start-line="1426" selection-start-column="66" selection-end-line="1426" selection-end-column="66" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="__main__.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/idseq_pipeline/__main__.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="80">
-              <caret line="4" lean-forward="true" selection-start-line="4" selection-end-line="4" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="common.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/common.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="497">
-              <caret line="580" column="40" selection-start-line="580" selection-start-column="40" selection-end-line="580" selection-end-column="40" />
-              <folding>
-                <element signature="e#0#11#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="non_host_alignment.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/non_host_alignment.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="200">
-              <caret line="10" column="23" selection-start-line="10" selection-start-column="23" selection-end-line="10" selection-end-column="23" />
+            <state relative-caret-position="40">
+              <caret line="2" lean-forward="true" selection-start-line="2" selection-end-line="2" />
             </state>
           </provider>
         </entry>
@@ -120,9 +67,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>== 2</find>
-      <find>remaining_read</find>
-      <find>fasta_paired</find>
       <find>before_file_type_for_log</find>
       <find>fasta_p</find>
       <find>initial_file_type_for_log</find>
@@ -150,15 +94,22 @@
       <find>Accumulate hits for summarizing hit information and specificity at</find>
       <find>def interpret_min_column_number_string(min_column_number_string,</find>
       <find>accessions.rapsearch2.gsnapl.fasta</find>
+      <find>idseq_pipeline</find>
+      <find>idseq_dag</find>
+      <find>idseq-dag</find>
     </findStrings>
     <replaceStrings>
       <replace>is not None</replace>
       <replace>log_params</replace>
+      <replace>idseq-</replace>
+      <replace>idseq_pipeline</replace>
     </replaceStrings>
     <dirStrings>
       <dir>$PROJECT_DIR$/venv</dir>
       <dir>$PROJECT_DIR$/py3</dir>
       <dir>$PROJECT_DIR$</dir>
+      <dir>$PROJECT_DIR$/idseq_pipeline</dir>
+      <dir>$PROJECT_DIR$/</dir>
     </dirStrings>
   </component>
   <component name="Git.Settings">
@@ -175,7 +126,6 @@
         <option value="$PROJECT_DIR$/idseq_pipeline/commands/curate_accessionid2seq.py" />
         <option value="$PROJECT_DIR$/.travis.yml" />
         <option value="$PROJECT_DIR$/idseq_pipeline/__main__.py" />
-        <option value="$PROJECT_DIR$/idseq_pipeline/__init__.py" />
         <option value="$PROJECT_DIR$/Dockerfile" />
         <option value="$PROJECT_DIR$/idseq_pipeline/commands/blacklist.py" />
         <option value="$PROJECT_DIR$/idseq_pipeline/commands/push_reference_update.py" />
@@ -194,6 +144,7 @@
         <option value="$PROJECT_DIR$/idseq_pipeline/commands/host_filtering_functions.py" />
         <option value="$PROJECT_DIR$/idseq_pipeline/version/__init__.py" />
         <option value="$PROJECT_DIR$/README.rst" />
+        <option value="$PROJECT_DIR$/idseq_pipeline/__init__.py" />
       </list>
     </option>
   </component>
@@ -207,7 +158,8 @@
     <packageJsonPaths />
   </component>
   <component name="ProjectFrameBounds">
-    <option name="y" value="23" />
+    <option name="x" value="1215" />
+    <option name="y" value="143" />
     <option name="width" value="1280" />
     <option name="height" value="1363" />
   </component>
@@ -233,18 +185,6 @@
               <item name="idseq-pipeline" type="b2602c69:ProjectViewProjectNode" />
               <item name="idseq-pipeline" type="462c0819:PsiDirectoryNode" />
               <item name="idseq_pipeline" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="idseq-pipeline" type="b2602c69:ProjectViewProjectNode" />
-              <item name="idseq-pipeline" type="462c0819:PsiDirectoryNode" />
-              <item name="idseq_pipeline" type="462c0819:PsiDirectoryNode" />
-              <item name="commands" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="idseq-pipeline" type="b2602c69:ProjectViewProjectNode" />
-              <item name="idseq-pipeline" type="462c0819:PsiDirectoryNode" />
-              <item name="idseq_pipeline" type="462c0819:PsiDirectoryNode" />
-              <item name="version" type="462c0819:PsiDirectoryNode" />
             </path>
           </expand>
           <select />
@@ -376,15 +316,15 @@
       <workItem from="1529016312887" duration="16210000" />
       <workItem from="1529339066484" duration="7862000" />
       <workItem from="1529356525162" duration="20448000" />
-      <workItem from="1529528828263" duration="5205000" />
+      <workItem from="1529528828263" duration="5920000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="289701000" />
+    <option name="totallyTimeSpent" value="290416000" />
   </component>
   <component name="ToolWindowManager">
-    <frame x="0" y="23" width="1280" height="1363" extended-state="0" />
+    <frame x="1215" y="143" width="1280" height="1363" extended-state="0" />
     <editor active="true" />
     <layout>
       <window_info anchor="right" id="Palette" order="3" />
@@ -564,13 +504,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state>
-          <caret column="26" selection-start-column="26" selection-end-column="26" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file:///usr/local/Cellar/python/3.6.4_3/Frameworks/Python.framework/Versions/3.6/lib/python3.6/logging/__init__.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="620">
@@ -671,20 +604,17 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/host_filtering_functions.py">
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/non_host_alignment_functions.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="19500">
-          <caret line="978" selection-start-line="978" selection-end-line="978" />
+        <state relative-caret-position="124">
+          <caret line="1507" lean-forward="true" selection-start-line="1507" selection-end-line="1507" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/__init__.py">
+    <entry file="file://$PROJECT_DIR$/README.rst">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="20">
-          <caret line="12" selection-start-line="12" selection-end-line="12" />
-          <folding>
-            <element signature="e#0#29#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="433">
+          <caret line="37" selection-start-line="37" selection-end-line="37" />
         </state>
       </provider>
     </entry>
@@ -695,10 +625,13 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/README.rst">
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/__init__.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="740">
-          <caret line="37" selection-start-line="37" selection-end-line="37" />
+        <state relative-caret-position="240">
+          <caret line="12" selection-start-line="12" selection-end-line="12" />
+          <folding>
+            <element signature="e#0#29#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
@@ -712,10 +645,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/non_host_alignment.py">
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/host_filtering_functions.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="200">
-          <caret line="10" column="23" selection-start-line="10" selection-start-column="23" selection-end-line="10" selection-end-column="23" />
+        <state relative-caret-position="20">
+          <caret line="978" selection-start-line="978" selection-end-line="978" />
         </state>
       </provider>
     </entry>
@@ -729,6 +662,13 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/__main__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="80">
+          <caret line="4" selection-start-line="4" selection-end-line="4" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/common.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="497">
@@ -739,17 +679,17 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/__main__.py">
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/non_host_alignment.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="80">
-          <caret line="4" lean-forward="true" selection-start-line="4" selection-end-line="4" />
+        <state relative-caret-position="200">
+          <caret line="10" column="23" selection-start-line="10" selection-start-column="23" selection-end-line="10" selection-end-column="23" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/non_host_alignment_functions.py">
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/__init__.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1496">
-          <caret line="1426" column="66" lean-forward="true" selection-start-line="1426" selection-start-column="66" selection-end-line="1426" selection-end-column="66" />
+        <state relative-caret-position="40">
+          <caret line="2" lean-forward="true" selection-start-line="2" selection-end-line="2" />
         </state>
       </provider>
     </entry>

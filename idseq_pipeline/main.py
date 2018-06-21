@@ -4,9 +4,9 @@ import argparse
 import json
 import sys
 import os
-import idseq_dag.util.s3
-import idseq_dag.util.log as log
-from idseq_dag.engine.pipeline_flow import PipelineFlow
+import idseq_pipeline.util.s3
+import idseq_pipeline.util.log as log
+from idseq_pipeline.engine.pipeline_flow import PipelineFlow
 
 log.configure_logger()
 

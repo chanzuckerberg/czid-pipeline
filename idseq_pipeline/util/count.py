@@ -1,4 +1,4 @@
-import idseq_dag.util.command as command
+import idseq_pipeline.util.command as command
 
 def reads_in_group(file_group, max_fragments=None):
     '''

@@ -8,11 +8,11 @@ import time
 import traceback
 from collections import defaultdict
 
-from idseq_dag.engine.pipeline_step import PipelineStep
-from idseq_dag.util.taxid_lineage import INVALID_CALL_BASE_ID
-import idseq_dag.util.log as log
-import idseq_dag.util.command as command
-import idseq_dag.util.s3 as s3
+from idseq_pipeline.engine.pipeline_step import PipelineStep
+from idseq_pipeline.util.taxid_lineage import INVALID_CALL_BASE_ID
+import idseq_pipeline.util.log as log
+import idseq_pipeline.util.command as command
+import idseq_pipeline.util.s3 as s3
 
 
 class PipelineStepGenerateAlignmentViz(PipelineStep):

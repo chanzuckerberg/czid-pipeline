@@ -5,8 +5,8 @@ import os
 import multiprocessing
 import logging
 
-import idseq_dag.util.command as command
-import idseq_dag.util.log as log
+import idseq_pipeline.util.command as command
+import idseq_pipeline.util.log as log
 
 # Peak network and storage perf for a typical small instance is saturated by
 # just a few concurrent streams.

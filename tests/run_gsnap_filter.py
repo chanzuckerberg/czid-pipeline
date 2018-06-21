@@ -1,6 +1,6 @@
 import unittest
 
-from idseq_dag.steps.run_gsnap_filter import PipelineStepRunGsnapFilter
+from idseq_pipeline.steps.run_gsnap_filter import PipelineStepRunGsnapFilter
 from .idseq_step_setup import IdseqStepSetup
 
 class RunGsnapFilterTest(unittest.TestCase):

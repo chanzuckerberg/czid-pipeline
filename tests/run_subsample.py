@@ -1,6 +1,6 @@
 import unittest
 
-from idseq_dag.steps.run_subsample import PipelineStepRunSubsample
+from idseq_pipeline.steps.run_subsample import PipelineStepRunSubsample
 from .idseq_step_setup import IdseqStepSetup
 
 class RunSubsampleTest(unittest.TestCase):

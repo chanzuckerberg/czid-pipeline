@@ -63,7 +63,7 @@
       "in": ["fastqs"],
       "out": "star_out",
       "class": "PipelineStepRunStar",
-      "module": "idseq_dag.steps.run_star",
+      "module": "idseq_pipeline.steps.run_star",
       "additional_files": {
         "star_genome":
           "s3://idseq-database/host_filter/human/2018-02-15-utc-1518652800-unixtime__2018-02-15-utc-1518652800-unixtime/STAR_genome.tar"
@@ -77,7 +77,7 @@
       "in": ["star_out"],
       "out": "priceseq_out",
       "class": "PipelineStepRunPriceSeq",
-      "module": "idseq_dag.steps.run_priceseq",
+      "module": "idseq_pipeline.steps.run_priceseq",
       "additional_files": {},
       "additional_attributes": {}
     },
@@ -85,7 +85,7 @@
       "in": ["priceseq_out"],
       "out": "cdhitdup_out",
       "class": "PipelineStepRunCDHitDup",
-      "module": "idseq_dag.steps.run_cdhitdup",
+      "module": "idseq_pipeline.steps.run_cdhitdup",
       "additional_files": {},
       "additional_attributes": {}
     },
@@ -93,7 +93,7 @@
       "in": ["cdhitdup_out"],
       "out": "lzw_out",
       "class": "PipelineStepRunLZW",
-      "module": "idseq_dag.steps.run_lzw",
+      "module": "idseq_pipeline.steps.run_lzw",
       "additional_files": {},
       "additional_attributes": { "thresholds": [0.45, 0.42] }
     },
@@ -101,7 +101,7 @@
       "in": ["lzw_out"],
       "out": "bowtie2_out",
       "class": "PipelineStepRunBowtie2",
-      "module": "idseq_dag.steps.run_bowtie2",
+      "module": "idseq_pipeline.steps.run_bowtie2",
       "additional_files": {
         "bowtie2_genome":
           "s3://idseq-database/host_filter/human/2018-02-15-utc-1518652800-unixtime__2018-02-15-utc-1518652800-unixtime/bowtie2_genome.tar"
@@ -112,7 +112,7 @@
       "in": ["bowtie2_out"],
       "out": "subsampled_out",
       "class": "PipelineStepRunSubSample",
-      "module": "idseq_dag.steps.run_subsample",
+      "module": "idseq_pipeline.steps.run_subsample",
       "additional_files": {},
       "additional_attributes": { "max_fragments": 1000000 }
     },
@@ -120,7 +120,7 @@
       "in": ["bowtie2_out"],
       "out": "gsnap_filter_out",
       "class": "PipelineStepRunGsnapFilter",
-      "module": "idseq_dag.steps.run_gsnap_filter",
+      "module": "idseq_pipeline.steps.run_gsnap_filter",
       "additional_files": {
         "gsnap_genome":
           "s3://idseq-database/host_filter/human/2018-02-15-utc-1518652800-unixtime__2018-02-15-utc-1518652800-unixtime/hg38_pantro5_k16.tar"
@@ -131,7 +131,7 @@
       "in": ["taxid_fasta_in"],
       "out": "taxid_fasta_out",
       "class": "PipelineStepGenerateTaxidFasta",
-      "module": "idseq_dag.steps.generate_taxid_fasta",
+      "module": "idseq_pipeline.steps.generate_taxid_fasta",
       "additional_files": {
         "lineage_db":
           "s3://idseq-database/taxonomy/2018-02-15-utc-1518652800-unixtime__2018-02-15-utc-1518652800-unixtime/taxid-lineages.db"
@@ -142,7 +142,7 @@
       "in": ["taxid_fasta_out"],
       "out": "taxid_locator_out",
       "class": "PipelineStepGenerateTaxidLocator",
-      "module": "idseq_dag.steps.generate_taxid_locator",
+      "module": "idseq_pipeline.steps.generate_taxid_locator",
       "additional_files": {},
       "additional_attributes": {}
     },
@@ -150,7 +150,7 @@
       "in": ["taxid_fasta_in", "taxid_locator_out"],
       "out": "alignment_viz_out",
       "class": "PipelineStepGenerateAlignmentViz",
-      "module": "idseq_dag.steps.generate_alignment_viz",
+      "module": "idseq_pipeline.steps.generate_alignment_viz",
       "additional_files": {
         "nt_db": "s3://idseq-database/20170824/blast_db/nt",
         "nt_loc_db": "s3://idseq-database/20170824/blast_db/nt_loc.db"

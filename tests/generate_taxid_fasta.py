@@ -1,7 +1,7 @@
 import unittest
 
 from .idseq_step_setup import IdseqStepSetup
-from idseq_dag.steps.generate_taxid_fasta import PipelineStepGenerateTaxidFasta
+from idseq_pipeline.steps.generate_taxid_fasta import PipelineStepGenerateTaxidFasta
 
 
 class GenerateTaxidFastaTest(unittest.TestCase):

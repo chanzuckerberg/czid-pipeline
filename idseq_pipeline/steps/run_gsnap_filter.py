@@ -1,10 +1,10 @@
 import os
-from idseq_dag.engine.pipeline_step import PipelineStep
-import idseq_dag.util.command as command
-import idseq_dag.util.convert as convert
-import idseq_dag.util.log as log
-import idseq_dag.util.count as count
-from idseq_dag.util.s3 import fetch_from_s3
+from idseq_pipeline.engine.pipeline_step import PipelineStep
+import idseq_pipeline.util.command as command
+import idseq_pipeline.util.convert as convert
+import idseq_pipeline.util.log as log
+import idseq_pipeline.util.count as count
+from idseq_pipeline.util.s3 import fetch_from_s3
 
 
 class PipelineStepRunGsnapFilter(PipelineStep):

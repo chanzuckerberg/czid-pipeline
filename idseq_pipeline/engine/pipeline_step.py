@@ -3,12 +3,12 @@ import sys
 import os
 import threading
 import time
-import idseq_dag.util.command as command
-import idseq_dag.util.log as log
+import idseq_pipeline.util.command as command
+import idseq_pipeline.util.log as log
 from abc import abstractmethod
 from enum import IntEnum
 
-import idseq_dag.util.s3
+import idseq_pipeline.util.s3
 
 class StepStatus(IntEnum):
     INITIALIZED = 0
@@ -72,7 +72,7 @@ class PipelineStep(object):
             # upload to S3 - TODO(Boris): parallelize the following with better calls
             relative_path = os.path.relpath(f, self.output_dir_local)
             s3_path = os.path.join(self.output_dir_s3, relative_path)
-            idseq_dag.util.s3.upload_with_retries(f, s3_path)
+            idseq_pipeline.util.s3.upload_with_retries(f, s3_path)
         self.status = StepStatus.UPLOADED
 
     @staticmethod

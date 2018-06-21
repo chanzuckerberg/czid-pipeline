@@ -1,6 +1,6 @@
 import unittest
 from .idseq_step_setup import IdseqStepSetup
-from idseq_dag.steps.run_priceseq import PipelineStepRunPriceSeq
+from idseq_pipeline.steps.run_priceseq import PipelineStepRunPriceSeq
 
 
 class RunPriceSeqTest(unittest.TestCase):

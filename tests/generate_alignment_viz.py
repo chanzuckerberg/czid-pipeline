@@ -1,7 +1,7 @@
 import unittest
 
 from .idseq_step_setup import IdseqStepSetup
-from idseq_dag.steps.generate_alignment_viz import PipelineStepGenerateAlignmentViz
+from idseq_pipeline.steps.generate_alignment_viz import PipelineStepGenerateAlignmentViz
 
 
 class GenerateAlignmentVizTest(unittest.TestCase):

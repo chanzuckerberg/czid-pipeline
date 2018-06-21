@@ -5,7 +5,7 @@ import sys
 import threading
 import time
 from functools import wraps
-import idseq_dag.util.log as log
+import idseq_pipeline.util.log as log
 
 # TODO(cdebourcy): use samtools to convert the sam files to fasta instead
 

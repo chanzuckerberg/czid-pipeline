@@ -12,7 +12,7 @@ from .generate_taxid_locator import GenerateTaxidLocatorTest
 from .generate_alignment_viz import GenerateAlignmentVizTest
 from .custom_test_1 import CustomTest1
 
-import idseq_dag.util.log as log
+import idseq_pipeline.util.log as log
 
 log.configure_logger()
 
