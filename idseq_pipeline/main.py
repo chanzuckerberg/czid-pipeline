@@ -5,7 +5,8 @@ import json
 import sys
 import os
 import idseq_pipeline.util.s3
-import idseq_pipeline.util.log as log
+from idseq_pipeline.util import log
+# import idseq_pipeline.util.log as log
 from idseq_pipeline.engine.pipeline_flow import PipelineFlow
 
 log.configure_logger()

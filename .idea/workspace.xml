@@ -2,45 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="ec5a6f30-ff43-4eac-b3f3-99d185d42858" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/custom_test_1.json" beforeDir="false" afterPath="$PROJECT_DIR$/examples/custom_test_1.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/host_filter_dag.json" beforeDir="false" afterPath="$PROJECT_DIR$/examples/host_filter_dag.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/paired_dag.json" beforeDir="false" afterPath="$PROJECT_DIR$/examples/paired_dag.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/postprocess_dag.json" beforeDir="false" afterPath="$PROJECT_DIR$/examples/postprocess_dag.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/single_dag.json" beforeDir="false" afterPath="$PROJECT_DIR$/examples/single_dag.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/idseq_pipeline/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/idseq_pipeline/__main__.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/__main__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/idseq_pipeline/engine/pipeline_flow.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/engine/pipeline_flow.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/idseq_pipeline/engine/pipeline_step.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/engine/pipeline_step.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/idseq_pipeline/__main__.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/idseq_pipeline/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/idseq_pipeline/steps/generate_alignment_viz.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/steps/generate_alignment_viz.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/idseq_pipeline/steps/generate_taxid_fasta.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/steps/generate_taxid_fasta.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/idseq_pipeline/steps/generate_taxid_locator.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/steps/generate_taxid_locator.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/idseq_pipeline/steps/run_bowtie2.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/steps/run_bowtie2.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/idseq_pipeline/steps/run_cdhitdup.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/steps/run_cdhitdup.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/idseq_pipeline/steps/run_gsnap_filter.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/steps/run_gsnap_filter.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/idseq_pipeline/steps/run_lzw.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/steps/run_lzw.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/idseq_pipeline/steps/run_priceseq.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/steps/run_priceseq.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/idseq_pipeline/steps/run_star.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/steps/run_star.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/idseq_pipeline/steps/run_subsample.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/steps/run_subsample.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/idseq_pipeline/util/command.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/util/command.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/idseq_pipeline/util/convert.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/util/convert.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/idseq_pipeline/util/count.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/util/count.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/idseq_pipeline/util/s3.py" beforeDir="false" afterPath="$PROJECT_DIR$/idseq_pipeline/util/s3.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/setup.py" beforeDir="false" afterPath="$PROJECT_DIR$/setup.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/custom_test_1.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/custom_test_1.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/generate_alignment_viz.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/generate_alignment_viz.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/generate_taxid_fasta.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/generate_taxid_fasta.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/generate_taxid_locator.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/generate_taxid_locator.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/idseq_step_setup.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/idseq_step_setup.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/run_bowtie2.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/run_bowtie2.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/run_cdhitdup.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/run_cdhitdup.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/run_gsnap_filter.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/run_gsnap_filter.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/run_lzw.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/run_lzw.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/run_priceseq.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/run_priceseq.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/run_star.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/run_star.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/run_subsample.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/run_subsample.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -54,11 +18,81 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="__init__.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="__init__.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/idseq_pipeline/__init__.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="40">
-              <caret line="2" lean-forward="true" selection-start-line="2" selection-end-line="2" />
+              <caret line="2" selection-start-line="2" selection-end-line="2" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="s3.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/idseq_pipeline/util/s3.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="360">
+              <caret line="18" lean-forward="true" selection-start-line="18" selection-end-line="18" />
+              <folding>
+                <element signature="e#0#11#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="__init__.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/idseq_pipeline/util/__init__.py">
+          <provider selected="true" editor-type-id="text-editor" />
+        </entry>
+      </file>
+      <file leaf-file-name="__init__.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/idseq_pipeline/steps/__init__.py">
+          <provider selected="true" editor-type-id="text-editor" />
+        </entry>
+      </file>
+      <file leaf-file-name="__init__.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/idseq_pipeline/engine/__init__.py">
+          <provider selected="true" editor-type-id="text-editor" />
+        </entry>
+      </file>
+      <file leaf-file-name="__init__.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/examples/__init__.py">
+          <provider selected="true" editor-type-id="text-editor" />
+        </entry>
+      </file>
+      <file leaf-file-name="count.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/idseq_pipeline/util/count.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state>
+              <caret column="45" selection-start-column="45" selection-end-column="45" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="main.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/idseq_pipeline/main.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="140">
+              <caret line="7" column="35" selection-start-line="7" selection-start-column="35" selection-end-line="7" selection-end-column="35" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="SOURCES.txt" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/idseq_pipeline.egg-info/SOURCES.txt">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="1200">
+              <caret line="60" column="28" selection-start-line="60" selection-start-column="28" selection-end-line="60" selection-end-column="28" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="log.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/idseq_pipeline/util/log.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state>
+              <folding>
+                <element signature="e#0#14#0" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -67,7 +101,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>before_file_type_for_log</find>
       <find>fasta_p</find>
       <find>initial_file_type_for_log</find>
       <find>before_file_name_for_log</find>
@@ -92,11 +125,12 @@
       <find>ndigits = len(str(numparts - 1))</find>
       <find>msg = m8_file + &quot; is corrupt at line:\n&quot; + line + &quot;\n----&gt; delete it and its corrupt ancestors before restarting run</find>
       <find>Accumulate hits for summarizing hit information and specificity at</find>
-      <find>def interpret_min_column_number_string(min_column_number_string,</find>
       <find>accessions.rapsearch2.gsnapl.fasta</find>
       <find>idseq_pipeline</find>
       <find>idseq_dag</find>
       <find>idseq-dag</find>
+      <find>__init</find>
+      <find>def interpret_min_column_number_string(min_column_number_string,</find>
     </findStrings>
     <replaceStrings>
       <replace>is not None</replace>
@@ -145,6 +179,9 @@
         <option value="$PROJECT_DIR$/idseq_pipeline/version/__init__.py" />
         <option value="$PROJECT_DIR$/README.rst" />
         <option value="$PROJECT_DIR$/idseq_pipeline/__init__.py" />
+        <option value="$PROJECT_DIR$/idseq_pipeline/util/s3.py" />
+        <option value="$PROJECT_DIR$/idseq_pipeline/util/count.py" />
+        <option value="$PROJECT_DIR$/idseq_pipeline/main.py" />
       </list>
     </option>
   </component>
@@ -158,10 +195,10 @@
     <packageJsonPaths />
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="1215" />
-    <option name="y" value="143" />
+    <option name="x" value="1280" />
+    <option name="y" value="23" />
     <option name="width" value="1280" />
-    <option name="height" value="1363" />
+    <option name="height" value="1417" />
   </component>
   <component name="ProjectLevelVcsManager">
     <ConfirmationsSetting value="1" id="Add" />
@@ -172,8 +209,6 @@
     </navigator>
     <panes>
       <pane id="PackagesPane" />
-      <pane id="Scope" />
-      <pane id="AndroidView" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -186,10 +221,35 @@
               <item name="idseq-pipeline" type="462c0819:PsiDirectoryNode" />
               <item name="idseq_pipeline" type="462c0819:PsiDirectoryNode" />
             </path>
+            <path>
+              <item name="idseq-pipeline" type="b2602c69:ProjectViewProjectNode" />
+              <item name="idseq-pipeline" type="462c0819:PsiDirectoryNode" />
+              <item name="idseq_pipeline" type="462c0819:PsiDirectoryNode" />
+              <item name="engine" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="idseq-pipeline" type="b2602c69:ProjectViewProjectNode" />
+              <item name="idseq-pipeline" type="462c0819:PsiDirectoryNode" />
+              <item name="idseq_pipeline" type="462c0819:PsiDirectoryNode" />
+              <item name="steps" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="idseq-pipeline" type="b2602c69:ProjectViewProjectNode" />
+              <item name="idseq-pipeline" type="462c0819:PsiDirectoryNode" />
+              <item name="idseq_pipeline" type="462c0819:PsiDirectoryNode" />
+              <item name="util" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="idseq-pipeline" type="b2602c69:ProjectViewProjectNode" />
+              <item name="idseq-pipeline" type="462c0819:PsiDirectoryNode" />
+              <item name="tests" type="462c0819:PsiDirectoryNode" />
+            </path>
           </expand>
           <select />
         </subPane>
       </pane>
+      <pane id="AndroidView" />
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -316,15 +376,16 @@
       <workItem from="1529016312887" duration="16210000" />
       <workItem from="1529339066484" duration="7862000" />
       <workItem from="1529356525162" duration="20448000" />
-      <workItem from="1529528828263" duration="5920000" />
+      <workItem from="1529528828263" duration="7684000" />
+      <workItem from="1529685068008" duration="1251000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="290416000" />
+    <option name="totallyTimeSpent" value="293431000" />
   </component>
   <component name="ToolWindowManager">
-    <frame x="1215" y="143" width="1280" height="1363" extended-state="0" />
+    <frame x="1280" y="23" width="1280" height="1417" extended-state="0" />
     <editor active="true" />
     <layout>
       <window_info anchor="right" id="Palette" order="3" />
@@ -340,10 +401,9 @@
       <window_info anchor="bottom" id="Terminal" order="7" />
       <window_info id="Capture Tool" order="2" />
       <window_info id="Designer" order="2" />
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.15185784" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.1542811" />
       <window_info anchor="bottom" id="Docker" order="8" show_stripe_button="false" />
       <window_info anchor="right" id="Database" order="3" />
-      <window_info active="true" anchor="bottom" id="Find" order="1" sideWeight="0.73182553" visible="true" weight="0.28041074" />
       <window_info anchor="right" id="SciView" order="3" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
@@ -356,6 +416,7 @@
       <window_info anchor="right" id="Commander" order="0" weight="0.4" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
+      <window_info anchor="bottom" id="Find" order="1" sideWeight="0.73182553" visible="true" weight="0.2689394" />
     </layout>
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -370,140 +431,28 @@
     </breakpoint-manager>
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/py3/commands/accessionid2seq_functions.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="283">
-          <caret line="167" column="8" selection-start-line="167" selection-start-column="8" selection-end-line="167" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file:///usr/local/Cellar/python/3.6.4_3/Frameworks/Python.framework/Versions/3.6/lib/python3.6/os.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/push_reference_update.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="100">
-          <caret line="11" column="10" selection-start-line="11" selection-start-column="10" selection-end-line="11" selection-end-column="10" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/MANIFEST.in">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="40">
-          <caret line="2" column="9" selection-start-line="2" selection-start-column="9" selection-end-line="2" selection-end-column="9" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/.travis.yml">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="200">
-          <caret line="10" lean-forward="true" selection-start-line="10" selection-end-line="10" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$APPLICATION_CONFIG_DIR$/scratches/scratch.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="240">
-          <caret line="12" selection-end-line="12" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/tests/test_cli.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="180">
-          <caret line="12" column="13" selection-start-line="12" selection-start-column="13" selection-end-line="12" selection-end-column="13" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/test.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="615">
-          <caret line="46" selection-start-line="46" selection-end-line="46" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/gsnap_indexing_functions.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="495">
-          <caret line="74" lean-forward="true" selection-start-line="74" selection-end-line="74" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/host_indexing_functions.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="280">
-          <caret line="16" column="13" lean-forward="true" selection-start-line="16" selection-start-column="13" selection-end-line="16" selection-end-column="13" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/base.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/blacklist.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="200">
-          <caret line="10" column="23" selection-start-line="10" selection-start-column="23" selection-end-line="10" selection-end-column="23" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/py3/__main__.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/py3/cli.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/py3/commands/host_indexing_functions.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/py3/commands/rapsearch_indexing_functions.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/py3/__init__.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/py3/version/__init__.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/py3/commands/blacklist_functions.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/py3/commands/host_indexing.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/py3/commands/non_host_alignment.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/py3/commands/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="240">
-          <caret line="12" selection-start-line="12" selection-end-line="12" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/py3/commands/postprocess_functions.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="140">
-          <caret line="7" selection-start-line="7" selection-end-line="7" />
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/host_indexing_functions.py" />
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/base.py" />
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/blacklist.py" />
+    <entry file="file://$PROJECT_DIR$/py3/__main__.py" />
+    <entry file="file://$PROJECT_DIR$/py3/cli.py" />
+    <entry file="file://$PROJECT_DIR$/py3/commands/host_indexing_functions.py" />
+    <entry file="file://$PROJECT_DIR$/py3/commands/rapsearch_indexing_functions.py" />
+    <entry file="file://$PROJECT_DIR$/py3/__init__.py" />
+    <entry file="file://$PROJECT_DIR$/py3/version/__init__.py" />
+    <entry file="file://$PROJECT_DIR$/py3/commands/blacklist_functions.py" />
+    <entry file="file://$PROJECT_DIR$/py3/commands/host_indexing.py" />
+    <entry file="file://$PROJECT_DIR$/py3/commands/non_host_alignment.py" />
+    <entry file="file://$PROJECT_DIR$/py3/commands/__init__.py" />
+    <entry file="file://$PROJECT_DIR$/py3/commands/postprocess_functions.py" />
     <entry file="file://$PROJECT_DIR$/setup.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="607">
           <caret line="66" lean-forward="true" selection-start-line="66" selection-end-line="66" />
-          <folding>
-            <element signature="e#28#51#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/cli.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="193">
-          <caret line="69" lean-forward="true" selection-start-line="69" selection-end-line="69" />
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/cli.py" />
     <entry file="file:///usr/local/Cellar/python/3.6.4_3/Frameworks/Python.framework/Versions/3.6/lib/python3.6/logging/__init__.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="620">
@@ -511,13 +460,7 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/postprocess.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="320">
-          <caret line="16" column="16" lean-forward="true" selection-start-line="16" selection-start-column="16" selection-end-line="16" selection-end-column="16" />
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/postprocess.py" />
     <entry file="file:///usr/local/Cellar/python/3.6.4_3/Frameworks/Python.framework/Versions/3.6/lib/python3.6/shelve.py">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
@@ -535,30 +478,9 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/curate_accession2taxid.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="637">
-          <caret line="67" lean-forward="true" selection-start-line="67" selection-end-line="67" />
-          <folding>
-            <element signature="e#42#64#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/blacklist_functions.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="380">
-          <caret line="24" column="27" selection-start-line="24" selection-start-column="27" selection-end-line="24" selection-end-column="27" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/lineages_functions.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="600">
-          <caret line="29" column="59" lean-forward="true" selection-start-line="29" selection-start-column="42" selection-end-line="29" selection-end-column="59" />
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/curate_accession2taxid.py" />
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/blacklist_functions.py" />
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/lineages_functions.py" />
     <entry file="file://$PROJECT_DIR$/Dockerfile">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="901">
@@ -566,13 +488,7 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/curate_accessionid2seq.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="120">
-          <caret line="19" column="16" selection-start-line="19" selection-start-column="16" selection-end-line="19" selection-end-column="16" />
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/curate_accessionid2seq.py" />
     <entry file="file:///usr/local/Cellar/python/3.6.4_3/Frameworks/Python.framework/Versions/3.6/lib/python3.6/subprocess.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="350">
@@ -580,37 +496,13 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/host_indexing.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="240">
-          <caret line="12" selection-start-line="12" selection-end-line="12" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/host_filtering.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="360">
-          <caret line="18" column="20" selection-start-line="18" selection-start-column="20" selection-end-line="18" selection-end-column="20" />
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/host_indexing.py" />
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/host_filtering.py" />
     <entry file="file://$APPLICATION_PLUGINS_DIR$/python/helpers/typeshed/stdlib/2/time.pyi">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/accessionid2seq.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="260">
-          <caret line="13" column="17" selection-start-line="13" selection-start-column="17" selection-end-line="13" selection-end-column="17" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/non_host_alignment_functions.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="124">
-          <caret line="1507" lean-forward="true" selection-start-line="1507" selection-end-line="1507" />
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/accessionid2seq.py" />
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/non_host_alignment_functions.py" />
     <entry file="file://$PROJECT_DIR$/README.rst">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="433">
@@ -618,80 +510,72 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/version/__init__.py">
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/version/__init__.py" />
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/__init__.py" />
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/accessionid2seq_functions.py" />
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/host_filtering_functions.py" />
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/postprocess_functions.py" />
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/common.py" />
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/non_host_alignment.py" />
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/util/log.py">
       <provider selected="true" editor-type-id="text-editor">
         <state>
-          <caret column="20" selection-start-column="20" selection-end-column="20" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="240">
-          <caret line="12" selection-start-line="12" selection-end-line="12" />
           <folding>
-            <element signature="e#0#29#0" expanded="true" />
+            <element signature="e#0#14#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/accessionid2seq_functions.py">
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline.egg-info/SOURCES.txt">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1099">
-          <caret line="463" selection-start-line="463" selection-end-line="463" />
-          <folding>
-            <element signature="e#0#13#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="1200">
+          <caret line="60" column="28" selection-start-line="60" selection-start-column="28" selection-end-line="60" selection-end-column="28" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/host_filtering_functions.py">
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/main.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="20">
-          <caret line="978" selection-start-line="978" selection-end-line="978" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/postprocess_functions.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="320">
-          <caret line="257" column="31" selection-start-line="257" selection-start-column="31" selection-end-line="257" selection-end-column="31" />
-          <folding>
-            <element signature="e#0#9#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/__main__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="80">
-          <caret line="4" selection-start-line="4" selection-end-line="4" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/common.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="497">
-          <caret line="580" column="40" selection-start-line="580" selection-start-column="40" selection-end-line="580" selection-end-column="40" />
-          <folding>
-            <element signature="e#0#11#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/idseq_pipeline/commands/non_host_alignment.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="200">
-          <caret line="10" column="23" selection-start-line="10" selection-start-column="23" selection-end-line="10" selection-end-column="23" />
+        <state relative-caret-position="140">
+          <caret line="7" column="35" selection-start-line="7" selection-start-column="35" selection-end-line="7" selection-end-column="35" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/idseq_pipeline/__init__.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="40">
-          <caret line="2" lean-forward="true" selection-start-line="2" selection-end-line="2" />
+          <caret line="2" selection-start-line="2" selection-end-line="2" />
         </state>
       </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/__main__.py" />
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/util/count.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state>
+          <caret column="45" selection-start-column="45" selection-end-column="45" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/util/s3.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="360">
+          <caret line="18" lean-forward="true" selection-start-line="18" selection-end-line="18" />
+          <folding>
+            <element signature="e#0#11#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/util/__init__.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/steps/__init__.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/idseq_pipeline/engine/__init__.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/examples/__init__.py">
+      <provider selected="true" editor-type-id="text-editor" />
     </entry>
   </component>
   <component name="masterDetails">
