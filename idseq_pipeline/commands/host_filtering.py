@@ -15,6 +15,6 @@ class Host_filtering(Base):
         try:
           run_stage1(True)
           mark_job_complete(SAMPLE_S3_OUTPUT_PATH, JOB_SUCCEEDED)
-        except:
+        except Exception as e:
           mark_job_complete(SAMPLE_S3_OUTPUT_PATH, JOB_FAILED)
-          raise
+          raise RuntimeError("Job failed: ", e)

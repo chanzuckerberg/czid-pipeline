@@ -16,6 +16,6 @@ class Postprocess(Base):
         try:
           run_stage3(lazy_run=False)
           mark_job_complete(SAMPLE_S3_OUTPUT_PATH, JOB_SUCCEEDED)
-        except:
+        except Exception as e:
           mark_job_complete(SAMPLE_S3_OUTPUT_PATH, JOB_FAILED)
-          raise
+          raise RuntimeError("Job failed: ", e)

@@ -20,6 +20,6 @@ class Non_host_alignment(Base):
         try:
           run_stage2(True)
           mark_job_complete(SAMPLE_S3_OUTPUT_PATH, JOB_SUCCEEDED)
-        except:
+        except Exception as e:
           mark_job_complete(SAMPLE_S3_OUTPUT_PATH, JOB_FAILED)
-          raise
+          raise RuntimeError("Job failed: ", e)
