@@ -18,4 +18,4 @@ class Postprocess(Base):
           mark_job_complete(SAMPLE_S3_OUTPUT_PATH, JOB_SUCCEEDED)
         except:
           mark_job_complete(SAMPLE_S3_OUTPUT_PATH, JOB_FAILED)
-          raise RuntimeError("Job failed")
+          raise
