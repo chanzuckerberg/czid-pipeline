@@ -1,8 +1,9 @@
 idseq_pipeline
 =========
 
-*The data processing pipeline for IDseq.*
+*This repository has been deprecated and archived. It remains available for reproducibility purposes only.*
 
+*For the latest versions of IDseq data processing workflows, please see https://github.com/chanzuckerberg/idseq-workflows.*
 
 Purpose
 -------
