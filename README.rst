@@ -1,14 +1,14 @@
-idseq_pipeline
+czid_pipeline (formerly idseq_pipeline)
 =========
 
 *This repository has been deprecated and archived. It remains available for reproducibility purposes only.*
 
-*For the latest versions of IDseq data processing workflows, please see https://github.com/chanzuckerberg/idseq-workflows.*
+*For the latest versions of CZ ID data processing workflows, please see https://github.com/chanzuckerberg/czid-workflows.*
 
 Purpose
 -------
 
-This is a CLI that allows you to execute the different data processing stages required in IDseq.
+This is a CLI that allows you to execute the different data processing stages required in CZ ID.
 
 
 Usage
@@ -23,7 +23,7 @@ Developers
 ----------
 
 
-When merging a commit to master, you need to increase the version number in `idseq_pipeline/version/__init__.py`:
+When merging a commit to master, you need to increase the version number in `czid_pipeline/version/__init__.py`:
   - if results are expected to change, increase the 2nd number
   - if results are not expected to change, increase the 3rd number.
 
